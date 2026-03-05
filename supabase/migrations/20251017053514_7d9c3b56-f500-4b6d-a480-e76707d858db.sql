@@ -1,0 +1,21 @@
+-- Add new fields to demandcom table for company and contact information
+ALTER TABLE demandcom 
+ADD COLUMN designation text,
+ADD COLUMN deppt text,
+ADD COLUMN job_level_updated text,
+ADD COLUMN mobile2 text,
+ADD COLUMN official text,
+ADD COLUMN personal_email_id text,
+ADD COLUMN generic_email_id text,
+ADD COLUMN industry_type text,
+ADD COLUMN sub_industry text,
+ADD COLUMN company_name text,
+ADD COLUMN address text,
+ADD COLUMN location text,
+ADD COLUMN zone text,
+ADD COLUMN tier text,
+ADD COLUMN website text,
+ADD COLUMN turnover text,
+ADD COLUMN emp_size text,
+ADD COLUMN erp_name text,
+ADD COLUMN erp_vendor text;

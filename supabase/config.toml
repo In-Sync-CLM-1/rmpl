@@ -1,0 +1,197 @@
+project_id = "xbrinligpvtfpqkkllfl"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = true
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[realtime]
+enabled = true
+ip_version = "ipv4"
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[auth]
+enabled = true
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+template_name = "magic_link"
+
+[edge_runtime]
+enabled = true
+inspector_port = 8083
+
+[functions.process-campaign]
+verify_jwt = true
+
+[functions.send-campaign-email]
+verify_jwt = false
+
+[functions.track-link-click]
+verify_jwt = false
+
+[functions.track-email-open]
+verify_jwt = false
+
+[functions.ai-demandcom-search]
+verify_jwt = true
+
+[functions.geocode-location]
+verify_jwt = true
+
+[functions.webhook-receiver]
+verify_jwt = false
+
+[functions.excelhire-webhook]
+verify_jwt = false
+
+[functions.plivo-inbound-sms]
+verify_jwt = false
+
+[functions.bulk-import-demandcom]
+verify_jwt = true
+
+[functions.process-bulk-import]
+verify_jwt = false
+
+[functions.admin-reset-password]
+verify_jwt = true
+
+[functions.bulk-import-master]
+verify_jwt = true
+
+[functions.process-bulk-master-import]
+verify_jwt = false
+
+[functions.bulk-import-clients]
+verify_jwt = true
+
+[functions.process-bulk-client-import]
+verify_jwt = false
+
+[functions.exotel-make-call]
+verify_jwt = true
+
+[functions.send-quotation-email]
+verify_jwt = true
+
+[functions.admin-create-user]
+verify_jwt = true
+
+[functions.admin-delete-users]
+verify_jwt = true
+
+[functions.delete-demandcom-by-activity]
+verify_jwt = true
+
+[functions.exotel-webhook]
+verify_jwt = false
+
+[functions.generate-announcement]
+verify_jwt = true
+
+[functions.deployment-webhook]
+verify_jwt = false
+
+[functions.generate-csbd-insights]
+verify_jwt = true
+
+[functions.generate-demandcom-insights]
+verify_jwt = true
+
+[functions.parse-payment-image]
+verify_jwt = true
+
+[functions.parse-invoice-pdf]
+verify_jwt = true
+
+[functions.update-demandcom-activity-names]
+verify_jwt = false
+
+[functions.process-export-batch]
+verify_jwt = false
+
+[functions.assemble-export]
+verify_jwt = false
+
+[functions.process-import-job]
+verify_jwt = true
+
+[functions.complete-import-job]
+verify_jwt = true
+
+[functions.process-import-hybrid]
+verify_jwt = true
+
+[functions.voice-stt]
+verify_jwt = true
+
+[functions.voice-tts]
+verify_jwt = true
+
+[functions.voice-bi-assistant]
+verify_jwt = true
+
+[functions.send-whatsapp-message]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.sync-whatsapp-templates]
+verify_jwt = false
+
+[functions.microsoft-auth-url]
+verify_jwt = true
+
+[functions.microsoft-auth-callback]
+verify_jwt = false
+
+[functions.microsoft-send-email]
+verify_jwt = true
+
+[functions.send-onboarding-otp]
+verify_jwt = false
+
+[functions.verify-onboarding-otp]
+verify_jwt = false
+
+[functions.analyze-onboarding-document]
+verify_jwt = true
+
+[functions.vapi-make-call]
+verify_jwt = false
+
+[functions.vapi-webhook]
+verify_jwt = false
+
+[functions.export-backup]
+verify_jwt = false

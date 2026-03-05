@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trigger_update_leave_balance ON public.leave_applications;

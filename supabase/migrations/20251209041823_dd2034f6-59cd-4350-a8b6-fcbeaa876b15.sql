@@ -1,0 +1,1 @@
+ALTER TABLE public.demandcom ADD COLUMN head_office_location TEXT;
