@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
     const errorDescription = url.searchParams.get('error_description');
 
     // Determine the app origin for redirects
-    const appOrigin = Deno.env.get('APP_ORIGIN') || 'https://rmpl.lovable.app';
+    const appOrigin = Deno.env.get('APP_ORIGIN') || 'https://green-sky-073df2c10.3.azurestaticapps.net';
 
     if (error) {
       console.error('Microsoft OAuth error:', error, errorDescription);
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error('microsoft-auth-callback error:', err);
-    const appOrigin = Deno.env.get('APP_ORIGIN') || 'https://rmpl.lovable.app';
+    const appOrigin = Deno.env.get('APP_ORIGIN') || 'https://green-sky-073df2c10.3.azurestaticapps.net';
     return Response.redirect(
       `${appOrigin}/auth/microsoft/callback?error=${encodeURIComponent('Internal server error')}`,
       302

@@ -72,16 +72,16 @@ serve(async (req) => {
           .update(updateData)
           .eq("vapi_call_id", callId);
 
-        // AI Sentiment Analysis via Lovable AI Gateway
+        // AI Sentiment Analysis via OpenAI API
         const transcript = message.transcript;
         if (transcript && typeof transcript === "string" && transcript.length > 10) {
           try {
-            const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-            if (LOVABLE_API_KEY) {
-              const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+            if (OPENAI_API_KEY) {
+              const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
                 headers: {
-                  Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                  Authorization: `Bearer ${OPENAI_API_KEY}`,
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({

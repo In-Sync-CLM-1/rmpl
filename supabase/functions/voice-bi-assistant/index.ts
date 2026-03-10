@@ -91,20 +91,20 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    if (!openaiApiKey) {
+      throw new Error('OPENAI_API_KEY is not configured');
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Step 1: Ask AI to generate SQL query based on user's natural language question
     console.log('Step 1: Generating SQL query from natural language...');
-    const sqlResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const sqlResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -167,10 +167,10 @@ If the question is a greeting or doesn't need data, return <sql>SELECT 'no_query
           console.error('Query execution error:', queryError);
           
           // Try to get AI to provide a helpful fallback response
-          const errorResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          const errorResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${lovableApiKey}`,
+              'Authorization': `Bearer ${openaiApiKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -228,10 +228,10 @@ Guidelines:
 This appears to be a conversational question that doesn't require database data.
 Respond naturally and helpfully. If they're asking about business data, let them know what kinds of questions you can help with (payments, collections, registrations, call performance, etc.).`;
 
-    const finalResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const finalResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

@@ -66,8 +66,7 @@ For advanced features like high-accuracy GPS, forced live capture, and better pe
 - Node.js and npm
 
 ### Step 1: Export Project to GitHub
-1. Click **"Export to Github"** button in Lovable
-2. Clone your repository locally:
+1. Clone your repository locally:
    ```bash
    git clone <your-repo-url>
    cd <your-project>
