@@ -9,8 +9,8 @@ DECLARE
   task_data RECORD;
   assigned_user_data RECORD;
   assigned_by_data RECORD;
-  supabase_url TEXT := 'https://xbrinligpvtfpqkkllfl.supabase.co';
-  supabase_anon_key TEXT := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhicmlubGlncHZ0ZnBxa2tsbGZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxNDM4MTIsImV4cCI6MjA3NTcxOTgxMn0.qQriBXjWb5AIc0h4rBxnkpI2J2tbfj9TGsXOPse_Bnc';
+  supabase_url TEXT := 'https://ltlvhmwrrsromwuiybwu.supabase.co';
+  supabase_anon_key TEXT := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0bHZobXdycnNyb213dWl5Ynd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNzk0OTUsImV4cCI6MjA4ODY1NTQ5NX0.VrY_nFei4c-LBWtS_9LP9xtAK2eS2L19Iy0M7V-Vqq0';
 BEGIN
   -- Only send email on INSERT or when assigned_to changes
   IF (TG_OP = 'INSERT') OR (OLD.assigned_to IS DISTINCT FROM NEW.assigned_to) THEN

@@ -8,7 +8,7 @@ SELECT cron.schedule(
   '0 2 * * *',
   $$
   SELECT net.http_post(
-    url := 'https://xbrinligpvtfpqkkllfl.supabase.co/functions/v1/sync-excelhire-candidates',
+    url := 'https://ltlvhmwrrsromwuiybwu.supabase.co/functions/v1/sync-excelhire-candidates',
     headers := jsonb_build_object(
       'Content-Type', 'application/json'
     ),

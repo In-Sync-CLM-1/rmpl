@@ -22,7 +22,7 @@ SELECT cron.schedule(
   '0 3 * * *',
   $$
   SELECT net.http_post(
-    url := 'https://xbrinligpvtfpqkkllfl.supabase.co/functions/v1/cleanup-old-import-files',
+    url := 'https://ltlvhmwrrsromwuiybwu.supabase.co/functions/v1/cleanup-old-import-files',
     headers := '{"Content-Type": "application/json"}'::jsonb,
     body := jsonb_build_object('time', now(), 'trigger', 'scheduled')
   ) as request_id;

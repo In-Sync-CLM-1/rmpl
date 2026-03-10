@@ -40,7 +40,7 @@ jobs:
           CHANGES=$(git log --format="- %s" -n 5 ${{ github.event.before }}..${{ github.sha }} | head -c 1000)
           
           curl -X POST \
-            "https://xbrinligpvtfpqkkllfl.supabase.co/functions/v1/deployment-webhook" \
+            "https://ltlvhmwrrsromwuiybwu.supabase.co/functions/v1/deployment-webhook" \
             -H "Content-Type: application/json" \
             -d "{\"apiKey\": \"${{ secrets.DEPLOYMENT_WEBHOOK_KEY }}\", \"changes\": $(echo "$CHANGES" | jq -R -s 'split("\n") | map(select(length > 0))')}"
 
