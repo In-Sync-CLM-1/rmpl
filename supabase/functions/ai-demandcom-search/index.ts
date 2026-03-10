@@ -15,16 +15,15 @@ Deno.serve(async (req) => {
     console.log('AI Search query:', query)
     console.log('Radius:', radius)
 
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openaiApiKey) {
-      throw new Error('OPENAI_API_KEY not configured')
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
+    if (!anthropicApiKey) {
+      throw new Error('ANTHROPIC_API_KEY not configured')
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Step 1: Use AI to extract search criteria from natural language query
     const systemPrompt = `You are an AI assistant that extracts structured search criteria from natural language business contact queries.
 
 Extract the following information from the query:
@@ -46,36 +45,33 @@ Examples:
 - "Tech companies in California" → {"designations": [], "companies": [], "industries": ["Technology", "Tech"], "location": "California"}
 - "Managers at Microsoft" → {"designations": ["Manager"], "companies": ["Microsoft"], "industries": [], "location": null}`
 
-    const userPrompt = `Extract search criteria from this query: "${query}"`
-
-    // Call OpenAI to extract criteria
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: systemPrompt,
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+          { role: 'user', content: `Extract search criteria from this query: "${query}"` }
         ],
-        temperature: 0.3,
       }),
     })
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text()
-      console.error('OpenAI API error:', aiResponse.status, errorText)
+      console.error('Anthropic API error:', aiResponse.status, errorText)
       throw new Error(`AI API error: ${aiResponse.status}`)
     }
 
     const aiResult = await aiResponse.json()
-    const content = aiResult.choices[0].message.content
+    const content = aiResult.content[0].text
     console.log('AI response:', content)
 
-    // Parse the extracted criteria
     let criteria: any = { designations: [], companies: [], industries: [], location: null }
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/s)
@@ -88,39 +84,31 @@ Examples:
 
     console.log('Extracted criteria:', criteria)
 
-    // Step 2: Build PostgreSQL query based on extracted criteria
     let query_builder = supabase
       .from('demandcom')
       .select('*')
 
-    // Search designations
     if (criteria.designations && criteria.designations.length > 0) {
       const conditions = criteria.designations
         .map((title: string) => `designation.ilike.%${title}%`)
         .join(',')
-      
       query_builder = query_builder.or(conditions)
     }
 
-    // Search companies
     if (criteria.companies && criteria.companies.length > 0) {
       const conditions = criteria.companies
         .map((company: string) => `company_name.ilike.%${company}%`)
         .join(',')
-      
       query_builder = query_builder.or(conditions)
     }
 
-    // Search industries
     if (criteria.industries && criteria.industries.length > 0) {
       const conditions = criteria.industries
         .map((industry: string) => `industry_type.ilike.%${industry}%,sub_industry.ilike.%${industry}%`)
         .join(',')
-      
       query_builder = query_builder.or(conditions)
     }
 
-    // Filter by location
     if (criteria.location) {
       const locationLower = criteria.location.toLowerCase()
       query_builder = query_builder.or(
@@ -128,9 +116,8 @@ Examples:
       )
     }
 
-    // Execute the query
     const { data: matchingContacts, error: searchError } = await query_builder
-    
+
     if (searchError) {
       console.error('Search error:', searchError)
       throw searchError
@@ -139,7 +126,7 @@ Examples:
     console.log(`Found ${matchingContacts?.length || 0} matching contacts`)
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         contacts: matchingContacts || [],
         query,
         extractedCriteria: criteria,
@@ -150,9 +137,9 @@ Examples:
   } catch (error) {
     console.error('Error in ai-demandcom-search:', error)
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error', 
-        contacts: [] 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error',
+        contacts: []
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

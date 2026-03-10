@@ -3,7 +3,7 @@ import { corsHeaders } from '../_shared/cors-headers.ts';
 import { verifyAuth } from '../_shared/auth-helpers.ts';
 import { errorResponse, successResponse, unauthorizedResponse } from '../_shared/response-helpers.ts';
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -25,8 +25,8 @@ serve(async (req) => {
       return errorResponse('Change description is required', 400);
     }
 
-    if (!OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY not configured');
+    if (!ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY not configured');
       return errorResponse('AI service not configured', 500);
     }
 
@@ -55,82 +55,61 @@ Priority:
 - medium: Useful improvements and regular updates
 - low: Minor tweaks or informational updates`;
 
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Convert this technical change into a user-friendly announcement:\n\n${changeDescription}` }
-        ],
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: systemPrompt,
         tools: [{
-          type: 'function',
-          function: {
-            name: 'create_announcement',
-            description: 'Create a structured feature announcement',
-            parameters: {
-              type: 'object',
-              properties: {
-                title: {
-                  type: 'string',
-                  description: 'Catchy, user-friendly title (max 50 chars)'
-                },
-                description: {
-                  type: 'string',
-                  description: 'Clear, benefit-focused description (max 200 chars)'
-                },
-                announcement_type: {
-                  type: 'string',
-                  enum: ['new_feature', 'improvement', 'bug_fix', 'update', 'removal'],
-                  description: 'Type of announcement'
-                },
-                priority: {
-                  type: 'string',
-                  enum: ['low', 'medium', 'high'],
-                  description: 'Priority level'
-                }
-              },
-              required: ['title', 'description', 'announcement_type', 'priority'],
-              additionalProperties: false
-            }
+          name: 'create_announcement',
+          description: 'Create a structured feature announcement',
+          input_schema: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Catchy, user-friendly title (max 50 chars)' },
+              description: { type: 'string', description: 'Clear, benefit-focused description (max 200 chars)' },
+              announcement_type: { type: 'string', enum: ['new_feature', 'improvement', 'bug_fix', 'update', 'removal'], description: 'Type of announcement' },
+              priority: { type: 'string', enum: ['low', 'medium', 'high'], description: 'Priority level' }
+            },
+            required: ['title', 'description', 'announcement_type', 'priority'],
           }
         }],
-        tool_choice: { type: 'function', function: { name: 'create_announcement' } }
+        tool_choice: { type: 'tool', name: 'create_announcement' },
+        messages: [
+          { role: 'user', content: `Convert this technical change into a user-friendly announcement:\n\n${changeDescription}` }
+        ],
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('AI API error:', aiResponse.status, errorText);
-      
+
       if (aiResponse.status === 429) {
         return errorResponse('Rate limit exceeded. Please try again in a moment.', 429);
       }
-      if (aiResponse.status === 402) {
-        return errorResponse('AI credits depleted. Please add credits to your workspace.', 402);
-      }
-      
+
       return errorResponse('Failed to generate announcement', 500, errorText);
     }
 
     const aiData = await aiResponse.json();
     console.log('AI response:', JSON.stringify(aiData, null, 2));
 
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      console.error('No tool call in response');
+    const toolUse = aiData.content?.find((c: any) => c.type === 'tool_use');
+    if (!toolUse) {
+      console.error('No tool use in response');
       return errorResponse('AI did not return structured data', 500);
     }
 
-    const announcement = JSON.parse(toolCall.function.arguments);
-    
+    const announcement = toolUse.input;
     console.log('Generated announcement:', announcement);
 
-    // If autoSave is true, save directly to database
     if (autoSave) {
       const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.39.3');
       const supabase = createClient(
@@ -157,12 +136,7 @@ Priority:
         return errorResponse("Failed to save announcement: " + saveError.message, 500);
       }
 
-      console.log("Announcement saved:", savedAnnouncement);
-
-      return successResponse({
-        ...savedAnnouncement,
-        saved: true
-      });
+      return successResponse({ ...savedAnnouncement, saved: true });
     }
 
     return successResponse({

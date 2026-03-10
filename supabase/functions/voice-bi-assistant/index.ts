@@ -6,8 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Database schema context for AI to generate dynamic queries
-const SCHEMA_CONTEXT = `You are a Business Intelligence assistant with access to a PostgreSQL database. 
+const SCHEMA_CONTEXT = `You are a Business Intelligence assistant with access to a PostgreSQL database.
 Generate SQL queries to answer user questions about business data.
 
 Available tables and their key columns:
@@ -25,7 +24,7 @@ Available tables and their key columns:
    - id (uuid), company_name (text), contact_name (text), contact_number (text), email_id (text)
 
 5. demandcom - Lead/prospect data
-   - id (uuid), name (text), mobile_numb (text), company_name (text), designation (text), city (text), state (text), activity_name (text), 
+   - id (uuid), name (text), mobile_numb (text), company_name (text), designation (text), city (text), state (text), activity_name (text),
    - latest_disposition (text), latest_subdisposition (text), assigned_to (uuid), last_call_date (timestamptz), updated_at (timestamptz)
 
 6. call_logs - Call records
@@ -79,7 +78,7 @@ serve(async (req) => {
 
   try {
     const { query } = await req.json();
-    
+
     if (!query) {
       return new Response(
         JSON.stringify({ error: 'Query is required' }),
@@ -91,26 +90,28 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 
-    if (!openaiApiKey) {
-      throw new Error('OPENAI_API_KEY is not configured');
+    if (!anthropicApiKey) {
+      throw new Error('ANTHROPIC_API_KEY is not configured');
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Step 1: Ask AI to generate SQL query based on user's natural language question
+    // Step 1: Ask AI to generate SQL query
     console.log('Step 1: Generating SQL query from natural language...');
-    const sqlResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const sqlResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: SCHEMA_CONTEXT,
         messages: [
-          { role: 'system', content: SCHEMA_CONTEXT },
           { role: 'user', content: `Generate a SQL query to answer this business question: "${query}"
 
 Think about what tables and joins are needed. Return ONLY the SQL query wrapped in <sql></sql> tags.
@@ -122,42 +123,34 @@ If the question is a greeting or doesn't need data, return <sql>SELECT 'no_query
     if (!sqlResponse.ok) {
       const errorText = await sqlResponse.text();
       console.error('AI SQL generation error:', sqlResponse.status, errorText);
-      
+
       if (sqlResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (sqlResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI service credits exhausted. Please contact admin.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
       throw new Error('Failed to generate SQL query');
     }
 
     const sqlData = await sqlResponse.json();
-    const aiSqlResponse = sqlData.choices?.[0]?.message?.content || '';
+    const aiSqlResponse = sqlData.content?.[0]?.text || '';
     console.log('AI SQL Response:', aiSqlResponse);
 
-    // Extract SQL from response
     const sqlMatch = aiSqlResponse.match(/<sql>([\s\S]*?)<\/sql>/i);
     let queryResult = null;
     let sqlQuery = null;
-    
+
     if (!sqlMatch) {
       console.log('No SQL tags found, treating as conversational response');
     } else {
       sqlQuery = sqlMatch[1].trim();
       console.log('Generated SQL:', sqlQuery);
 
-      // Check if it's a "no query needed" response
       if (sqlQuery.toLowerCase().includes('no_query_needed')) {
         console.log('No database query needed for this question');
       } else {
-        // Step 2: Execute the query via safe read-only RPC
+        // Step 2: Execute the query
         console.log('Step 2: Executing query via execute_read_query...');
         const { data, error: queryError } = await supabase.rpc('execute_read_query', {
           query_text: sqlQuery
@@ -165,38 +158,39 @@ If the question is a greeting or doesn't need data, return <sql>SELECT 'no_query
 
         if (queryError) {
           console.error('Query execution error:', queryError);
-          
-          // Try to get AI to provide a helpful fallback response
-          const errorResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+
+          const errorResp = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${openaiApiKey}`,
+              'x-api-key': anthropicApiKey,
+              'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 512,
+              system: 'You are a helpful business assistant. A database query failed. Provide a polite, helpful response explaining you had trouble retrieving that specific data.',
               messages: [
-                { role: 'system', content: 'You are a helpful business assistant. A database query failed. Provide a polite, helpful response explaining you had trouble retrieving that specific data.' },
                 { role: 'user', content: `User asked: "${query}"\nQuery failed with: ${queryError.message}\n\nProvide a brief, friendly response acknowledging the issue.` }
               ],
             }),
           });
-          
-          if (errorResponse.ok) {
-            const errorData = await errorResponse.json();
-            const fallbackResponse = errorData.choices?.[0]?.message?.content || 
+
+          if (errorResp.ok) {
+            const errorData = await errorResp.json();
+            const fallbackResponse = errorData.content?.[0]?.text ||
               'I apologize, I had some trouble retrieving that data. Could you try rephrasing your question?';
-            
+
             return new Response(
-              JSON.stringify({ 
+              JSON.stringify({
                 response: fallbackResponse,
                 sql_query: sqlQuery,
-                error: queryError.message 
+                error: queryError.message
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
-          
+
           throw new Error(`Query failed: ${queryError.message}`);
         }
 
@@ -205,9 +199,9 @@ If the question is a greeting or doesn't need data, return <sql>SELECT 'no_query
       }
     }
 
-    // Step 3: Generate natural language response from the data
+    // Step 3: Generate natural language response
     console.log('Step 3: Generating natural language response...');
-    const responsePrompt = queryResult 
+    const responsePrompt = queryResult
       ? `User asked: "${query}"
 
 Database query returned this data:
@@ -228,16 +222,18 @@ Guidelines:
 This appears to be a conversational question that doesn't require database data.
 Respond naturally and helpfully. If they're asking about business data, let them know what kinds of questions you can help with (payments, collections, registrations, call performance, etc.).`;
 
-    const finalResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const finalResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: 'You are a friendly, professional business intelligence assistant for RMPL, a B2B events and marketing company. Provide clear, conversational answers. Your responses will be converted to speech, so keep them natural and concise.',
         messages: [
-          { role: 'system', content: 'You are a friendly, professional business intelligence assistant for RMPL, a B2B events and marketing company. Provide clear, conversational answers. Your responses will be converted to speech, so keep them natural and concise.' },
           { role: 'user', content: responsePrompt }
         ],
       }),
@@ -245,29 +241,28 @@ Respond naturally and helpfully. If they're asking about business data, let them
 
     if (!finalResponse.ok) {
       console.error('AI response generation error:', finalResponse.status);
-      // Return basic info even if AI response fails
-      const basicResponse = queryResult?.length 
+      const basicResponse = queryResult?.length
         ? `I found ${queryResult.length} records for your query.`
         : 'I processed your question but had trouble generating a detailed response.';
-      
+
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           response: basicResponse,
           sql_query: sqlQuery,
-          data: queryResult 
+          data: queryResult
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const finalData = await finalResponse.json();
-    const naturalResponse = finalData.choices?.[0]?.message?.content || 
+    const naturalResponse = finalData.content?.[0]?.text ||
       'I found some information but had trouble summarizing it. Please try asking again.';
 
     console.log('Final response generated successfully');
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         response: naturalResponse,
         sql_query: sqlQuery,
         data: queryResult

@@ -12,7 +12,7 @@ serve(async (req) => {
 
   try {
     const { pdfUrl } = await req.json();
-    
+
     if (!pdfUrl) {
       return new Response(
         JSON.stringify({ error: "PDF URL is required" }),
@@ -20,9 +20,9 @@ serve(async (req) => {
       );
     }
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      console.error("OPENAI_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      console.error("ANTHROPIC_API_KEY is not configured");
       return new Response(
         JSON.stringify({ error: "AI service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -31,7 +31,6 @@ serve(async (req) => {
 
     console.log("Fetching PDF from URL:", pdfUrl);
 
-    // Fetch the PDF directly and convert to base64
     const pdfResponse = await fetch(pdfUrl);
     if (!pdfResponse.ok) {
       console.error("Failed to fetch PDF:", pdfResponse.status, await pdfResponse.text());
@@ -42,7 +41,6 @@ serve(async (req) => {
     }
 
     const pdfBuffer = await pdfResponse.arrayBuffer();
-    // Convert to base64 in chunks to avoid stack overflow
     const uint8Array = new Uint8Array(pdfBuffer);
     let binary = "";
     const chunkSize = 8192;
@@ -62,22 +60,44 @@ serve(async (req) => {
 Return the extracted data using the provided function. If a field cannot be determined, return null for that field.
 Be careful to distinguish between the billing company (issuer) and the client (recipient).`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system: systemPrompt,
+        tools: [
+          {
+            name: "extract_invoice_details",
+            description: "Extract invoice details from the document",
+            input_schema: {
+              type: "object",
+              properties: {
+                client_name: { type: "string", description: "Name of the client/customer being billed" },
+                invoice_amount: { type: "number", description: "Total invoice amount including taxes" },
+                invoice_date: { type: "string", description: "Invoice date in YYYY-MM-DD format" },
+              },
+              required: ["client_name", "invoice_amount", "invoice_date"],
+            },
+          },
+        ],
+        tool_choice: { type: "tool", name: "extract_invoice_details" },
         messages: [
-          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
               {
-                type: "image_url",
-                image_url: { url: `data:application/pdf;base64,${pdfBase64}` },
+                type: "document",
+                source: {
+                  type: "base64",
+                  media_type: "application/pdf",
+                  data: pdfBase64,
+                },
               },
               {
                 type: "text",
@@ -86,54 +106,20 @@ Be careful to distinguish between the billing company (issuer) and the client (r
             ],
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "extract_invoice_details",
-              description: "Extract invoice details from the document",
-              parameters: {
-                type: "object",
-                properties: {
-                  client_name: {
-                    type: "string",
-                    description: "Name of the client/customer being billed",
-                  },
-                  invoice_amount: {
-                    type: "number",
-                    description: "Total invoice amount including taxes",
-                  },
-                  invoice_date: {
-                    type: "string",
-                    description: "Invoice date in YYYY-MM-DD format",
-                  },
-                },
-                required: ["client_name", "invoice_amount", "invoice_date"],
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "extract_invoice_details" } },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
-      
+      console.error("Anthropic API error:", response.status, errorText);
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded, please try again later" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI service credits exhausted" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
+
       return new Response(
         JSON.stringify({ error: "Failed to parse invoice" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -143,16 +129,16 @@ Be careful to distinguish between the billing company (issuer) and the client (r
     const data = await response.json();
     console.log("AI response:", JSON.stringify(data, null, 2));
 
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) {
-      console.error("No tool call in response");
+    const toolUse = data.content?.find((c: any) => c.type === 'tool_use');
+    if (!toolUse) {
+      console.error("No tool use in response");
       return new Response(
         JSON.stringify({ error: "Could not extract invoice details" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const extractedData = JSON.parse(toolCall.function.arguments);
+    const extractedData = toolUse.input;
     console.log("Extracted invoice data:", extractedData);
 
     return new Response(

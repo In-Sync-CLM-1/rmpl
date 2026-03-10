@@ -12,28 +12,26 @@ serve(async (req) => {
 
   try {
     const { metrics, fiscalYear } = await req.json();
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
-    // Prepare data summary for AI
     const totalTarget = metrics.reduce((sum: number, m: any) => sum + m.annual_target, 0);
     const totalYTDActual = metrics.reduce((sum: number, m: any) => sum + m.ytd_actual, 0);
     const totalYTDProjection = metrics.reduce((sum: number, m: any) => sum + m.ytd_projection, 0);
     const overallAchievement = ((totalYTDActual / totalTarget) * 100).toFixed(1);
-    
+
     const topPerformers = metrics
       .sort((a: any, b: any) => b.achievement_percentage - a.achievement_percentage)
       .slice(0, 3)
       .map((m: any) => `${m.full_name}: ${m.achievement_percentage.toFixed(1)}%`);
-    
+
     const underPerformers = metrics
       .filter((m: any) => m.achievement_percentage < 70)
       .map((m: any) => `${m.full_name}: ${m.achievement_percentage.toFixed(1)}%`);
 
-    // Calculate revenue concentration (top 3 performers)
     const top3Revenue = metrics
       .sort((a: any, b: any) => b.ytd_actual - a.ytd_actual)
       .slice(0, 3)
@@ -57,7 +55,7 @@ ${topPerformers.join('\n')}
 ${underPerformers.length > 0 ? underPerformers.join('\n') : 'None'}
 
 **Monthly Trends:**
-${metrics[0]?.monthly_performance.slice(0, 6).map((m: any) => 
+${metrics[0]?.monthly_performance.slice(0, 6).map((m: any) =>
   `${m.month}: Projection ₹${m.projection}L, Actual ₹${m.actual}L`
 ).join('\n')}
 
@@ -69,19 +67,18 @@ Provide 3-4 concise, actionable insights covering:
 
 Keep each insight to 2-3 sentences. Be specific and data-driven. If revenue is highly concentrated, flag it as a risk.`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system: "You are a business intelligence analyst providing concise, actionable insights on sales performance data. Focus on trends, risks, and opportunities.",
         messages: [
-          { 
-            role: "system", 
-            content: "You are a business intelligence analyst providing concise, actionable insights on sales performance data. Focus on trends, risks, and opportunities." 
-          },
           { role: "user", content: prompt }
         ],
       }),
@@ -90,32 +87,26 @@ Keep each insight to 2-3 sentences. Be specific and data-driven. If revenue is h
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), 
+          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits to your workspace." }), 
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error("AI gateway error");
+      console.error("Anthropic API error:", response.status, errorText);
+      throw new Error("Anthropic API error");
     }
 
     const data = await response.json();
-    const insights = data.choices[0].message.content;
+    const insights = data.content[0].text;
 
     return new Response(
-      JSON.stringify({ insights }), 
+      JSON.stringify({ insights }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Error generating insights:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), 
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

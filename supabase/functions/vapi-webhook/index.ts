@@ -72,66 +72,57 @@ serve(async (req) => {
           .update(updateData)
           .eq("vapi_call_id", callId);
 
-        // AI Sentiment Analysis via OpenAI API
+        // AI Sentiment Analysis via Anthropic API
         const transcript = message.transcript;
         if (transcript && typeof transcript === "string" && transcript.length > 10) {
           try {
-            const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-            if (OPENAI_API_KEY) {
-              const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+            const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+            if (ANTHROPIC_API_KEY) {
+              const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
                 method: "POST",
                 headers: {
-                  Authorization: `Bearer ${OPENAI_API_KEY}`,
+                  "x-api-key": ANTHROPIC_API_KEY,
+                  "anthropic-version": "2023-06-01",
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  model: "google/gemini-2.5-flash-lite",
+                  model: "claude-haiku-4-5-20251001",
+                  max_tokens: 1024,
+                  system: "You are a call analysis assistant. Analyze the call transcript and respond using the provided tool.",
+                  tools: [
+                    {
+                      name: "analyze_call",
+                      description: "Return structured call analysis",
+                      input_schema: {
+                        type: "object",
+                        properties: {
+                          sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
+                          sentiment_score: { type: "number" },
+                          response_summary: { type: "string" },
+                          key_topics: { type: "array", items: { type: "string" } },
+                        },
+                        required: ["sentiment", "sentiment_score", "response_summary", "key_topics"],
+                      },
+                    },
+                  ],
+                  tool_choice: { type: "tool", name: "analyze_call" },
                   messages: [
                     {
-                      role: "system",
-                      content: "You are a call analysis assistant. Analyze the call transcript and respond ONLY with valid JSON.",
-                    },
-                    {
                       role: "user",
-                      content: `Analyze this call transcript and return a JSON object with these fields:
-- sentiment: "positive", "neutral", or "negative"
-- sentiment_score: a number between 0.0 and 1.0 (confidence)
-- response_summary: a 2-3 sentence summary of the call outcome
-- key_topics: an array of 3-5 key discussion topics (strings)
+                      content: `Analyze this call transcript and return a structured analysis with sentiment, sentiment_score (0.0-1.0), response_summary (2-3 sentences), and key_topics (3-5 topics).
 
 Transcript:
 ${transcript}`,
                     },
                   ],
-                  tools: [
-                    {
-                      type: "function",
-                      function: {
-                        name: "analyze_call",
-                        description: "Return structured call analysis",
-                        parameters: {
-                          type: "object",
-                          properties: {
-                            sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
-                            sentiment_score: { type: "number" },
-                            response_summary: { type: "string" },
-                            key_topics: { type: "array", items: { type: "string" } },
-                          },
-                          required: ["sentiment", "sentiment_score", "response_summary", "key_topics"],
-                          additionalProperties: false,
-                        },
-                      },
-                    },
-                  ],
-                  tool_choice: { type: "function", function: { name: "analyze_call" } },
                 }),
               });
 
               if (aiResponse.ok) {
                 const aiData = await aiResponse.json();
-                const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-                if (toolCall?.function?.arguments) {
-                  const analysis = JSON.parse(toolCall.function.arguments);
+                const toolUse = aiData.content?.find((c: any) => c.type === 'tool_use');
+                if (toolUse) {
+                  const analysis = toolUse.input;
                   await supabase
                     .from("vapi_call_logs")
                     .update({
@@ -144,7 +135,7 @@ ${transcript}`,
                   console.log(`AI analysis saved for call ${callId}: ${analysis.sentiment}`);
                 }
               } else {
-                console.error("AI Gateway error:", aiResponse.status, await aiResponse.text());
+                console.error("Anthropic API error:", aiResponse.status, await aiResponse.text());
               }
             }
           } catch (aiErr) {

@@ -40,7 +40,6 @@ serve(async (req) => {
       });
     }
 
-    // Get submission and documents
     const { data: submission } = await supabase
       .from('onboarding_submissions')
       .select('*')
@@ -58,8 +57,7 @@ serve(async (req) => {
       .select('*')
       .eq('submission_id', submission_id);
 
-    // Build analysis prompt
-    const docSummary = (documents || []).map(d => 
+    const docSummary = (documents || []).map(d =>
       `- ${d.document_type}: ${d.file_name} (${d.file_size ? Math.round(d.file_size / 1024) + 'KB' : 'unknown size'})`
     ).join('\n');
 
@@ -82,62 +80,53 @@ Analyze for:
 3. IFSC format validity (should be ABCD0123456)
 4. Name consistency across documents
 5. Missing critical documents
-6. Any red flags or inconsistencies
+6. Any red flags or inconsistencies`;
 
-Return your analysis as a structured JSON with these fields:
-- risk_score: number 0-100 (0=no risk, 100=high risk)
-- findings: array of { category, severity (low/medium/high), description }
-- recommendation: "approve" | "review" | "reject"
-- summary: brief text summary`;
-
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY not configured');
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY not configured');
     }
 
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: 'You are an HR document verification AI. Always respond with valid JSON only.' },
-          { role: 'user', content: prompt },
-        ],
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: 'You are an HR document verification AI. Always respond using the provided tool.',
         tools: [{
-          type: 'function',
-          function: {
-            name: 'document_analysis',
-            description: 'Return structured document analysis results',
-            parameters: {
-              type: 'object',
-              properties: {
-                risk_score: { type: 'number', description: 'Risk score 0-100' },
-                findings: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      category: { type: 'string' },
-                      severity: { type: 'string', enum: ['low', 'medium', 'high'] },
-                      description: { type: 'string' },
-                    },
-                    required: ['category', 'severity', 'description'],
-                    additionalProperties: false,
+          name: 'document_analysis',
+          description: 'Return structured document analysis results',
+          input_schema: {
+            type: 'object',
+            properties: {
+              risk_score: { type: 'number', description: 'Risk score 0-100' },
+              findings: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    category: { type: 'string' },
+                    severity: { type: 'string', enum: ['low', 'medium', 'high'] },
+                    description: { type: 'string' },
                   },
+                  required: ['category', 'severity', 'description'],
                 },
-                recommendation: { type: 'string', enum: ['approve', 'review', 'reject'] },
-                summary: { type: 'string' },
               },
-              required: ['risk_score', 'findings', 'recommendation', 'summary'],
-              additionalProperties: false,
+              recommendation: { type: 'string', enum: ['approve', 'review', 'reject'] },
+              summary: { type: 'string' },
             },
+            required: ['risk_score', 'findings', 'recommendation', 'summary'],
           },
         }],
-        tool_choice: { type: 'function', function: { name: 'document_analysis' } },
+        tool_choice: { type: 'tool', name: 'document_analysis' },
+        messages: [
+          { role: 'user', content: prompt },
+        ],
       }),
     });
 
@@ -147,24 +136,19 @@ Return your analysis as a structured JSON with these fields:
           status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits.' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      throw new Error('AI gateway error');
+      throw new Error('Anthropic API error');
     }
 
     const aiData = await aiResponse.json();
     let analysis;
-    
+
     try {
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
-        analysis = JSON.parse(toolCall.function.arguments);
+      const toolUse = aiData.content?.find((c: any) => c.type === 'tool_use');
+      if (toolUse) {
+        analysis = toolUse.input;
       } else {
-        // Fallback: parse from content
-        const content = aiData.choices?.[0]?.message?.content || '';
+        const textBlock = aiData.content?.find((c: any) => c.type === 'text');
+        const content = textBlock?.text || '';
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { risk_score: 50, findings: [], recommendation: 'review', summary: 'Unable to parse AI response' };
       }
@@ -172,7 +156,6 @@ Return your analysis as a structured JSON with these fields:
       analysis = { risk_score: 50, findings: [], recommendation: 'review', summary: 'AI analysis could not be parsed' };
     }
 
-    // Update submission with AI result
     const serviceSupabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     await serviceSupabase
       .from('onboarding_submissions')
