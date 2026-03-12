@@ -328,7 +328,7 @@ export default function MyProfile() {
               </div>
             </div>
 
-            {designation && (
+            {designation?.designations && (
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Briefcase className="h-4 w-4" />
@@ -341,7 +341,7 @@ export default function MyProfile() {
               </div>
             )}
 
-            {team && (
+            {team?.teams && (
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <UsersIcon className="h-4 w-4" />
