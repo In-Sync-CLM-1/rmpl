@@ -30,29 +30,44 @@ interface CreditAllocation {
   percentage: number;
 }
 
+function getUserIdFromJwt(authHeader: string | null): string | null {
+  if (!authHeader) return null;
+  try {
+    const token = authHeader.replace('Bearer ', '');
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.sub || null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    );
-
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
+    const authHeader = req.headers.get('Authorization');
+    const callerUserId = getUserIdFromJwt(authHeader);
+    if (!callerUserId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       });
     }
 
+    // Use service role client for data access
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
     const { user_id, fiscal_year = 2025, include_team = false } = await req.json();
 
-    const metricsUserId = user_id || user.id;
+    const metricsUserId = user_id || callerUserId;
 
     const yearStart = new Date(fiscal_year, 0, 1);
     const yearEnd = new Date(fiscal_year, 11, 31);
