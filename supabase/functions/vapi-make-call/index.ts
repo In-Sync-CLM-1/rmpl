@@ -38,22 +38,47 @@ serve(async (req) => {
 
     if (!phone_number) throw new Error("phone_number is required");
 
+    // Fetch contact details for variable injection
+    let variableValues: Record<string, string> = {};
+    if (demandcom_id) {
+      const { data: contact } = await supabase
+        .from("demandcom")
+        .select("name, company_name, designation, activity_name, city, state, industry_type, source")
+        .eq("id", demandcom_id)
+        .maybeSingle();
+
+      if (contact) {
+        variableValues = {
+          name: contact.name || "",
+          company_name: contact.company_name || "",
+          designation: contact.designation || "",
+          activity_name: contact.activity_name || "",
+          city: contact.city || "",
+          state: contact.state || "",
+          industry_type: contact.industry_type || "",
+          source: contact.source || "",
+        };
+      }
+    }
+    if (!variableValues.name && contact_name) {
+      variableValues.name = contact_name;
+    }
+
     // Build VAPI call payload
     const vapiPayload: Record<string, unknown> = {
       assistantId: VAPI_ASSISTANT_ID,
       phoneNumberId: VAPI_PHONE_NUMBER_ID,
       customer: {
         number: phone_number,
-        name: contact_name || undefined,
+        name: contact_name || variableValues.name || undefined,
       },
     };
 
-    // Add first message override if provided
-    if (first_message) {
-      vapiPayload.assistantOverrides = {
-        firstMessage: first_message,
-      };
-    }
+    // Add assistant overrides with variable values
+    const overrides: Record<string, unknown> = {};
+    if (first_message) overrides.firstMessage = first_message;
+    if (Object.keys(variableValues).length > 0) overrides.variableValues = variableValues;
+    if (Object.keys(overrides).length > 0) vapiPayload.assistantOverrides = overrides;
 
     // Make VAPI API call
     const vapiResponse = await fetch("https://api.vapi.ai/call", {

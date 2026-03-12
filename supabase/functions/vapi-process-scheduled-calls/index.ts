@@ -58,7 +58,7 @@ serve(async (req) => {
       // Fetch contact details for all demandcom_ids
       const { data: contacts, error: contactsError } = await supabase
         .from("demandcom")
-        .select("id, name, mobile_numb, company_name, activity_name")
+        .select("id, name, mobile_numb, company_name, designation, activity_name, city, state, industry_type, source")
         .in("id", schedule.demandcom_ids);
 
       if (contactsError || !contacts) {
@@ -77,6 +77,18 @@ serve(async (req) => {
         }
 
         try {
+          // Build variable values from contact data
+          const variableValues: Record<string, string> = {
+            name: contact.name || "",
+            company_name: contact.company_name || "",
+            designation: contact.designation || "",
+            activity_name: contact.activity_name || "",
+            city: contact.city || "",
+            state: contact.state || "",
+            industry_type: contact.industry_type || "",
+            source: contact.source || "",
+          };
+
           const vapiPayload: Record<string, unknown> = {
             assistantId: VAPI_ASSISTANT_ID,
             phoneNumberId: VAPI_PHONE_NUMBER_ID,
@@ -86,11 +98,9 @@ serve(async (req) => {
             },
           };
 
-          if (schedule.first_message) {
-            vapiPayload.assistantOverrides = {
-              firstMessage: schedule.first_message,
-            };
-          }
+          const overrides: Record<string, unknown> = { variableValues };
+          if (schedule.first_message) overrides.firstMessage = schedule.first_message;
+          vapiPayload.assistantOverrides = overrides;
 
           const vapiResponse = await fetch("https://api.vapi.ai/call", {
             method: "POST",
