@@ -87,7 +87,7 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     canManageProjects: true,
     canDeleteProjects: isAdmin,
     canRecommendLeaves: isManagerOrAdmin,
-    canApproveLeaves: isHRAdmin || hasRole('platform_admin'),
+    canApproveLeaves: isHRAdmin || hasRole('platform_admin') || hasSubordinates === true,
     canViewAttendanceReports: isAuthorizedAttendanceUser || hasSubordinates === true,
     canViewCSBDDashboard: isCSBD || isLeadership || isAdmin,
     canViewCSBDProjections: isCSBD || isLeadership || isAdmin,
