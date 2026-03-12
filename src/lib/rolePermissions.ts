@@ -41,12 +41,12 @@ export interface Permissions {
   canManageDispositions: boolean;
 }
 
-export const getRolePermissions = (roles: string[], userId?: string, hasSubordinates?: boolean): Permissions => {
+export const getRolePermissions = (roles: string[], userId?: string, hasSubordinates?: boolean, teamNames?: string[]): Permissions => {
   const hasRole = (role: string) => roles.includes(role);
   const isHRManager = hasRole('hr_manager');
   const isAdmin = hasRole('platform_admin') || hasRole('super_admin') || hasRole('admin_administration') || hasRole('admin_tech') || hasRole('admin');
   const isManagerOrAdmin = hasRole('manager') || isAdmin;
-  const isCSBD = hasRole('csbd');
+  const isCSBD = hasRole('csbd') || (teamNames || []).some(name => name.toUpperCase().includes('CSBD'));
   const isLeadership = hasRole('leadership');
   
   // Leave approval restricted to platform admins, HR managers, and specific legacy users
