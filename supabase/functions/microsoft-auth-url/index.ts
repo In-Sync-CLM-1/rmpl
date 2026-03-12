@@ -1,14 +1,27 @@
 import { corsHeaders, handleCorsPreflightRequest } from '../_shared/cors-headers.ts';
-import { verifyAuth } from '../_shared/auth-helpers.ts';
 import { successResponse, errorResponse, unauthorizedResponse } from '../_shared/response-helpers.ts';
+
+function getUserIdFromJwt(authHeader: string | null): string | null {
+  if (!authHeader) return null;
+  try {
+    const token = authHeader.replace('Bearer ', '');
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.sub || null;
+  } catch {
+    return null;
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return handleCorsPreflightRequest();
 
   try {
+    // Extract user_id directly from JWT payload (gateway already verified signature via verify_jwt=true)
     const authHeader = req.headers.get('Authorization');
-    const { authenticated, user, error: authError } = await verifyAuth(authHeader);
-    if (!authenticated || !user) return unauthorizedResponse(authError || 'Unauthorized');
+    const userId = getUserIdFromJwt(authHeader);
+    if (!userId) return unauthorizedResponse('Invalid or missing authentication token');
 
     const { redirect_path } = await req.json();
 
@@ -19,7 +32,7 @@ Deno.serve(async (req) => {
     const scopes = 'openid profile email Mail.Send Mail.ReadWrite User.Read offline_access';
 
     const state = btoa(JSON.stringify({
-      user_id: user.id,
+      user_id: userId,
       redirect_path: redirect_path || '/my-profile',
     }));
 

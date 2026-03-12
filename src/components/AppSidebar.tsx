@@ -295,12 +295,7 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "View Controller", url: "/view-controller", icon: ScanEye, requiredPermission: 'canViewUsers' },
     ],
   },
-  {
-    label: "SUPPORT",
-    items: [
-      { title: "Tickets", url: "/support-tickets", icon: LifeBuoy },
-    ],
-  },
+
   {
     label: "SYSTEM",
     items: [

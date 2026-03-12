@@ -20,7 +20,7 @@ const ALL_TABLES = [
   'campaign_links', 'campaign_recipients', 'campaigns',
   'chat_conversations', 'chat_message_reactions', 'chat_messages', 'chat_participants',
   'clients', 'company_holidays',
-  'crm_ticket_comments', 'crm_ticket_escalations', 'crm_ticket_history', 'crm_tickets',
+
   'csbd_credit_allocations', 'csbd_projection_audit', 'csbd_projections', 'csbd_targets',
   'demandcom', 'demandcom_backup_swap_20250129', 'demandcom_daily_performance',
   'demandcom_daily_targets', 'demandcom_field_changes', 'demandcom_pipeline',

@@ -18,7 +18,7 @@ import { SignOutReminder } from "@/components/attendance/SignOutReminder";
 import { PushNotificationPermission } from "@/components/chat/PushNotificationPermission";
 import { useChatNotifications } from "@/hooks/useChatNotifications";
 import { useTabNotifications } from "@/hooks/useTabNotifications";
-import { HelpWidget } from "@/components/Layout/HelpWidget";
+
 import { getRolePermissions } from "@/lib/rolePermissions";
 
 export function AppLayout() {
@@ -139,18 +139,6 @@ export function AppLayout() {
           <SignOutReminder user={user} />
            <FloatingChatWidget />
           <PushNotificationPermission />
-          {(() => {
-            const perms = getRolePermissions(userRoles);
-            const isAdmin = userRoles.some(r => ['platform_admin', 'super_admin', 'admin'].includes(r));
-            if (!isAdmin) return null;
-            return (
-              <HelpWidget
-                userName={user?.user_metadata?.full_name || ''}
-                userEmail={user?.email || ''}
-                companyName="Redefine"
-              />
-            );
-          })()}
         </AttendanceGate>
       </SidebarProvider>
       <OnboardingModal />
