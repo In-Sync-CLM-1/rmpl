@@ -45,11 +45,33 @@ export function OutlookConnectionManager() {
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('microsoft-auth-url', {
-        body: { redirect_path: '/my-profile' },
-      });
+      // Force a session refresh to get a fresh access token
+      const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !session?.access_token) {
+        toast.error('Session expired — please log in again');
+        setConnecting(false);
+        return;
+      }
 
-      if (error) throw error;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/microsoft-auth-url`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ redirect_path: '/my-profile' }),
+        }
+      );
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody.error || `Function returned ${response.status}`);
+      }
+
+      const data = await response.json();
       if (data?.auth_url) {
         window.location.href = data.auth_url;
       }

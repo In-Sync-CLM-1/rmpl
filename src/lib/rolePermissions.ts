@@ -47,6 +47,7 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
   const isAdmin = hasRole('platform_admin') || hasRole('super_admin') || hasRole('admin_administration') || hasRole('admin_tech') || hasRole('admin');
   const isManagerOrAdmin = hasRole('manager') || isAdmin;
   const isCSBD = hasRole('csbd') || (teamNames || []).some(name => name.toUpperCase().includes('CSBD'));
+  const isDemandCom = (teamNames || []).some(name => name.toUpperCase().includes('DEMANDCOM'));
   const isLeadership = hasRole('leadership');
   
   // Leave approval restricted to platform admins, HR managers, and specific legacy users
@@ -100,7 +101,7 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     canViewEmployeeDirectory: isHRAdmin || hasRole('platform_admin'),
     canManageOnboarding: isHRAdmin || isAdmin,
     // Navigation visibility permissions (used by DB-driven navigation)
-    canViewDemandCom: true,
+    canViewDemandCom: isDemandCom || isAdmin || isLeadership,
     canViewProjects: true,
     canViewClients: true,
     canViewInventory: true,
