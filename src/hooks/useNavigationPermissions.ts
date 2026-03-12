@@ -83,6 +83,9 @@ export const useNavigationPermissions = () => {
     const item = items.find(i => i.item_key === itemKey);
     if (!item) return false;
 
+    // Admins can see all navigation items
+    if (isAdmin) return true;
+
     // Check if item requires only authentication (no special permissions)
     if (item.requires_auth_only) return true;
 
