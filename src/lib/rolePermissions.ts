@@ -32,6 +32,13 @@ export interface Permissions {
   canAdjustLeaveBalances: boolean;
   canViewEmployeeDirectory: boolean;
   canManageOnboarding: boolean;
+  // Navigation visibility permissions (used by DB-driven navigation)
+  canViewDemandCom: boolean;
+  canViewProjects: boolean;
+  canViewClients: boolean;
+  canViewInventory: boolean;
+  canViewCampaigns: boolean;
+  canManageDispositions: boolean;
 }
 
 export const getRolePermissions = (roles: string[], userId?: string, hasSubordinates?: boolean): Permissions => {
@@ -92,6 +99,13 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     canAdjustLeaveBalances: isHRAdmin || hasRole('platform_admin'),
     canViewEmployeeDirectory: isHRAdmin || hasRole('platform_admin'),
     canManageOnboarding: isHRAdmin || isAdmin,
+    // Navigation visibility permissions (used by DB-driven navigation)
+    canViewDemandCom: true,
+    canViewProjects: true,
+    canViewClients: true,
+    canViewInventory: true,
+    canViewCampaigns: true,
+    canManageDispositions: isAdmin,
   };
 };
 
