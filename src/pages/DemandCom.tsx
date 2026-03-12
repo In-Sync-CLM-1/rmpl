@@ -156,8 +156,8 @@ export default function DemandCom() {
       }
 
       // Fetch all distinct activity names using security definer function
-      const { data: activityData } = await supabase.rpc('get_all_activity_names');
-      
+      const { data: activityData } = await supabase.rpc('get_activity_names_with_counts');
+
       if (activityData) {
         setAvailableActivityNames(activityData.map((d: { activity_name: string }) => d.activity_name));
       }
