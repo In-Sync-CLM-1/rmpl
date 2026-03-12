@@ -78,6 +78,7 @@ import HROnboardingAdmin from "./pages/HROnboardingAdmin";
 import VapiScheduler from "./pages/VapiScheduler";
 
 import DataExport from "./pages/DataExport";
+import TicketTracker from "./pages/TicketTracker";
 import TravelExpenseClaims from "./pages/TravelExpenseClaims";
 import TravelExpenseApprovals from "./pages/TravelExpenseApprovals";
 const queryClient = new QueryClient({
@@ -103,6 +104,7 @@ const App = () => (
             <Route path="/install" element={<Install />} />
             <Route path="/welcome" element={<Index />} />
             <Route path="/onboarding/:slug" element={<OnboardingPublicForm />} />
+            <Route path="/ticket-status" element={<TicketTracker />} />
             
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
