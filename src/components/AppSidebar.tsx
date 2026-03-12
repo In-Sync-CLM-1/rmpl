@@ -84,6 +84,7 @@ import {
   Contact2,
   ClipboardPlus,
   LifeBuoy,
+  Plane,
 } from "lucide-react";
 import { getRolePermissions, Permissions } from "@/lib/rolePermissions";
 import { useNavigationPermissions } from "@/hooks/useNavigationPermissions";
@@ -184,6 +185,7 @@ const iconMap: Record<string, LucideIcon> = {
   Contact2,
   ClipboardPlus,
   LifeBuoy,
+  Plane,
 };
 
 interface NavigationItem {
@@ -267,6 +269,8 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "Leave Approvals", url: "/leave-approvals", icon: ShieldCheck, requiredPermission: 'canApproveLeaves' },
       { title: "Regularization Approvals", url: "/regularization-approvals", icon: FileBarChart, requiredPermission: 'canApproveLeaves' },
       { title: "Reports", url: "/attendance-reports", icon: ScrollText, requiredPermission: 'canViewAttendanceReports' },
+      { title: "Travel Expenses", url: "/travel-expenses", icon: Plane },
+      { title: "Expense Approvals", url: "/travel-expense-approvals", icon: ShieldCheck, requiredPermission: 'canApproveLeaves' },
     ],
   },
   {

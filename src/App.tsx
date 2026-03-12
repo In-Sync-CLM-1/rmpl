@@ -78,6 +78,8 @@ import HROnboardingAdmin from "./pages/HROnboardingAdmin";
 import VapiScheduler from "./pages/VapiScheduler";
 import SupportTickets from "./pages/SupportTickets";
 import DataExport from "./pages/DataExport";
+import TravelExpenseClaims from "./pages/TravelExpenseClaims";
+import TravelExpenseApprovals from "./pages/TravelExpenseApprovals";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -179,6 +181,8 @@ const App = () => (
               <Route path="/chat/:conversationId" element={<Chat />} />
               <Route path="/whatsapp-settings" element={<WhatsAppSettings />} />
               <Route path="/vapi-scheduler" element={<VapiScheduler />} />
+              <Route path="/travel-expenses" element={<TravelExpenseClaims />} />
+              <Route path="/travel-expense-approvals" element={<TravelExpenseApprovals />} />
               <Route path="/support-tickets" element={<SupportTickets />} />
               <Route path="/admin/data-export" element={<DataExport />} />
             </Route>
