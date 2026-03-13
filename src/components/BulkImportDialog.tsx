@@ -607,6 +607,7 @@ export function BulkImportDialog({
         : parsedData; // Use original data if no mapping (e.g., for projects with fixed template)
 
       // Step 1: Create import session
+      console.log('[Import] Creating session for', tableName, 'with', transformedData.length, 'records');
       const { data: sessionData, error: sessionError } = await supabase.functions.invoke(
         'create-import-session',
         {
@@ -618,7 +619,11 @@ export function BulkImportDialog({
         }
       );
 
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        console.error('[Import] Session creation failed:', sessionError, 'Response data:', sessionData);
+        throw sessionError;
+      }
+      console.log('[Import] Session created:', sessionData);
 
       const { importId: newImportId, totalBatches: batches, batchSize: responseBatchSize } = sessionData;
       setImportId(newImportId);
