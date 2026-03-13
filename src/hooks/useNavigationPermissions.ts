@@ -79,6 +79,11 @@ export const useNavigationPermissions = () => {
     fetchNavigationData();
   }, []);
 
+  // If user has ANY entries in user_view_permissions, use strict mode:
+  // only show explicitly granted items (no legacy fallback).
+  // Legacy fallback only applies to users with ZERO permission entries.
+  const hasViewPermissions = userPermissions.length > 0;
+
   const canViewItem = useCallback((itemKey: string): boolean => {
     const item = items.find(i => i.item_key === itemKey);
     if (!item) return false;
@@ -89,20 +94,25 @@ export const useNavigationPermissions = () => {
     // Check if item requires only authentication (no special permissions)
     if (item.requires_auth_only) return true;
 
-    // Check user-specific view permission first
+    // Check user-specific view permission
     const userPerm = userPermissions.find(p => p.navigation_item_id === item.id);
     if (userPerm !== undefined) {
       return userPerm.can_view;
     }
 
-    // Fall back to legacy role-based permission
+    // If user has view permissions configured, deny anything not explicitly granted
+    if (hasViewPermissions) {
+      return false;
+    }
+
+    // Legacy fallback only for users with no view permission entries at all
     if (item.legacy_permission) {
       const permKey = item.legacy_permission as keyof typeof rolePermissions;
       return rolePermissions[permKey] === true;
     }
 
     return false;
-  }, [items, userPermissions, rolePermissions, isAdmin]);
+  }, [items, userPermissions, rolePermissions, isAdmin, hasViewPermissions]);
 
   const getVisibleSections = useCallback(() => {
     return sections.filter(section => {
