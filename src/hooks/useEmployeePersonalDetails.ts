@@ -5,12 +5,17 @@ import { toast } from "sonner";
 export interface EmployeePersonalDetails {
   id: string;
   user_id: string;
+  title: string | null;
+  gender: string | null;
   date_of_birth: string | null;
   marital_status: string | null;
   aadhar_number: string | null;
   father_name: string | null;
   mother_name: string | null;
   emergency_contact_number: string | null;
+  emergency_contact_person_name: string | null;
+  mobile_number_2: string | null;
+  passport_number: string | null;
   personal_email: string | null;
   present_address: string | null;
   permanent_address: string | null;
@@ -32,6 +37,13 @@ export interface EmployeeDirectoryRecord {
     pan_number: string | null;
     uan_number: string | null;
     pf_number: string | null;
+    date_of_joining: string | null;
+    esi_number: string | null;
+    employee_type: string | null;
+    date_of_confirmation: string | null;
+    location_city: string | null;
+    resignation_date: string | null;
+    last_working_date: string | null;
   }[] | null;
 }
 
@@ -128,7 +140,7 @@ export function useEmployeeDirectory() {
       // Fetch salary details separately
       const { data: salaryDetails } = await supabase
         .from("employee_salary_details")
-        .select("user_id, employee_code, department, pan_number, uan_number, pf_number")
+        .select("user_id, employee_code, department, pan_number, uan_number, pf_number, date_of_joining, esi_number, employee_type, date_of_confirmation, location_city, resignation_date, last_working_date")
         .in("user_id", userIds);
 
       // Combine the data
@@ -145,6 +157,13 @@ export function useEmployeeDirectory() {
             pan_number: s.pan_number,
             uan_number: s.uan_number,
             pf_number: s.pf_number,
+            date_of_joining: s.date_of_joining,
+            esi_number: s.esi_number,
+            employee_type: s.employee_type,
+            date_of_confirmation: s.date_of_confirmation,
+            location_city: s.location_city,
+            resignation_date: s.resignation_date,
+            last_working_date: s.last_working_date,
           })) : null,
         };
       }) as EmployeeDirectoryRecord[];

@@ -2123,13 +2123,18 @@ export type Database = {
           created_at: string | null
           date_of_birth: string | null
           emergency_contact_number: string | null
+          emergency_contact_person_name: string | null
           father_name: string | null
+          gender: string | null
           id: string
           marital_status: string | null
+          mobile_number_2: string | null
           mother_name: string | null
+          passport_number: string | null
           permanent_address: string | null
           personal_email: string | null
           present_address: string | null
+          title: string | null
           updated_at: string | null
           user_id: string
         }
@@ -2139,13 +2144,18 @@ export type Database = {
           created_at?: string | null
           date_of_birth?: string | null
           emergency_contact_number?: string | null
+          emergency_contact_person_name?: string | null
           father_name?: string | null
+          gender?: string | null
           id?: string
           marital_status?: string | null
+          mobile_number_2?: string | null
           mother_name?: string | null
+          passport_number?: string | null
           permanent_address?: string | null
           personal_email?: string | null
           present_address?: string | null
+          title?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -2155,13 +2165,18 @@ export type Database = {
           created_at?: string | null
           date_of_birth?: string | null
           emergency_contact_number?: string | null
+          emergency_contact_person_name?: string | null
           father_name?: string | null
+          gender?: string | null
           id?: string
           marital_status?: string | null
+          mobile_number_2?: string | null
           mother_name?: string | null
+          passport_number?: string | null
           permanent_address?: string | null
           personal_email?: string | null
           present_address?: string | null
+          title?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -2182,22 +2197,27 @@ export type Database = {
           basic_salary: number | null
           conveyance_allowance: number | null
           created_at: string | null
+          date_of_confirmation: string | null
           date_of_joining: string | null
           department: string | null
           designation: string | null
           effective_from: string | null
           employee_code: string | null
+          employee_type: string | null
           epf_percentage: number | null
           esi_number: string | null
           esic_percentage: number | null
           hra: number | null
           id: string
           ifsc_code: string | null
+          last_working_date: string | null
+          location_city: string | null
           medical_allowance: number | null
           other_allowance: number | null
           pan_number: string | null
           pf_number: string | null
           professional_tax: number | null
+          resignation_date: string | null
           special_allowance: number | null
           uan_number: string | null
           updated_at: string | null
@@ -2209,22 +2229,27 @@ export type Database = {
           basic_salary?: number | null
           conveyance_allowance?: number | null
           created_at?: string | null
+          date_of_confirmation?: string | null
           date_of_joining?: string | null
           department?: string | null
           designation?: string | null
           effective_from?: string | null
           employee_code?: string | null
+          employee_type?: string | null
           epf_percentage?: number | null
           esi_number?: string | null
           esic_percentage?: number | null
           hra?: number | null
           id?: string
           ifsc_code?: string | null
+          last_working_date?: string | null
+          location_city?: string | null
           medical_allowance?: number | null
           other_allowance?: number | null
           pan_number?: string | null
           pf_number?: string | null
           professional_tax?: number | null
+          resignation_date?: string | null
           special_allowance?: number | null
           uan_number?: string | null
           updated_at?: string | null
@@ -2236,22 +2261,27 @@ export type Database = {
           basic_salary?: number | null
           conveyance_allowance?: number | null
           created_at?: string | null
+          date_of_confirmation?: string | null
           date_of_joining?: string | null
           department?: string | null
           designation?: string | null
           effective_from?: string | null
           employee_code?: string | null
+          employee_type?: string | null
           epf_percentage?: number | null
           esi_number?: string | null
           esic_percentage?: number | null
           hra?: number | null
           id?: string
           ifsc_code?: string | null
+          last_working_date?: string | null
+          location_city?: string | null
           medical_allowance?: number | null
           other_allowance?: number | null
           pan_number?: string | null
           pf_number?: string | null
           professional_tax?: number | null
+          resignation_date?: string | null
           special_allowance?: number | null
           uan_number?: string | null
           updated_at?: string | null

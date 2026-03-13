@@ -72,16 +72,26 @@ export default function EmployeeDirectory() {
       return {
         "Employee Code": salary?.employee_code || "-",
         "Employee Name": emp.full_name || "-",
+        "Title (Salutation)": personal?.title || "-",
+        "Gender": personal?.gender || "-",
         "D.O.B.": personal?.date_of_birth ? format(new Date(personal.date_of_birth), "dd/MM/yyyy") : "-",
         "Marital Status": personal?.marital_status || "-",
         "Contact No. (Self)": emp.phone || "-",
+        "Mobile No. 2": personal?.mobile_number_2 || "-",
+        "Passport No.": personal?.passport_number || "-",
         "PAN No.": salary?.pan_number || "-",
         "Aadhar No.": personal?.aadhar_number || "-",
         "Father's Name": personal?.father_name || "-",
         "Mother's Name": personal?.mother_name || "-",
         "Emergency Contact No.": personal?.emergency_contact_number || "-",
+        "Emergency Contact Person Name": personal?.emergency_contact_person_name || "-",
         "Personal E-Mail Id": personal?.personal_email || "-",
         "Official E-Mail Id": emp.email || "-",
+        "Employee Type": salary?.employee_type || "-",
+        "Date of Joining": salary?.date_of_joining ? format(new Date(salary.date_of_joining), "dd/MM/yyyy") : "-",
+        "Date of Confirmation": salary?.date_of_confirmation ? format(new Date(salary.date_of_confirmation), "dd/MM/yyyy") : "-",
+        "ESI Number": salary?.esi_number || "-",
+        "Location (City)": salary?.location_city || "-",
         "Present Address": personal?.present_address || "-",
         "Permanent Address": personal?.permanent_address || "-",
         "UAN NO.": salary?.uan_number || "-",
@@ -89,6 +99,8 @@ export default function EmployeeDirectory() {
         "Blood Group": personal?.blood_group || "-",
         "Branch": emp.location || "-",
         "Department": salary?.department || "-",
+        "Resignation Date": salary?.resignation_date ? format(new Date(salary.resignation_date), "dd/MM/yyyy") : "-",
+        "Last Working Date": salary?.last_working_date ? format(new Date(salary.last_working_date), "dd/MM/yyyy") : "-",
       };
     });
 
@@ -160,16 +172,26 @@ export default function EmployeeDirectory() {
                 <TableRow>
                   <TableHead className="whitespace-nowrap">Emp Code</TableHead>
                   <TableHead className="whitespace-nowrap">Employee Name</TableHead>
+                  <TableHead className="whitespace-nowrap">Title</TableHead>
+                  <TableHead className="whitespace-nowrap">Gender</TableHead>
                   <TableHead className="whitespace-nowrap">D.O.B.</TableHead>
                   <TableHead className="whitespace-nowrap">Marital Status</TableHead>
                   <TableHead className="whitespace-nowrap">Contact No.</TableHead>
+                  <TableHead className="whitespace-nowrap">Mobile No. 2</TableHead>
+                  <TableHead className="whitespace-nowrap">Passport No.</TableHead>
                   <TableHead className="whitespace-nowrap">PAN No.</TableHead>
                   <TableHead className="whitespace-nowrap">Aadhar No.</TableHead>
                   <TableHead className="whitespace-nowrap">Father's Name</TableHead>
                   <TableHead className="whitespace-nowrap">Mother's Name</TableHead>
                   <TableHead className="whitespace-nowrap">Emergency Contact</TableHead>
+                  <TableHead className="whitespace-nowrap">Emergency Contact Person</TableHead>
                   <TableHead className="whitespace-nowrap">Personal Email</TableHead>
                   <TableHead className="whitespace-nowrap">Official Email</TableHead>
+                  <TableHead className="whitespace-nowrap">Employee Type</TableHead>
+                  <TableHead className="whitespace-nowrap">Date of Joining</TableHead>
+                  <TableHead className="whitespace-nowrap">Date of Confirmation</TableHead>
+                  <TableHead className="whitespace-nowrap">ESI Number</TableHead>
+                  <TableHead className="whitespace-nowrap">Location (City)</TableHead>
                   <TableHead className="whitespace-nowrap">Present Address</TableHead>
                   <TableHead className="whitespace-nowrap">Permanent Address</TableHead>
                   <TableHead className="whitespace-nowrap">UAN No.</TableHead>
@@ -177,13 +199,15 @@ export default function EmployeeDirectory() {
                   <TableHead className="whitespace-nowrap">Blood Group</TableHead>
                   <TableHead className="whitespace-nowrap">Branch</TableHead>
                   <TableHead className="whitespace-nowrap">Department</TableHead>
+                  <TableHead className="whitespace-nowrap">Resignation Date</TableHead>
+                  <TableHead className="whitespace-nowrap">Last Working Date</TableHead>
                   <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={20} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={32} className="text-center py-8 text-muted-foreground">
                       {searchTerm ? "No employees match your search" : "No employees found"}
                     </TableCell>
                   </TableRow>
@@ -196,16 +220,26 @@ export default function EmployeeDirectory() {
                       <TableRow key={emp.id}>
                         <TableCell className="font-mono text-sm whitespace-nowrap">{salary?.employee_code || "-"}</TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{emp.full_name || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{personal?.title || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{personal?.gender || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{personal?.date_of_birth ? format(new Date(personal.date_of_birth), "dd/MM/yyyy") : "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{personal?.marital_status || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{emp.phone || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{personal?.mobile_number_2 || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{personal?.passport_number || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{salary?.pan_number || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{personal?.aadhar_number || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{personal?.father_name || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{personal?.mother_name || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{personal?.emergency_contact_number || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{personal?.emergency_contact_person_name || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap text-sm">{personal?.personal_email || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{emp.email}</TableCell>
+                        <TableCell className="whitespace-nowrap">{salary?.employee_type || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{salary?.date_of_joining ? format(new Date(salary.date_of_joining), "dd/MM/yyyy") : "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{salary?.date_of_confirmation ? format(new Date(salary.date_of_confirmation), "dd/MM/yyyy") : "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{salary?.esi_number || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{salary?.location_city || "-"}</TableCell>
                         <TableCell className="max-w-[200px] truncate" title={personal?.present_address || ""}>{personal?.present_address || "-"}</TableCell>
                         <TableCell className="max-w-[200px] truncate" title={personal?.permanent_address || ""}>{personal?.permanent_address || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{salary?.uan_number || "-"}</TableCell>
@@ -217,6 +251,8 @@ export default function EmployeeDirectory() {
                           {emp.location ? <Badge variant="outline">{emp.location}</Badge> : "-"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">{salary?.department || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{salary?.resignation_date ? format(new Date(salary.resignation_date), "dd/MM/yyyy") : "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{salary?.last_working_date ? format(new Date(salary.last_working_date), "dd/MM/yyyy") : "-"}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" onClick={() => setSelectedEmployee(emp)}>
                             <Eye className="h-4 w-4" />
@@ -253,36 +289,93 @@ export default function EmployeeDirectory() {
                   Basic Information
                 </h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <DetailItem 
-                    label="Employee Code" 
-                    value={selectedEmployee.employee_salary_details?.[0]?.employee_code} 
+                  <DetailItem
+                    label="Employee Code"
+                    value={selectedEmployee.employee_salary_details?.[0]?.employee_code}
                   />
-                  <DetailItem 
-                    label="Full Name" 
-                    value={selectedEmployee.full_name} 
+                  <DetailItem
+                    label="Full Name"
+                    value={selectedEmployee.full_name}
                   />
-                  <DetailItem 
-                    label="D.O.B." 
-                    value={selectedEmployee.employee_personal_details?.date_of_birth 
+                  <DetailItem
+                    label="Title (Salutation)"
+                    value={selectedEmployee.employee_personal_details?.title}
+                  />
+                  <DetailItem
+                    label="Gender"
+                    value={selectedEmployee.employee_personal_details?.gender}
+                  />
+                  <DetailItem
+                    label="D.O.B."
+                    value={selectedEmployee.employee_personal_details?.date_of_birth
                       ? format(new Date(selectedEmployee.employee_personal_details.date_of_birth), "dd/MM/yyyy")
                       : null
-                    } 
+                    }
                   />
-                  <DetailItem 
-                    label="Marital Status" 
-                    value={selectedEmployee.employee_personal_details?.marital_status} 
+                  <DetailItem
+                    label="Marital Status"
+                    value={selectedEmployee.employee_personal_details?.marital_status}
                   />
-                  <DetailItem 
-                    label="Blood Group" 
-                    value={selectedEmployee.employee_personal_details?.blood_group} 
+                  <DetailItem
+                    label="Blood Group"
+                    value={selectedEmployee.employee_personal_details?.blood_group}
                   />
-                  <DetailItem 
-                    label="Branch" 
-                    value={selectedEmployee.location} 
+                  <DetailItem
+                    label="Passport No."
+                    value={selectedEmployee.employee_personal_details?.passport_number}
                   />
-                  <DetailItem 
-                    label="Department" 
-                    value={selectedEmployee.employee_salary_details?.[0]?.department} 
+                </div>
+              </div>
+
+              {/* Employment Info */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                  Employment Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <DetailItem
+                    label="Employee Type"
+                    value={selectedEmployee.employee_salary_details?.[0]?.employee_type}
+                  />
+                  <DetailItem
+                    label="Department"
+                    value={selectedEmployee.employee_salary_details?.[0]?.department}
+                  />
+                  <DetailItem
+                    label="Branch"
+                    value={selectedEmployee.location}
+                  />
+                  <DetailItem
+                    label="Location (City)"
+                    value={selectedEmployee.employee_salary_details?.[0]?.location_city}
+                  />
+                  <DetailItem
+                    label="Date of Joining"
+                    value={selectedEmployee.employee_salary_details?.[0]?.date_of_joining
+                      ? format(new Date(selectedEmployee.employee_salary_details[0].date_of_joining), "dd/MM/yyyy")
+                      : null
+                    }
+                  />
+                  <DetailItem
+                    label="Date of Confirmation"
+                    value={selectedEmployee.employee_salary_details?.[0]?.date_of_confirmation
+                      ? format(new Date(selectedEmployee.employee_salary_details[0].date_of_confirmation), "dd/MM/yyyy")
+                      : null
+                    }
+                  />
+                  <DetailItem
+                    label="Resignation Date"
+                    value={selectedEmployee.employee_salary_details?.[0]?.resignation_date
+                      ? format(new Date(selectedEmployee.employee_salary_details[0].resignation_date), "dd/MM/yyyy")
+                      : null
+                    }
+                  />
+                  <DetailItem
+                    label="Last Working Date"
+                    value={selectedEmployee.employee_salary_details?.[0]?.last_working_date
+                      ? format(new Date(selectedEmployee.employee_salary_details[0].last_working_date), "dd/MM/yyyy")
+                      : null
+                    }
                   />
                 </div>
               </div>
@@ -293,23 +386,32 @@ export default function EmployeeDirectory() {
                   Contact Information
                 </h4>
                 <div className="grid grid-cols-1 gap-4 text-sm">
-                  <DetailItem 
-                    label="Contact No. (Self)" 
+                  <DetailItem
+                    label="Contact No. (Self)"
                     value={selectedEmployee.phone}
                     icon={<Phone className="h-3.5 w-3.5" />}
                   />
-                  <DetailItem 
-                    label="Emergency Contact No." 
-                    value={selectedEmployee.employee_personal_details?.emergency_contact_number} 
+                  <DetailItem
+                    label="Mobile No. 2"
+                    value={selectedEmployee.employee_personal_details?.mobile_number_2}
                     icon={<Phone className="h-3.5 w-3.5" />}
                   />
-                  <DetailItem 
-                    label="Personal E-Mail" 
+                  <DetailItem
+                    label="Emergency Contact No."
+                    value={selectedEmployee.employee_personal_details?.emergency_contact_number}
+                    icon={<Phone className="h-3.5 w-3.5" />}
+                  />
+                  <DetailItem
+                    label="Emergency Contact Person"
+                    value={selectedEmployee.employee_personal_details?.emergency_contact_person_name}
+                  />
+                  <DetailItem
+                    label="Personal E-Mail"
                     value={selectedEmployee.employee_personal_details?.personal_email}
                     icon={<Mail className="h-3.5 w-3.5" />}
                   />
-                  <DetailItem 
-                    label="Official E-Mail" 
+                  <DetailItem
+                    label="Official E-Mail"
                     value={selectedEmployee.email}
                     icon={<Mail className="h-3.5 w-3.5" />}
                   />
@@ -322,13 +424,13 @@ export default function EmployeeDirectory() {
                   Family Information
                 </h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <DetailItem 
-                    label="Father's Name" 
-                    value={selectedEmployee.employee_personal_details?.father_name} 
+                  <DetailItem
+                    label="Father's Name"
+                    value={selectedEmployee.employee_personal_details?.father_name}
                   />
-                  <DetailItem 
-                    label="Mother's Name" 
-                    value={selectedEmployee.employee_personal_details?.mother_name} 
+                  <DetailItem
+                    label="Mother's Name"
+                    value={selectedEmployee.employee_personal_details?.mother_name}
                   />
                 </div>
               </div>
@@ -339,21 +441,25 @@ export default function EmployeeDirectory() {
                   Statutory Information
                 </h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <DetailItem 
-                    label="PAN No." 
-                    value={selectedEmployee.employee_salary_details?.[0]?.pan_number} 
+                  <DetailItem
+                    label="PAN No."
+                    value={selectedEmployee.employee_salary_details?.[0]?.pan_number}
                   />
-                  <DetailItem 
-                    label="Aadhar No." 
-                    value={selectedEmployee.employee_personal_details?.aadhar_number} 
+                  <DetailItem
+                    label="Aadhar No."
+                    value={selectedEmployee.employee_personal_details?.aadhar_number}
                   />
-                  <DetailItem 
-                    label="UAN No." 
-                    value={selectedEmployee.employee_salary_details?.[0]?.uan_number} 
+                  <DetailItem
+                    label="UAN No."
+                    value={selectedEmployee.employee_salary_details?.[0]?.uan_number}
                   />
-                  <DetailItem 
-                    label="PF No." 
-                    value={selectedEmployee.employee_salary_details?.[0]?.pf_number} 
+                  <DetailItem
+                    label="PF No."
+                    value={selectedEmployee.employee_salary_details?.[0]?.pf_number}
+                  />
+                  <DetailItem
+                    label="ESI Number"
+                    value={selectedEmployee.employee_salary_details?.[0]?.esi_number}
                   />
                 </div>
               </div>
