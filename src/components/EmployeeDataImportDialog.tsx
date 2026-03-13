@@ -27,6 +27,7 @@ import { useQueryClient } from "@tanstack/react-query";
 const CSV_COLUMNS = [
   "Official Email",
   "Employee Code",
+  "Employee Name",
   "Title (Salutation)",
   "Gender",
   "D.O.B.",
@@ -180,8 +181,9 @@ export function EmployeeDataImportDialog({ open, onOpenChange }: EmployeeDataImp
 
         const userId = profile.id;
 
-        // Update profiles (phone, location)
+        // Update profiles (name, phone, location)
         const profileUpdate: Record<string, string> = {};
+        if (clean(row["Employee Name"])) profileUpdate.full_name = clean(row["Employee Name"])!;
         if (clean(row["Contact No."])) profileUpdate.phone = clean(row["Contact No."])!;
         if (clean(row["Branch"])) profileUpdate.location = clean(row["Branch"])!;
         if (Object.keys(profileUpdate).length > 0) {
