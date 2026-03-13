@@ -720,9 +720,21 @@ export function BulkImportDialog({
       setRevertImportId(null);
     } catch (error: any) {
       console.error('Revert error:', error);
+      let errorMsg = error.message || "An error occurred during revert";
+      if (error.context) {
+        try {
+          const body = await error.context.json();
+          console.error("Revert error details:", body);
+          errorMsg = body?.error || body?.message || errorMsg;
+        } catch {
+          const text = await error.context.text?.().catch(() => '');
+          console.error("Revert error response:", text);
+          if (text) errorMsg = text;
+        }
+      }
       toast({
         title: "Revert Failed",
-        description: error.message,
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
