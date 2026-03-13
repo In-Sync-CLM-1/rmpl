@@ -116,18 +116,22 @@ Deno.serve(async (req) => {
 
     if (processError) {
       console.error('[Hybrid Import] Process function error:', processError);
-      
-      // Only update to failed if this is the last chunk or not partial
-      if (isLastChunk) {
-        await supabase
-          .from('bulk_import_history')
-          .update({
-            status: 'failed',
-            error_log: [{ message: processError.message }],
-            completed_at: new Date().toISOString(),
-          })
-          .eq('id', importId);
-      }
+
+      // Always mark as failed when PG function errors — prevents stuck "processing" state
+      await supabase
+        .from('bulk_import_history')
+        .update({
+          status: 'failed',
+          error_log: [{ message: processError.message }],
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', importId);
+
+      // Clean up staging data on failure
+      await supabase
+        .from('import_staging')
+        .delete()
+        .eq('import_id', importId);
 
       return new Response(
         JSON.stringify({ success: false, error: processError.message }),
@@ -206,6 +210,34 @@ Deno.serve(async (req) => {
 
   } catch (error: any) {
     console.error('[Hybrid Import] Unexpected error:', error);
+
+    // Try to mark the import as failed so it doesn't stay stuck in "processing"
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
+      const body = await req.clone().json().catch(() => null);
+      const importId = body?.importId;
+      if (importId) {
+        await supabaseAdmin
+          .from('bulk_import_history')
+          .update({
+            status: 'failed',
+            error_log: [{ message: error.message || 'Unexpected error' }],
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', importId);
+
+        await supabaseAdmin
+          .from('import_staging')
+          .delete()
+          .eq('import_id', importId);
+      }
+    } catch (cleanupErr) {
+      console.error('[Hybrid Import] Failed to update import status on error:', cleanupErr);
+    }
+
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
