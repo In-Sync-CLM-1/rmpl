@@ -642,15 +642,28 @@ export function BulkImportDialog({
       fetchImportHistory();
       onImportComplete?.();
     } catch (error: any) {
-      console.error("Import error:", error);
+      // Extract detailed error info from FunctionsHttpError
+      let errorMsg = error.message || "An error occurred during import";
+      if (error.context) {
+        try {
+          const body = await error.context.json();
+          console.error("Import error details:", body);
+          errorMsg = body?.error || body?.message || errorMsg;
+        } catch {
+          const text = await error.context.text?.().catch(() => '');
+          console.error("Import error response:", text);
+          if (text) errorMsg = text;
+        }
+      }
+      console.error("Import error:", errorMsg, error);
       toast({
         title: "Import Failed",
-        description: error.message || "An error occurred during import",
+        description: errorMsg,
         variant: "destructive",
       });
       setImportResult({
         success: false,
-        error: error.message || "Import failed",
+        error: errorMsg,
       });
     } finally {
       setIsProcessing(false);
