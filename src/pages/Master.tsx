@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, AreaChart, Area, RadialBarChart, RadialBar, Legend } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, AreaChart, Area, RadialBarChart, RadialBar } from "recharts";
 
 interface MasterRecord {
   mobile_numb: string;
@@ -39,6 +39,413 @@ interface MasterRecord {
   activity_name: string | null;
   created_at: string;
 }
+
+// Type for chart aggregate response
+interface ChartAggregateResponse {
+  city: { name: string; value: number }[];
+  jobLevel: { name: string; value: number }[];
+  department: { name: string; value: number }[];
+  industry: { name: string; value: number }[];
+  turnover: { name: string; value: number }[];
+  empSize: { name: string; value: number }[];
+}
+
+// Parse chart data to ensure values are numbers (PostgreSQL bigint can arrive as string)
+const parseChartData = (arr: unknown): { name: string; value: number }[] => {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(item => ({
+    name: String(item.name || ''),
+    value: Number(item.value) || 0,
+  }));
+};
+
+// Brand colors from design system
+const BRAND_COLORS = [
+  'hsl(160, 84%, 39%)',  // Primary Teal
+  'hsl(11, 87%, 62%)',   // Coral accent
+  'hsl(271, 91%, 65%)',  // Purple secondary
+  'hsl(45, 93%, 58%)',   // Soft Yellow
+  'hsl(199, 89%, 70%)',  // Sky Blue
+  'hsl(350, 96%, 71%)',  // Salmon
+  'hsl(160, 60%, 65%)',  // Light Teal
+  'hsl(280, 67%, 69%)',  // Lavender
+];
+
+const CHART_CONFIGS: Array<{
+  key: 'city' | 'jobLevel' | 'department' | 'industry' | 'turnover' | 'empSize';
+  title: string;
+  icon: React.ElementType;
+  type: 'pie' | 'donut' | 'hbar' | 'vbar' | 'area' | 'radial';
+  description: string;
+}> = [
+  { key: 'city', title: 'Geographic Distribution', icon: MapPin, type: 'pie', description: 'Top cities by contact count' },
+  { key: 'jobLevel', title: 'Seniority Breakdown', icon: Briefcase, type: 'donut', description: 'Distribution across job levels' },
+  { key: 'department', title: 'Department Comparison', icon: Building2, type: 'hbar', description: 'Contacts by department' },
+  { key: 'industry', title: 'Industry Segments', icon: Factory, type: 'hbar', description: 'Distribution across industries' },
+  { key: 'turnover', title: 'Revenue Range', icon: TrendingUp, type: 'vbar', description: 'Companies by turnover bracket' },
+  { key: 'empSize', title: 'Company Size', icon: Users, type: 'donut', description: 'Distribution by employee count' },
+];
+
+const MiniChart = ({
+  title,
+  data,
+  icon: Icon,
+  type,
+  description
+}: {
+  title: string;
+  data: { name: string; value: number }[];
+  icon: React.ElementType;
+  type: 'pie' | 'donut' | 'hbar' | 'vbar' | 'area' | 'radial';
+  description: string;
+}) => {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  const renderChart = () => {
+    // Pie Chart - Best for geographical composition
+    if (type === 'pie') {
+      return (
+        <div className="flex items-center gap-4">
+          <div className="w-[180px] h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={75}
+                  paddingAngle={2}
+                  dataKey="value"
+                  stroke="hsl(var(--background))"
+                  strokeWidth={2}
+                >
+                  {data.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={BRAND_COLORS[index % BRAND_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number, name: string) => [
+                    `${value.toLocaleString()} (${Math.round((value / total) * 100)}%)`,
+                    name
+                  ]}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1 space-y-2">
+            {data.slice(0, 5).map((item, index) => (
+              <div key={item.name} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: BRAND_COLORS[index % BRAND_COLORS.length] }}
+                  />
+                  <span className="text-muted-foreground truncate max-w-[120px]" title={item.name}>
+                    {item.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">{item.value.toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground w-10 text-right">
+                    {Math.round((item.value / total) * 100)}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Donut Chart - Perfect for showing hierarchy/levels
+    if (type === 'donut') {
+      return (
+        <div className="flex items-center gap-4">
+          <div className="w-[180px] h-[180px] relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={80}
+                  paddingAngle={2}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {data.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={BRAND_COLORS[index % BRAND_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number, name: string) => [
+                    `${value.toLocaleString()} (${Math.round((value / total) * 100)}%)`,
+                    name
+                  ]}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            {/* Center total */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-2xl font-bold text-foreground">{total.toLocaleString()}</span>
+              <span className="text-xs text-muted-foreground">Total</span>
+            </div>
+          </div>
+          <div className="flex-1 space-y-2">
+            {data.slice(0, 5).map((item, index) => (
+              <div key={item.name} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-sm"
+                    style={{ backgroundColor: BRAND_COLORS[index % BRAND_COLORS.length] }}
+                  />
+                  <span className="text-muted-foreground truncate max-w-[120px]" title={item.name}>
+                    {item.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">{item.value.toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground w-10 text-right">
+                    {Math.round((item.value / total) * 100)}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Horizontal Bar Chart - Best for comparing named categories
+    if (type === 'hbar') {
+      const maxValue = Math.max(...data.map(d => d.value));
+      return (
+        <div className="space-y-3 pr-2">
+          {data.slice(0, 6).map((item, index) => (
+            <div key={item.name} className="space-y-1">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground truncate max-w-[180px]" title={item.name}>
+                  {item.name}
+                </span>
+                <span className="font-semibold text-foreground ml-2">{item.value.toLocaleString()}</span>
+              </div>
+              <div className="h-3 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${(item.value / maxValue) * 100}%`,
+                    backgroundColor: BRAND_COLORS[index % BRAND_COLORS.length]
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Vertical Bar Chart - Shows ordered ranges/progression
+    if (type === 'vbar') {
+      return (
+        <div className="h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 20, right: 10, left: 10, bottom: 60 }}>
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => value.length > 10 ? value.slice(0, 10) + '\u2026' : value}
+                interval={0}
+                angle={-45}
+                textAnchor="end"
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}
+              />
+              <Tooltip
+                formatter={(value: number) => [value.toLocaleString(), "Count"]}
+                contentStyle={{
+                  backgroundColor: "hsl(var(--popover))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                }}
+                cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
+              />
+              <Bar
+                dataKey="value"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={50}
+              >
+                {data.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={BRAND_COLORS[index % BRAND_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    // Area Chart - Good for showing trends
+    if (type === 'area') {
+      return (
+        <div className="h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+              <defs>
+                <linearGradient id="brandAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(160, 84%, 39%)" stopOpacity={0.6}/>
+                  <stop offset="95%" stopColor="hsl(160, 84%, 39%)" stopOpacity={0.05}/>
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => value.length > 8 ? value.slice(0, 8) + '\u2026' : value}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}
+              />
+              <Tooltip
+                formatter={(value: number) => [value.toLocaleString(), "Count"]}
+                contentStyle={{
+                  backgroundColor: "hsl(var(--popover))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="hsl(160, 84%, 39%)"
+                strokeWidth={2}
+                fill="url(#brandAreaGradient)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    // Radial Bar Chart
+    if (type === 'radial') {
+      const radialData = data.slice(0, 5).map((item, index) => ({
+        ...item,
+        fill: BRAND_COLORS[index % BRAND_COLORS.length],
+      }));
+
+      return (
+        <div className="flex items-center gap-4">
+          <div className="w-[180px] h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadialBarChart
+                cx="50%"
+                cy="50%"
+                innerRadius="25%"
+                outerRadius="100%"
+                data={radialData}
+                startAngle={180}
+                endAngle={-180}
+              >
+                <RadialBar
+                  dataKey="value"
+                  cornerRadius={4}
+                  background={{ fill: 'hsl(var(--muted))' }}
+                />
+                <Tooltip
+                  formatter={(value: number, name: string) => [value.toLocaleString(), name]}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                  }}
+                />
+              </RadialBarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1 space-y-2">
+            {radialData.map((item) => (
+              <div key={item.name} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-sm"
+                    style={{ backgroundColor: item.fill }}
+                  />
+                  <span className="text-muted-foreground truncate max-w-[120px]" title={item.name}>
+                    {item.name}
+                  </span>
+                </div>
+                <span className="font-semibold text-foreground">{item.value.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <Card className="col-span-1 overflow-hidden border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 bg-card">
+      <CardHeader className="pb-3 pt-4 px-5 border-b border-border/30">
+        <CardTitle className="text-base font-semibold flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <Icon className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <span className="text-foreground">{title}</span>
+              <p className="text-xs font-normal text-muted-foreground mt-0.5">{description}</p>
+            </div>
+          </div>
+          <Badge variant="secondary" className="text-xs font-medium">
+            {total.toLocaleString()}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="py-4 px-5">
+        {data.length > 0 ? (
+          renderChart()
+        ) : (
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
+            No data available
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 interface MasterFilters {
   activity_name: string[];
@@ -121,16 +528,6 @@ export default function Master() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Type for chart aggregate response
-  interface ChartAggregateResponse {
-    city: { name: string; value: number }[];
-    jobLevel: { name: string; value: number }[];
-    department: { name: string; value: number }[];
-    industry: { name: string; value: number }[];
-    turnover: { name: string; value: number }[];
-    empSize: { name: string; value: number }[];
-  }
-
   // Fetch chart distribution data using Postgres-level aggregation (no row limit issues)
   const { data: chartData } = useQuery({
     queryKey: ["master-chart-data", JSON.stringify(filters)],
@@ -154,43 +551,16 @@ export default function Master() {
 
       const result = data as unknown as ChartAggregateResponse;
       return {
-        city: result?.city || [],
-        jobLevel: result?.jobLevel || [],
-        department: result?.department || [],
-        industry: result?.industry || [],
-        turnover: result?.turnover || [],
-        empSize: result?.empSize || [],
+        city: parseChartData(result?.city),
+        jobLevel: parseChartData(result?.jobLevel),
+        department: parseChartData(result?.department),
+        industry: parseChartData(result?.industry),
+        turnover: parseChartData(result?.turnover),
+        empSize: parseChartData(result?.empSize),
       };
     },
     staleTime: 2 * 60 * 1000,
   });
-
-  // Brand colors from design system
-  const BRAND_COLORS = [
-    'hsl(160, 84%, 39%)',  // Primary Teal
-    'hsl(11, 87%, 62%)',   // Coral accent
-    'hsl(271, 91%, 65%)',  // Purple secondary
-    'hsl(45, 93%, 58%)',   // Soft Yellow
-    'hsl(199, 89%, 70%)',  // Sky Blue
-    'hsl(350, 96%, 71%)',  // Salmon
-    'hsl(160, 60%, 65%)',  // Light Teal
-    'hsl(280, 67%, 69%)',  // Lavender
-  ];
-
-  const CHART_CONFIGS: Array<{
-    key: 'city' | 'jobLevel' | 'department' | 'industry' | 'turnover' | 'empSize';
-    title: string;
-    icon: React.ElementType;
-    type: 'pie' | 'donut' | 'hbar' | 'vbar' | 'area' | 'radial';
-    description: string;
-  }> = [
-    { key: 'city', title: 'Geographic Distribution', icon: MapPin, type: 'pie', description: 'Top cities by contact count' },
-    { key: 'jobLevel', title: 'Seniority Breakdown', icon: Briefcase, type: 'donut', description: 'Distribution across job levels' },
-    { key: 'department', title: 'Department Comparison', icon: Building2, type: 'hbar', description: 'Contacts by department' },
-    { key: 'industry', title: 'Industry Segments', icon: Factory, type: 'hbar', description: 'Distribution across industries' },
-    { key: 'turnover', title: 'Revenue Range', icon: TrendingUp, type: 'vbar', description: 'Companies by turnover bracket' },
-    { key: 'empSize', title: 'Company Size', icon: Users, type: 'donut', description: 'Distribution by employee count' },
-  ];
 
   const activeFilterCount = Object.values(filters).reduce(
     (count, arr) => count + arr.length,
@@ -199,391 +569,6 @@ export default function Master() {
 
   const clearAllFilters = () => {
     setFilters(emptyFilters);
-  };
-
-  // Custom Legend Component
-  const CustomLegend = ({ data }: { data: { name: string; value: number }[] }) => {
-    const total = data.reduce((sum, item) => sum + item.value, 0);
-    return (
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 px-2">
-        {data.slice(0, 5).map((item, index) => (
-          <div key={item.name} className="flex items-center gap-1.5 text-xs">
-            <div 
-              className="w-2.5 h-2.5 rounded-sm flex-shrink-0" 
-              style={{ backgroundColor: BRAND_COLORS[index % BRAND_COLORS.length] }}
-            />
-            <span className="text-muted-foreground truncate max-w-[80px]" title={item.name}>
-              {item.name}
-            </span>
-            <span className="text-foreground font-medium">
-              {Math.round((item.value / total) * 100)}%
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const MiniChart = ({ 
-    title, 
-    data, 
-    icon: Icon, 
-    type,
-    description
-  }: { 
-    title: string; 
-    data: { name: string; value: number }[]; 
-    icon: React.ElementType;
-    type: 'pie' | 'donut' | 'hbar' | 'vbar' | 'area' | 'radial';
-    description: string;
-  }) => {
-    const total = data.reduce((sum, item) => sum + item.value, 0);
-    
-    const renderChart = () => {
-      // Pie Chart - Best for geographical composition
-      if (type === 'pie') {
-        return (
-          <div className="flex items-center gap-4">
-            <div className="w-[180px] h-[180px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={75}
-                    paddingAngle={2}
-                    dataKey="value"
-                    stroke="hsl(var(--background))"
-                    strokeWidth={2}
-                  >
-                    {data.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={BRAND_COLORS[index % BRAND_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: number, name: string) => [
-                      `${value.toLocaleString()} (${Math.round((value / total) * 100)}%)`, 
-                      name
-                    ]}
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--popover))", 
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex-1 space-y-2">
-              {data.slice(0, 5).map((item, index) => (
-                <div key={item.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: BRAND_COLORS[index % BRAND_COLORS.length] }}
-                    />
-                    <span className="text-muted-foreground truncate max-w-[120px]" title={item.name}>
-                      {item.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">{item.value.toLocaleString()}</span>
-                    <span className="text-xs text-muted-foreground w-10 text-right">
-                      {Math.round((item.value / total) * 100)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-      
-      // Donut Chart - Perfect for showing hierarchy/levels
-      if (type === 'donut') {
-        return (
-          <div className="flex items-center gap-4">
-            <div className="w-[180px] h-[180px] relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {data.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={BRAND_COLORS[index % BRAND_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: number, name: string) => [
-                      `${value.toLocaleString()} (${Math.round((value / total) * 100)}%)`, 
-                      name
-                    ]}
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--popover))", 
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Center total */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl font-bold text-foreground">{total.toLocaleString()}</span>
-                <span className="text-xs text-muted-foreground">Total</span>
-              </div>
-            </div>
-            <div className="flex-1 space-y-2">
-              {data.slice(0, 5).map((item, index) => (
-                <div key={item.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-sm" 
-                      style={{ backgroundColor: BRAND_COLORS[index % BRAND_COLORS.length] }}
-                    />
-                    <span className="text-muted-foreground truncate max-w-[120px]" title={item.name}>
-                      {item.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">{item.value.toLocaleString()}</span>
-                    <span className="text-xs text-muted-foreground w-10 text-right">
-                      {Math.round((item.value / total) * 100)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-
-      // Horizontal Bar Chart - Best for comparing named categories
-      if (type === 'hbar') {
-        const maxValue = Math.max(...data.map(d => d.value));
-        return (
-          <div className="space-y-3 pr-2">
-            {data.slice(0, 6).map((item, index) => (
-              <div key={item.name} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground truncate max-w-[180px]" title={item.name}>
-                    {item.name}
-                  </span>
-                  <span className="font-semibold text-foreground ml-2">{item.value.toLocaleString()}</span>
-                </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ 
-                      width: `${(item.value / maxValue) * 100}%`,
-                      backgroundColor: BRAND_COLORS[index % BRAND_COLORS.length]
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      }
-
-      // Vertical Bar Chart - Shows ordered ranges/progression
-      if (type === 'vbar') {
-        return (
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 20, right: 10, left: 10, bottom: 60 }}>
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => value.length > 10 ? value.slice(0, 10) + '…' : value}
-                  interval={0}
-                  angle={-45}
-                  textAnchor="end"
-                />
-                <YAxis 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}
-                />
-                <Tooltip 
-                  formatter={(value: number) => [value.toLocaleString(), "Count"]}
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--popover))", 
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                  }}
-                  cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
-                />
-                <Bar 
-                  dataKey="value" 
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={50}
-                >
-                  {data.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={BRAND_COLORS[index % BRAND_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        );
-      }
-
-      // Area Chart - Good for showing trends
-      if (type === 'area') {
-        return (
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-                <defs>
-                  <linearGradient id="brandAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(160, 84%, 39%)" stopOpacity={0.6}/>
-                    <stop offset="95%" stopColor="hsl(160, 84%, 39%)" stopOpacity={0.05}/>
-                  </linearGradient>
-                </defs>
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => value.length > 8 ? value.slice(0, 8) + '…' : value}
-                />
-                <YAxis 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}
-                />
-                <Tooltip 
-                  formatter={(value: number) => [value.toLocaleString(), "Count"]}
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--popover))", 
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="hsl(160, 84%, 39%)" 
-                  strokeWidth={2}
-                  fill="url(#brandAreaGradient)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        );
-      }
-
-      // Radial Bar Chart
-      if (type === 'radial') {
-        const maxValue = Math.max(...data.map(d => d.value), 1);
-        const radialData = data.slice(0, 5).map((item, index) => ({
-          ...item,
-          fill: BRAND_COLORS[index % BRAND_COLORS.length],
-        }));
-        
-        return (
-          <div className="flex items-center gap-4">
-            <div className="w-[180px] h-[180px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadialBarChart 
-                  cx="50%" 
-                  cy="50%" 
-                  innerRadius="25%" 
-                  outerRadius="100%" 
-                  data={radialData}
-                  startAngle={180}
-                  endAngle={-180}
-                >
-                  <RadialBar
-                    dataKey="value"
-                    cornerRadius={4}
-                    background={{ fill: 'hsl(var(--muted))' }}
-                  />
-                  <Tooltip 
-                    formatter={(value: number, name: string) => [value.toLocaleString(), name]}
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--popover))", 
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                    }}
-                  />
-                </RadialBarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex-1 space-y-2">
-              {radialData.map((item, index) => (
-                <div key={item.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-sm" 
-                      style={{ backgroundColor: item.fill }}
-                    />
-                    <span className="text-muted-foreground truncate max-w-[120px]" title={item.name}>
-                      {item.name}
-                    </span>
-                  </div>
-                  <span className="font-semibold text-foreground">{item.value.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-
-      return null;
-    };
-    
-    return (
-      <Card className="col-span-1 overflow-hidden border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 bg-card">
-        <CardHeader className="pb-3 pt-4 px-5 border-b border-border/30">
-          <CardTitle className="text-base font-semibold flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-md bg-primary/10">
-                <Icon className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <span className="text-foreground">{title}</span>
-                <p className="text-xs font-normal text-muted-foreground mt-0.5">{description}</p>
-              </div>
-            </div>
-            <Badge variant="secondary" className="text-xs font-medium">
-              {total.toLocaleString()}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="py-4 px-5">
-          {data.length > 0 ? (
-            renderChart()
-          ) : (
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-              No data available
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
   };
 
   const {
