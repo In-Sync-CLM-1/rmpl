@@ -147,23 +147,33 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
           /* 8 */ supabase.from('demandcom').select('assigned_to, latest_disposition').in('assigned_to', teamMemberIds),
         );
       } else {
-        // Non-team path: use RPC functions
-        batch1Promises.push(
-          /* 5 */ supabase.rpc('get_demandcom_kpi_metrics', {
-            p_start_date: startDateTime.toISOString(),
-            p_end_date: endDateTime.toISOString(),
-            p_activity_filter: activityFilter || null,
-            p_agent_filter: agentFilter || null,
-            p_today_start: startDateTime.toISOString()
-          }),
-          /* 6 */ supabase.rpc('get_demandcom_disposition_breakdown', {
-            p_start_date: startDateTime.toISOString(),
-            p_end_date: endDateTime.toISOString(),
-            p_activity_filter: activityFilter || null,
-            p_agent_filter: agentFilter || null
-          }),
-          /* 7 */ supabase.rpc('get_demandcom_agent_stats', { p_team_name: 'Demandcom-Calling' }),
-        );
+        const hasFilters = activityFilter || agentFilter;
+        if (!hasFilters) {
+          // No filters: use cached materialized views (instant)
+          batch1Promises.push(
+            /* 5 */ supabase.from('demandcom_kpi_cache').select('*').limit(1),
+            /* 6 */ supabase.from('demandcom_disposition_cache').select('*'),
+            /* 7 */ supabase.rpc('get_demandcom_agent_stats', { p_team_name: 'Demandcom-Calling' }),
+          );
+        } else {
+          // With filters: use RPC functions
+          batch1Promises.push(
+            /* 5 */ supabase.rpc('get_demandcom_kpi_metrics', {
+              p_start_date: startDateTime.toISOString(),
+              p_end_date: endDateTime.toISOString(),
+              p_activity_filter: activityFilter || null,
+              p_agent_filter: agentFilter || null,
+              p_today_start: startDateTime.toISOString()
+            }),
+            /* 6 */ supabase.rpc('get_demandcom_disposition_breakdown', {
+              p_start_date: startDateTime.toISOString(),
+              p_end_date: endDateTime.toISOString(),
+              p_activity_filter: activityFilter || null,
+              p_agent_filter: agentFilter || null
+            }),
+            /* 7 */ supabase.rpc('get_demandcom_agent_stats', { p_team_name: 'Demandcom-Calling' }),
+          );
+        }
       }
 
       const batch1 = await Promise.all(batch1Promises);
