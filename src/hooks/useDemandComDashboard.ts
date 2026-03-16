@@ -117,7 +117,7 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
         /* 0 */ connectedCallsQueryBuilder,
         /* 1 */ dispositionChangesQueryBuilder,
         /* 2 */ supabase.from("projects").select("id, status").in("status", ["active", "in_progress"]),
-        /* 3 */ supabase.rpc('get_execution_project_stats'),
+        /* 3 */ supabase.from('demandcom_execution_stats_cache').select('*'),
         /* 4 */ supabase.from('team_members').select('user_id, teams!inner(name)').eq('teams.name', 'Demandcom-Database').eq('is_active', true),
       ];
 
@@ -153,7 +153,7 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
           batch1Promises.push(
             /* 5 */ supabase.from('demandcom_kpi_cache').select('*').limit(1),
             /* 6 */ supabase.from('demandcom_disposition_cache').select('*'),
-            /* 7 */ supabase.rpc('get_demandcom_agent_stats', { p_team_name: 'Demandcom-Calling' }),
+            /* 7 */ supabase.from('demandcom_agent_stats_cache').select('*'),
           );
         } else {
           // With filters: use RPC functions
@@ -171,7 +171,7 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
               p_activity_filter: activityFilter || null,
               p_agent_filter: agentFilter || null
             }),
-            /* 7 */ supabase.rpc('get_demandcom_agent_stats', { p_team_name: 'Demandcom-Calling' }),
+            /* 7 */ supabase.from('demandcom_agent_stats_cache').select('*'),
           );
         }
       }
