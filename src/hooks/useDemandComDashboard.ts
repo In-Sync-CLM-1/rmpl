@@ -117,7 +117,7 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
         /* 0 */ connectedCallsQueryBuilder,
         /* 1 */ dispositionChangesQueryBuilder,
         /* 2 */ supabase.from("projects").select("id, status").in("status", ["active", "in_progress"]),
-        /* 3 */ supabase.from('demandcom_execution_stats_cache').select('*'),
+        /* 3 */ supabase.from('demandcom_execution_stats_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
         /* 4 */ supabase.from('team_members').select('user_id, teams!inner(name)').eq('teams.name', 'Demandcom-Database').eq('is_active', true),
       ];
 
@@ -151,9 +151,9 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
         if (!hasFilters) {
           // No filters: use cached materialized views (instant)
           batch1Promises.push(
-            /* 5 */ supabase.from('demandcom_kpi_cache').select('*').limit(1),
-            /* 6 */ supabase.from('demandcom_disposition_cache').select('*'),
-            /* 7 */ supabase.from('demandcom_agent_stats_cache').select('*'),
+            /* 5 */ supabase.from('demandcom_kpi_cache').select('*').limit(1).then(r => r.error ? { data: [{ total_count: 0, assigned_count: 0, registered_count: 0, updated_today_count: 0 }] } : r).catch(() => ({ data: [{ total_count: 0, assigned_count: 0, registered_count: 0, updated_today_count: 0 }] })),
+            /* 6 */ supabase.from('demandcom_disposition_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
+            /* 7 */ supabase.from('demandcom_agent_stats_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
           );
         } else {
           // With filters: use RPC functions
@@ -171,7 +171,7 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
               p_activity_filter: activityFilter || null,
               p_agent_filter: agentFilter || null
             }),
-            /* 7 */ supabase.from('demandcom_agent_stats_cache').select('*'),
+            /* 7 */ supabase.from('demandcom_agent_stats_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
           );
         }
       }
