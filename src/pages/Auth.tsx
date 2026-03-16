@@ -26,10 +26,18 @@ export default function Auth() {
   // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/dashboard", { replace: true });
-      } else {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          navigate("/dashboard", { replace: true });
+        } else {
+          setCheckingSession(false);
+        }
+      } catch (error) {
+        logError(error, {
+          component: "Auth",
+          operation: "CHECK_SESSION",
+        });
         setCheckingSession(false);
       }
     };
