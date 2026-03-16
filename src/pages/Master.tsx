@@ -685,8 +685,10 @@ export default function Master() {
     }
   };
 
-  const handleSyncComplete = () => {
+  const handleSyncComplete = async () => {
     setActiveSyncId(null);
+    // Refresh materialized view caches after sync
+    await supabase.rpc('refresh_master_caches').catch(() => {});
     window.location.reload();
   };
 
@@ -1023,7 +1025,9 @@ export default function Master() {
           'updated_at',
           'assigned_by'
         ]}
-        onImportComplete={() => {
+        onImportComplete={async () => {
+          // Refresh materialized view caches after import
+          await supabase.rpc('refresh_master_caches').catch(() => {});
           window.location.reload();
         }}
       />
