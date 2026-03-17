@@ -4,7 +4,7 @@ import { verifyAuth } from '../_shared/auth-helpers.ts';
 import { corsHeaders } from '../_shared/cors-headers.ts';
 import { successResponse, errorResponse, unauthorizedResponse } from '../_shared/response-helpers.ts';
 
-const BATCH_SIZE = 5000;
+const BATCH_SIZE = 500;
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
