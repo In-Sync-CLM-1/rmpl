@@ -1,6 +1,6 @@
  import { useQuery } from "@tanstack/react-query";
  import { supabase } from "@/integrations/supabase/client";
- 
+
  export interface WhatsAppTemplate {
    id: string;
    template_id: string;
@@ -16,11 +16,12 @@
    sample_values: Record<string, string>;
    status: "approved" | "pending" | "rejected";
    rejection_reason: string | null;
+   created_by_portal: boolean;
    last_synced_at: string | null;
    created_at: string;
    updated_at: string;
  }
- 
+
  export function useWhatsAppTemplates(onlyApproved = false) {
    const { data: templates = [], isLoading, error } = useQuery({
      queryKey: ["whatsapp-templates", onlyApproved],
@@ -28,19 +29,20 @@
        let query = supabase
          .from("whatsapp_templates")
          .select("*")
+         .eq("created_by_portal", true)
          .order("template_name", { ascending: true });
- 
+
        if (onlyApproved) {
          query = query.eq("status", "approved");
        }
- 
+
        const { data, error } = await query;
- 
+
        if (error) throw error;
        return data as WhatsAppTemplate[];
      },
    });
- 
+
    return {
      templates,
      isLoading,
