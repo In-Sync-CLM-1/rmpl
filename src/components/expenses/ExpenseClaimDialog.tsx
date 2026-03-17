@@ -6,10 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Trash2, Upload, Loader2, Receipt } from "lucide-react";
+import { Plus, Trash2, Upload, Loader2, Receipt, X, FileText, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { EXPENSE_TYPES, useCreateClaim, uploadReceipt, type ExpenseItem } from "@/hooks/useExpenseClaims";
+import { EXPENSE_TYPES, useCreateClaim, uploadReceipt, uploadProofFiles, validateProofFile, MAX_PROOF_FILES, type ExpenseItem } from "@/hooks/useExpenseClaims";
 
 interface ExpenseClaimDialogProps {
   open: boolean;
@@ -45,6 +45,7 @@ export function ExpenseClaimDialog({ open, onOpenChange, userId }: ExpenseClaimD
     purpose: "",
   });
   const [items, setItems] = useState<DraftItem[]>([{ ...emptyItem }]);
+  const [proofFiles, setProofFiles] = useState<File[]>([]);
 
   const createClaim = useCreateClaim();
 
@@ -52,6 +53,7 @@ export function ExpenseClaimDialog({ open, onOpenChange, userId }: ExpenseClaimD
     setStep(1);
     setTripData({ trip_title: "", trip_start_date: "", trip_end_date: "", destination: "", purpose: "" });
     setItems([{ ...emptyItem }]);
+    setProofFiles([]);
   };
 
   const addItem = () => setItems([...items, { ...emptyItem }]);
@@ -72,6 +74,35 @@ export function ExpenseClaimDialog({ open, onOpenChange, userId }: ExpenseClaimD
     updated[index].receipt_file = file;
     updated[index].receipt_name = file?.name;
     setItems(updated);
+  };
+
+  const handleProofFiles = (fileList: FileList | null) => {
+    if (!fileList) return;
+    const newFiles = Array.from(fileList);
+    const remaining = MAX_PROOF_FILES - proofFiles.length;
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_PROOF_FILES} proof files allowed.`);
+      return;
+    }
+    const filesToAdd: File[] = [];
+    for (const file of newFiles.slice(0, remaining)) {
+      const err = validateProofFile(file);
+      if (err) {
+        toast.error(err);
+      } else {
+        filesToAdd.push(file);
+      }
+    }
+    if (filesToAdd.length > 0) {
+      setProofFiles((prev) => [...prev, ...filesToAdd]);
+    }
+    if (newFiles.length > remaining) {
+      toast.error(`Only ${remaining} more file(s) can be added.`);
+    }
+  };
+
+  const removeProofFile = (index: number) => {
+    setProofFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const totalAmount = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -119,8 +150,6 @@ export function ExpenseClaimDialog({ open, onOpenChange, userId }: ExpenseClaimD
         if (items[i].receipt_file) {
           try {
             const { url, name } = await uploadReceipt(items[i].receipt_file!, userId, claimId);
-            // Update the item with receipt URL - we need to find the created item
-            // Since items are ordered, use index
             const { data: createdItems } = await supabase
               .from("travel_expense_items" as any)
               .select("id")
@@ -135,6 +164,20 @@ export function ExpenseClaimDialog({ open, onOpenChange, userId }: ExpenseClaimD
           } catch (err) {
             console.error("Failed to upload receipt:", err);
           }
+        }
+      }
+
+      // Upload proof files and update claim
+      if (proofFiles.length > 0) {
+        try {
+          const proofUrls = await uploadProofFiles(proofFiles, userId, claimId);
+          await supabase
+            .from("travel_expense_claims" as any)
+            .update({ proof_urls: proofUrls })
+            .eq("id", claimId);
+        } catch (err) {
+          console.error("Failed to upload proofs:", err);
+          toast.error("Some proof files failed to upload.");
         }
       }
 
@@ -311,6 +354,55 @@ export function ExpenseClaimDialog({ open, onOpenChange, userId }: ExpenseClaimD
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <span className="font-medium">Total Amount</span>
               <span className="text-xl font-bold">₹{totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+            </div>
+
+            {/* Expense Proofs Upload */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Expense Proofs (max {MAX_PROOF_FILES} files, 1 MB each)</Label>
+              <p className="text-xs text-muted-foreground">Upload supporting documents — images (JPG, PNG, WebP, GIF) or PDFs</p>
+              {proofFiles.length > 0 && (
+                <div className="space-y-1.5">
+                  {proofFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-muted rounded text-sm">
+                      {file.type === "application/pdf" ? (
+                        <FileText className="h-4 w-4 text-red-500 shrink-0" />
+                      ) : (
+                        <ImageIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                      )}
+                      <span className="truncate flex-1">{file.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {(file.size / 1024).toFixed(0)} KB
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => removeProofFile(idx)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {proofFiles.length < MAX_PROOF_FILES && (
+                <div className="relative">
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                    multiple
+                    className="h-9 text-xs"
+                    onChange={(e) => {
+                      handleProofFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {proofFiles.length}/{MAX_PROOF_FILES} files added
+              </p>
             </div>
 
             <DialogFooter className="flex-col sm:flex-row gap-2">

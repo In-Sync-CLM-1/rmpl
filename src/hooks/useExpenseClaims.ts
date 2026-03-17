@@ -35,12 +35,19 @@ export interface ExpenseClaim {
   approved_at: string | null;
   rejection_reason: string | null;
   reimbursed_at: string | null;
+  proof_urls: ProofFile[];
   created_at: string;
   updated_at: string;
   profiles?: { full_name: string; email: string } | null;
   approver?: { full_name: string } | null;
   projects?: { project_name: string } | null;
   items?: ExpenseItem[];
+}
+
+export interface ProofFile {
+  url: string;
+  name: string;
+  size: number;
 }
 
 export const EXPENSE_TYPES = [
@@ -361,3 +368,40 @@ export async function uploadReceipt(file: File, userId: string, claimId: string)
   const { data: signedData } = await supabase.storage.from("expense-receipts").createSignedUrl(path, 60 * 60 * 24 * 365);
   return { url: signedData?.signedUrl || data.publicUrl, name: file.name };
 }
+
+const MAX_PROOF_FILES = 6;
+const MAX_PROOF_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB
+const ALLOWED_PROOF_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+
+export function validateProofFile(file: File): string | null {
+  if (!ALLOWED_PROOF_TYPES.includes(file.type)) {
+    return `"${file.name}" is not a supported file type. Only images and PDFs are allowed.`;
+  }
+  if (file.size > MAX_PROOF_SIZE_BYTES) {
+    return `"${file.name}" exceeds 1 MB limit (${(file.size / 1024 / 1024).toFixed(2)} MB).`;
+  }
+  return null;
+}
+
+export async function uploadProofFiles(
+  files: File[],
+  userId: string,
+  claimId: string
+): Promise<ProofFile[]> {
+  const results: ProofFile[] = [];
+  for (const file of files) {
+    const ext = file.name.split(".").pop();
+    const path = `${userId}/${claimId}/proofs/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from("expense-receipts").upload(path, file);
+    if (error) throw error;
+    const { data: signedData } = await supabase.storage.from("expense-receipts").createSignedUrl(path, 60 * 60 * 24 * 365);
+    results.push({
+      url: signedData?.signedUrl || "",
+      name: file.name,
+      size: file.size,
+    });
+  }
+  return results;
+}
+
+export { MAX_PROOF_FILES, MAX_PROOF_SIZE_BYTES, ALLOWED_PROOF_TYPES };

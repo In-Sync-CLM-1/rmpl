@@ -3,9 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, MapPin, Calendar, Target, User, Receipt } from "lucide-react";
+import { ExternalLink, MapPin, Calendar, Target, User, Receipt, FileText, Image as ImageIcon } from "lucide-react";
 import { format } from "date-fns";
-import { type ExpenseClaim, getExpenseTypeLabel, getStatusColor, getStatusLabel, useSubmitClaim, useDeleteClaim } from "@/hooks/useExpenseClaims";
+import { type ExpenseClaim, type ProofFile, getExpenseTypeLabel, getStatusColor, getStatusLabel, useSubmitClaim, useDeleteClaim } from "@/hooks/useExpenseClaims";
 
 interface ExpenseClaimDetailProps {
   claim: ExpenseClaim | null;
@@ -131,6 +131,35 @@ export function ExpenseClaimDetail({ claim, open, onOpenChange, isOwner }: Expen
                 ₹{Number(claim.approved_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </span>
             </div>
+          )}
+
+          {/* Expense Proofs */}
+          {claim.proof_urls && (claim.proof_urls as ProofFile[]).length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm">Expense Proofs ({(claim.proof_urls as ProofFile[]).length})</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(claim.proof_urls as ProofFile[]).map((proof, idx) => (
+                    <a
+                      key={idx}
+                      href={proof.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-2 bg-muted rounded hover:bg-muted/80 transition-colors text-sm"
+                    >
+                      {proof.name?.toLowerCase().endsWith(".pdf") ? (
+                        <FileText className="h-4 w-4 text-red-500 shrink-0" />
+                      ) : (
+                        <ImageIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                      )}
+                      <span className="truncate flex-1">{proof.name}</span>
+                      <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
 
           {/* Rejection reason */}
