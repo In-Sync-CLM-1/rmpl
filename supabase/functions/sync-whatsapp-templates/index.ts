@@ -1,4 +1,4 @@
- import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  
  const corsHeaders = {
    'Access-Control-Allow-Origin': '*',
@@ -28,9 +28,8 @@
      });
  
      // Verify user is admin
-     const token = authHeader.replace('Bearer ', '');
-     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-     if (claimsError || !claimsData?.claims) {
+     const { data: { user }, error: userError } = await supabase.auth.getUser();
+     if (userError || !user) {
        return new Response(
          JSON.stringify({ error: 'Unauthorized' }),
          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
