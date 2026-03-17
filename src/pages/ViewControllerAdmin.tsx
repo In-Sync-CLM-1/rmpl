@@ -107,8 +107,13 @@ const ViewControllerAdmin = () => {
 
         if (error) throw error;
 
+        const validItemIds = new Set(items.map(i => i.id));
         const permMap = new Map<string, boolean>();
-        data?.forEach(p => permMap.set(p.navigation_item_id, p.can_view));
+        data?.forEach(p => {
+          if (validItemIds.has(p.navigation_item_id)) {
+            permMap.set(p.navigation_item_id, p.can_view);
+          }
+        });
         setUserPermissions(permMap);
       } catch (error) {
         console.error('Error fetching user permissions:', error);
@@ -138,13 +143,16 @@ const ViewControllerAdmin = () => {
           .delete()
           .eq('user_id', userId);
 
-        // Insert new permissions
-        const permissionsToInsert = Array.from(userPermissions.entries()).map(([itemId, canView]) => ({
-          user_id: userId,
-          navigation_item_id: itemId,
-          can_view: canView,
-          granted_by: currentUserId
-        }));
+        // Insert new permissions (only for items that still exist in navigation_items)
+        const validItemIds = new Set(items.map(i => i.id));
+        const permissionsToInsert = Array.from(userPermissions.entries())
+          .filter(([itemId]) => validItemIds.has(itemId))
+          .map(([itemId, canView]) => ({
+            user_id: userId,
+            navigation_item_id: itemId,
+            can_view: canView,
+            granted_by: currentUserId
+          }));
 
         if (permissionsToInsert.length > 0) {
           const { error } = await supabase
@@ -187,8 +195,13 @@ const ViewControllerAdmin = () => {
 
       if (error) throw error;
 
+      const validItemIds = new Set(items.map(i => i.id));
       const permMap = new Map<string, boolean>();
-      data?.forEach(p => permMap.set(p.navigation_item_id, p.can_view));
+      data?.forEach(p => {
+        if (validItemIds.has(p.navigation_item_id)) {
+          permMap.set(p.navigation_item_id, p.can_view);
+        }
+      });
       setUserPermissions(permMap);
       toast.success('Permissions copied');
     } catch (error) {
