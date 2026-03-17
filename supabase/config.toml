@@ -72,9 +72,6 @@ verify_jwt = false
 [functions.excelhire-webhook]
 verify_jwt = false
 
-[functions.plivo-inbound-sms]
-verify_jwt = false
-
 [functions.bulk-import-demandcom]
 verify_jwt = true
 

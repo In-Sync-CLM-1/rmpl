@@ -26,7 +26,7 @@ import { DataTable, DataTableColumn } from "@/components/data-table/DataTable";
 interface Campaign {
   id: string;
   name: string;
-  type: "email" | "sms";
+  type: "email";
   status: string;
   total_recipients: number;
   sent_count: number;
@@ -174,7 +174,7 @@ export default function Campaigns() {
     },
     {
       header: "Opened",
-      cell: (campaign) => (campaign.type === "email" ? campaign.opened_count : "-"),
+      accessorKey: "opened_count",
     },
     {
       header: "Clicked",
@@ -218,7 +218,6 @@ export default function Campaigns() {
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="email">Email</SelectItem>
-            <SelectItem value="sms">SMS</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(value) => handleFilterChange(() => setStatusFilter(value))}>

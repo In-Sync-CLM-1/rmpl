@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Campaign {
   id: string;
   name: string;
-  type: "email" | "sms";
+  type: "email";
   total_recipients: number;
   sent_count: number;
   delivered_count: number;
@@ -173,18 +173,12 @@ export default function CampaignAnalytics() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              {campaign.type === "email" ? "Opened" : "Clicked"}
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Opened</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {campaign.type === "email" ? campaign.opened_count : campaign.clicked_count}
-            </div>
+            <div className="text-2xl font-bold">{campaign.opened_count}</div>
             <p className="text-xs text-muted-foreground">
-              {campaign.type === "email"
-                ? getPercentage(campaign.opened_count, campaign.delivered_count)
-                : getPercentage(campaign.clicked_count, campaign.delivered_count)}
+              {getPercentage(campaign.opened_count, campaign.delivered_count)}
             </p>
           </CardContent>
         </Card>
@@ -199,11 +193,11 @@ export default function CampaignAnalytics() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>{campaign.type === "email" ? "Email" : "Phone"}</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Sent</TableHead>
                 <TableHead>Delivered</TableHead>
-                {campaign.type === "email" && <TableHead>Opened</TableHead>}
+                <TableHead>Opened</TableHead>
                 <TableHead>Clicked</TableHead>
                 <TableHead>Error</TableHead>
               </TableRow>
@@ -222,9 +216,7 @@ export default function CampaignAnalytics() {
                       {recipient.demandcom.first_name} {recipient.demandcom.last_name}
                     </TableCell>
                     <TableCell>
-                      {campaign?.type === "email"
-                        ? recipient.demandcom.email
-                        : recipient.demandcom.phone}
+                      {recipient.demandcom.email}
                     </TableCell>
                     <TableCell>{getStatusBadge(recipient.status)}</TableCell>
                     <TableCell>
@@ -235,13 +227,11 @@ export default function CampaignAnalytics() {
                         ? format(new Date(recipient.delivered_at), "MMM d, HH:mm")
                         : "-"}
                     </TableCell>
-                    {campaign.type === "email" && (
-                      <TableCell>
-                        {recipient.opened_at
-                          ? format(new Date(recipient.opened_at), "MMM d, HH:mm")
-                          : "-"}
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      {recipient.opened_at
+                        ? format(new Date(recipient.opened_at), "MMM d, HH:mm")
+                        : "-"}
+                    </TableCell>
                     <TableCell>
                       {recipient.clicked_at
                         ? format(new Date(recipient.clicked_at), "MMM d, HH:mm")

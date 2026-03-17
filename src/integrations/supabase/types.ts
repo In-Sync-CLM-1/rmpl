@@ -2751,81 +2751,6 @@ export type Database = {
           },
         ]
       }
-      inbound_sms: {
-        Row: {
-          campaign_id: string | null
-          created_at: string | null
-          demandcom_id: string | null
-          from_number: string
-          id: string
-          is_opt_out: boolean | null
-          message_text: string
-          message_uuid: string | null
-          received_at: string | null
-          to_number: string
-        }
-        Insert: {
-          campaign_id?: string | null
-          created_at?: string | null
-          demandcom_id?: string | null
-          from_number: string
-          id?: string
-          is_opt_out?: boolean | null
-          message_text: string
-          message_uuid?: string | null
-          received_at?: string | null
-          to_number: string
-        }
-        Update: {
-          campaign_id?: string | null
-          created_at?: string | null
-          demandcom_id?: string | null
-          from_number?: string
-          id?: string
-          is_opt_out?: boolean | null
-          message_text?: string
-          message_uuid?: string | null
-          received_at?: string | null
-          to_number?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "inbound_sms_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inbound_sms_candidate_id_fkey"
-            columns: ["demandcom_id"]
-            isOneToOne: false
-            referencedRelation: "demandcom"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inbound_sms_candidate_id_fkey"
-            columns: ["demandcom_id"]
-            isOneToOne: false
-            referencedRelation: "demandcom_latest_per_mobile"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inbound_sms_demandcom_id_fkey"
-            columns: ["demandcom_id"]
-            isOneToOne: false
-            referencedRelation: "demandcom"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inbound_sms_demandcom_id_fkey"
-            columns: ["demandcom_id"]
-            isOneToOne: false
-            referencedRelation: "demandcom_latest_per_mobile"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       inventory_allocations: {
         Row: {
           allocated_by: string | null
@@ -5223,48 +5148,6 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           year?: number
-        }
-        Relationships: []
-      }
-      sms_templates: {
-        Row: {
-          body: string
-          category: string | null
-          character_count: number | null
-          created_at: string
-          created_by: string | null
-          id: string
-          is_active: boolean
-          merge_tags: string[] | null
-          name: string
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          body: string
-          category?: string | null
-          character_count?: number | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_active?: boolean
-          merge_tags?: string[] | null
-          name: string
-          updated_at?: string
-          version?: number
-        }
-        Update: {
-          body?: string
-          category?: string | null
-          character_count?: number | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_active?: boolean
-          merge_tags?: string[] | null
-          name?: string
-          updated_at?: string
-          version?: number
         }
         Relationships: []
       }

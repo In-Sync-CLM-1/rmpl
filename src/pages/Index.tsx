@@ -62,7 +62,7 @@ const Index = () => {
             </div>
             <h3 className="text-xl font-bold mb-2">Campaign Builder</h3>
             <p className="text-muted-foreground">
-              Create targeted email and SMS campaigns with beautiful templates 
+              Create targeted email campaigns with beautiful templates
               and merge tags
             </p>
           </div>

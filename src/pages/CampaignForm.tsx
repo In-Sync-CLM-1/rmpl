@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Send, Calendar, Save } from "lucide-react";
+// SMS removed — campaigns are email-only now
 import { logError, getCurrentUserId, getSupabaseErrorMessage } from "@/lib/errorLogger";
 import { CsvAudienceUpload } from "@/components/CsvAudienceUpload";
 
@@ -34,7 +35,7 @@ export default function CampaignForm() {
   
   // Form state
   const [name, setName] = useState("");
-  const [type, setType] = useState<"email" | "sms">("email");
+  const [type] = useState<"email">("email");
   const [templateId, setTemplateId] = useState("");
   const [subject, setSubject] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -71,21 +72,12 @@ export default function CampaignForm() {
 
   const fetchTemplates = async () => {
     try {
-      if (type === "email") {
-        const { data, error } = await supabase
-          .from("email_templates")
-          .select("id, name, subject, body_html, merge_tags")
-          .eq("is_active", true);
-        if (error) throw error;
-        setTemplates(data || []);
-      } else {
-        const { data, error } = await supabase
-          .from("sms_templates")
-          .select("id, name, body, merge_tags")
-          .eq("is_active", true);
-        if (error) throw error;
-        setTemplates(data || []);
-      }
+      const { data, error } = await supabase
+        .from("email_templates")
+        .select("id, name, subject, body_html, merge_tags")
+        .eq("is_active", true);
+      if (error) throw error;
+      setTemplates(data || []);
     } catch (error: any) {
       const userId = await getCurrentUserId(supabase);
       logError(error, {
@@ -109,7 +101,7 @@ export default function CampaignForm() {
       if (error) throw error;
 
       setName(data.name);
-      setType(data.type as "email" | "sms");
+      // type is always email now
       setTemplateId(data.template_id || "");
       setSubject(data.subject || "");
       setAudienceData(Array.isArray(data.audience_data) ? data.audience_data : []);
@@ -143,15 +135,11 @@ export default function CampaignForm() {
     const tagPattern = /\{\{[a-zA-Z_]+\}\}/g;
     const extractedTags: string[] = [];
     
-    if (type === 'email' && selectedTemplate.body_html) {
+    if (selectedTemplate.body_html) {
       const bodyTags = selectedTemplate.body_html.match(tagPattern) || [];
       extractedTags.push(...bodyTags);
     }
-    if (type === 'sms' && selectedTemplate.body) {
-      const bodyTags = selectedTemplate.body.match(tagPattern) || [];
-      extractedTags.push(...bodyTags);
-    }
-    if (type === 'email' && subject) {
+    if (subject) {
       const subjectTags = subject.match(tagPattern) || [];
       extractedTags.push(...subjectTags);
     }
@@ -229,7 +217,7 @@ export default function CampaignForm() {
         name,
         type,
         template_id: templateId,
-        subject: type === "email" ? subject : null,
+        subject,
         audience_data: audienceData,
         status,
         scheduled_at: scheduledAt,
@@ -409,23 +397,6 @@ export default function CampaignForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="type">Campaign Type *</Label>
-                <Select value={type} onValueChange={(value: "email" | "sms") => {
-                  setType(value);
-                  setTemplateId("");
-                  fetchTemplates();
-                }}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="email">Email</SelectItem>
-                    <SelectItem value="sms">SMS</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="template">Template *</Label>
                 <Select value={templateId} onValueChange={setTemplateId}>
                   <SelectTrigger>
@@ -441,17 +412,15 @@ export default function CampaignForm() {
                 </Select>
               </div>
 
-              {type === "email" && (
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject Line *</Label>
-                  <Input
-                    id="subject"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="e.g., New opportunities in your area"
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject Line *</Label>
+                <Input
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="e.g., New opportunities in your area"
+                />
+              </div>
 
               <Button onClick={() => setCurrentTab("audience")}>
                 Next: Select Audience
@@ -499,9 +468,9 @@ export default function CampaignForm() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p><strong>Name:</strong> {name}</p>
-                <p><strong>Type:</strong> {type}</p>
+                <p><strong>Type:</strong> Email</p>
                 <p><strong>Recipients:</strong> {recipientCount}</p>
-                {type === "email" && <p><strong>Subject:</strong> {subject}</p>}
+                <p><strong>Subject:</strong> {subject}</p>
               </div>
 
               <div className="flex gap-4">
