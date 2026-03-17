@@ -1,196 +1,137 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get Exotel credentials from environment
-    const EXOTEL_API_KEY = Deno.env.get('EXOTEL_API_KEY');
-    const EXOTEL_API_TOKEN = Deno.env.get('EXOTEL_API_TOKEN');
-    const EXOTEL_SID = Deno.env.get('EXOTEL_SID');
-    const EXOTEL_CALLER_ID_ENV = Deno.env.get('EXOTEL_CALLER_ID'); // Fallback
+    const EXOTEL_API_KEY = Deno.env.get("EXOTEL_API_KEY");
+    const EXOTEL_API_TOKEN = Deno.env.get("EXOTEL_API_TOKEN");
+    const EXOTEL_SID = Deno.env.get("EXOTEL_SID");
+    const EXOTEL_CALLER_ID_ENV = Deno.env.get("EXOTEL_CALLER_ID");
 
     if (!EXOTEL_API_KEY || !EXOTEL_API_TOKEN || !EXOTEL_SID) {
-      console.error('Missing Exotel credentials');
       return new Response(
-        JSON.stringify({ error: 'Exotel credentials not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Exotel credentials not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get EXOPhone (Caller ID) from database or fallback to env variable
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: exophoneConfig, error: exophoneError } = await supabase
-      .from('exotel_config')
-      .select('exophone')
-      .eq('is_active', true)
-      .eq('is_default', true)
+    const { data: exophoneConfig } = await supabase
+      .from("exotel_config")
+      .select("exophone")
+      .eq("is_active", true)
+      .eq("is_default", true)
       .single();
 
     const EXOTEL_CALLER_ID = exophoneConfig?.exophone || EXOTEL_CALLER_ID_ENV;
 
     if (!EXOTEL_CALLER_ID) {
-      console.error('No EXOPhone (Caller ID) configured');
       return new Response(
-        JSON.stringify({ error: 'EXOPhone (Caller ID) not configured. Please add an EXOPhone number in Admin Settings.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "EXOPhone (Caller ID) not configured. Please add an EXOPhone number in Admin Settings." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Debug logging
-    console.log('Credentials check:', {
-      hasApiKey: !!EXOTEL_API_KEY,
-      apiKeyLength: EXOTEL_API_KEY?.length,
-      hasApiToken: !!EXOTEL_API_TOKEN,
-      apiTokenLength: EXOTEL_API_TOKEN?.length,
-      sid: EXOTEL_SID,
-      callerId: EXOTEL_CALLER_ID,
-      callerIdSource: exophoneConfig?.exophone ? 'database' : 'environment'
-    });
-
-    // Get request body
-    const { 
-      to_number,  // Participant's phone - will be called SECOND
-      from_number, // User's phone - will be called FIRST (REQUIRED)
-      demandcom_id, 
+    const {
+      to_number,
+      from_number,
+      demandcom_id,
       custom_field,
       edited_contact_info = {},
       disposition = null,
       subdisposition = null,
       notes = null,
-      next_call_date = null
+      next_call_date = null,
     } = await req.json();
 
-    // Validate required parameters
     if (!to_number) {
-      console.error('Missing to_number parameter');
       return new Response(
-        JSON.stringify({ error: 'to_number (participant phone) is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "to_number (participant phone) is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!from_number) {
-      console.error('Missing from_number parameter');
       return new Response(
-        JSON.stringify({ error: 'from_number (your phone number) is required. Please update your profile with a valid phone number.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "from_number (your phone number) is required. Please update your profile with a valid phone number." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Initiating call flow:
-      1. Exotel will call user at: ${from_number} (From)
-      2. Once user picks up, Exotel connects to participant at: ${to_number} (To)
-      3. CallerID shown to participant: ${EXOTEL_CALLER_ID}`);
+    console.log("Initiating call:", { from: from_number, to: to_number, callerId: EXOTEL_CALLER_ID });
 
-    // Create authorization header (Basic Auth)
     const authString = btoa(`${EXOTEL_API_KEY}:${EXOTEL_API_TOKEN}`);
-    
-    // Determine subdomain (configurable, defaults to Singapore cluster)
-    const subdomain = Deno.env.get('EXOTEL_SUBDOMAIN') || 'api.exotel.com';
-    
-    // Exotel API endpoint
+    const subdomain = Deno.env.get("EXOTEL_SUBDOMAIN") || "api.exotel.com";
     const exotelUrl = `https://${subdomain}/v1/Accounts/${EXOTEL_SID}/Calls/connect.json`;
 
-    // Prepare call parameters per Exotel documentation:
-    // From: The phone number that will be called first (user's phone)
-    // To: The phone number that will be called second (participant's phone)  
-    // CallerId: The Exotel virtual number shown to the participant
     const callParams = new URLSearchParams({
-      From: from_number,      // User's phone - called FIRST
-      To: to_number,          // Participant's phone - called SECOND
-      CallerId: EXOTEL_CALLER_ID, // Virtual number shown as caller ID
-      Record: 'true',
-      ...(custom_field && { CustomField: custom_field }),
-    });
-
-    console.log('Making request to Exotel API:', exotelUrl);
-    console.log('Call parameters:', {
       From: from_number,
       To: to_number,
       CallerId: EXOTEL_CALLER_ID,
-      Record: 'true'
+      Record: "true",
+      ...(custom_field && { CustomField: custom_field }),
     });
 
     // Get user from auth header for tracking
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get("Authorization");
     let userId: string | null = null;
     if (authHeader) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
       const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader } },
       });
-      
       const { data: { user } } = await supabaseClient.auth.getUser();
       userId = user?.id || null;
     }
 
-    // Add StatusCallback URL for receiving call status updates
-    const FUNCTION_URL = Deno.env.get('SUPABASE_URL')!;
-    const webhookUrl = `${FUNCTION_URL}/functions/v1/exotel-webhook`;
-    
-    console.log(`Setting StatusCallback URL: ${webhookUrl}`);
+    const webhookUrl = `${supabaseUrl}/functions/v1/exotel-webhook`;
 
-    // Make the API call to Exotel
     const response = await fetch(exotelUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Basic ${authString}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${authString}`,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
       body: callParams.toString() + `&StatusCallback=${encodeURIComponent(webhookUrl)}&StatusCallbackContentType=application/json`,
     });
 
     const responseData = await response.json();
-
-    console.log('Exotel API response:', response.status, responseData);
+    console.log("Exotel API response:", response.status, JSON.stringify(responseData));
 
     if (!response.ok) {
-      console.error('Exotel API error:', responseData);
       return new Response(
-        JSON.stringify({ 
-          error: 'Failed to initiate call',
-          details: responseData 
-        }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Failed to initiate call", details: responseData }),
+        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Log the call in our database
+    // Log the call in database
     if (userId) {
       try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
         const callSid = responseData?.Call?.Sid || responseData?.Sid;
-        
         if (callSid) {
           const { error: logError } = await supabase
-            .from('call_logs')
+            .from("call_logs")
             .insert({
               call_sid: callSid,
               demandcom_id: demandcom_id || null,
               initiated_by: userId,
-              from_number: from_number, // User's phone
-              to_number: to_number,     // Participant's phone
-              status: 'initiated',
-              direction: 'outbound-api',
-              call_method: 'phone',
+              from_number: from_number,
+              to_number: to_number,
+              status: "initiated",
+              direction: "outbound-api",
+              call_method: "phone",
               edited_contact_info: edited_contact_info,
               disposition: disposition,
               subdisposition: subdisposition,
@@ -199,55 +140,33 @@ serve(async (req) => {
               start_time: new Date().toISOString(),
             });
 
-          if (logError) {
-            console.error('Error logging call:', logError);
-          } else {
-            console.log(`Call logged successfully for demandcom ${demandcom_id}, Call SID: ${callSid}`);
-          }
-          
-          // Update demandcom with next call date if provided
+          if (logError) console.error("Error logging call:", logError);
+
           if (next_call_date && demandcom_id) {
-            const { error: updateError } = await supabase
-              .from('demandcom')
-              .update({ next_call_date: next_call_date })
-              .eq('id', demandcom_id);
-            
-            if (updateError) {
-              console.error('Error updating next call date:', updateError);
-            } else {
-              console.log(`Next call date updated for demandcom ${demandcom_id}`);
-            }
+            await supabase
+              .from("demandcom")
+              .update({ next_call_date })
+              .eq("id", demandcom_id);
           }
         }
       } catch (logError) {
-        console.error('Error logging call:', logError);
-        // Don't fail the request if logging fails
+        console.error("Error logging call:", logError);
       }
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         message: `Call initiated. You will receive a call at ${from_number}. Once you answer, you will be connected to ${to_number}.`,
-        call: responseData 
+        call: responseData,
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
-  } catch (error) {
-    console.error('Error in exotel-make-call function:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+  } catch (error: any) {
+    console.error("Error in exotel-make-call:", error);
     return new Response(
-      JSON.stringify({ 
-        error: errorMessage
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ error: error.message || "Internal server error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
