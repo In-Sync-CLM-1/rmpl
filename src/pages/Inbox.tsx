@@ -7,30 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
-import { Search, MessageSquare, Ban, Mail, Loader2, RefreshCw, User, Paperclip } from "lucide-react";
+import { Search, Mail, Loader2, RefreshCw, User, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-
-interface InboundSMS {
-  id: string;
-  from_number: string;
-  to_number: string;
-  message_text: string;
-  message_uuid: string | null;
-  campaign_id: string | null;
-  demandcom_id: string | null;
-  is_opt_out: boolean;
-  received_at: string;
-  demandcom?: {
-    first_name: string;
-    last_name: string;
-    email: string;
-  };
-  campaigns?: {
-    name: string;
-  };
-}
 
 interface EmailMessage {
   id: string;
@@ -76,10 +56,8 @@ interface OutlookEmail {
 }
 
 export default function Inbox() {
-  const [smsMessages, setSmsMessages] = useState<InboundSMS[]>([]);
   const [emailMessages, setEmailMessages] = useState<EmailMessage[]>([]);
   const [outlookEmails, setOutlookEmails] = useState<OutlookEmail[]>([]);
-  const [filteredSms, setFilteredSms] = useState<InboundSMS[]>([]);
   const [filteredEmail, setFilteredEmail] = useState<EmailMessage[]>([]);
   const [filteredOutlook, setFilteredOutlook] = useState<OutlookEmail[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,9 +65,6 @@ export default function Inbox() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [outlookConnected, setOutlookConnected] = useState(false);
-  const [smsPage, setSmsPage] = useState(1);
-  const [smsPerPage, setSmsPerPage] = useState(25);
-  const [smsTotalCount, setSmsTotalCount] = useState(0);
   const [emailPage, setEmailPage] = useState(1);
   const [emailPerPage, setEmailPerPage] = useState(25);
   const [emailTotalCount, setEmailTotalCount] = useState(0);
@@ -108,13 +83,12 @@ export default function Inbox() {
     if (currentUserId) {
       fetchMessages();
       fetchOutlookEmails();
-      setupRealtimeSubscription();
     }
-  }, [currentUserId, smsPage, smsPerPage, emailPage, emailPerPage, outlookPage, outlookPerPage]);
+  }, [currentUserId, emailPage, emailPerPage, outlookPage, outlookPerPage]);
 
   useEffect(() => {
     filterMessages();
-  }, [searchQuery, smsMessages, emailMessages, outlookEmails]);
+  }, [searchQuery, emailMessages, outlookEmails]);
 
   const initUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -141,32 +115,10 @@ export default function Inbox() {
 
   const fetchMessages = async () => {
     try {
-      const smsFrom = (smsPage - 1) * smsPerPage;
-      const smsTo = smsFrom + smsPerPage - 1;
       const emailFrom = (emailPage - 1) * emailPerPage;
       const emailTo = emailFrom + emailPerPage - 1;
 
-      const [smsResult, smsCountResult, emailResult, emailCountResult] = await Promise.all([
-        supabase
-          .from("inbound_sms")
-          .select(
-            `
-            *,
-            demandcom (
-              first_name,
-              last_name,
-              email
-            ),
-            campaigns (
-              name
-            )
-          `
-          )
-          .order("received_at", { ascending: false })
-          .range(smsFrom, smsTo),
-        supabase
-          .from("inbound_sms")
-          .select("*", { count: "exact", head: true }),
+      const [emailResult, emailCountResult] = await Promise.all([
         supabase
           .from("campaign_recipients")
           .select(
@@ -195,13 +147,9 @@ export default function Inbox() {
           .not("opened_at", "is", null)
       ]);
 
-      if (smsResult.error) throw smsResult.error;
-      if (smsCountResult.error) throw smsCountResult.error;
       if (emailResult.error) throw emailResult.error;
       if (emailCountResult.error) throw emailCountResult.error;
 
-      setSmsMessages((smsResult.data || []) as any);
-      setSmsTotalCount(smsCountResult.count || 0);
       setEmailMessages((emailResult.data || []) as any);
       setEmailTotalCount(emailCountResult.count || 0);
     } catch (error) {
@@ -286,49 +234,14 @@ export default function Inbox() {
     }
   };
 
-  const setupRealtimeSubscription = () => {
-    const channel = supabase
-      .channel("inbox_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "inbound_sms",
-        },
-        (payload) => {
-          fetchMessages();
-          toast({
-            title: "New SMS",
-            description: `Received SMS from ${payload.new.from_number}`,
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
   const filterMessages = () => {
     if (!searchQuery.trim()) {
-      setFilteredSms(smsMessages);
       setFilteredEmail(emailMessages);
       setFilteredOutlook(outlookEmails);
       return;
     }
 
     const query = searchQuery.toLowerCase();
-
-    setFilteredSms(smsMessages.filter(
-      (msg) =>
-        msg.from_number.includes(query) ||
-        msg.message_text.toLowerCase().includes(query) ||
-        msg.demandcom?.first_name?.toLowerCase().includes(query) ||
-        msg.demandcom?.last_name?.toLowerCase().includes(query) ||
-        msg.campaigns?.name?.toLowerCase().includes(query)
-    ));
 
     setFilteredEmail(emailMessages.filter(
       (msg) =>
@@ -387,14 +300,10 @@ export default function Inbox() {
       </div>
 
       <Tabs defaultValue="outlook" className="w-full">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
+        <TabsList className="grid w-full max-w-lg grid-cols-2">
           <TabsTrigger value="outlook" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Outlook ({outlookTotalCount})
-          </TabsTrigger>
-          <TabsTrigger value="sms" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            SMS ({filteredSms.length})
           </TabsTrigger>
           <TabsTrigger value="email" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
@@ -515,99 +424,6 @@ export default function Inbox() {
               itemsPerPage={outlookPerPage}
               onPageChange={setOutlookPage}
               onItemsPerPageChange={(v) => { setOutlookPerPage(v); setOutlookPage(1); }}
-            />
-          )}
-        </TabsContent>
-
-        {/* SMS Tab */}
-        <TabsContent value="sms" className="mt-6">
-          <div className="grid gap-4">
-            {filteredSms.length === 0 ? (
-              <Card className="p-12 text-center">
-                <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No SMS messages found</h3>
-                <p className="text-muted-foreground">
-                  {searchQuery
-                    ? "Try adjusting your search query"
-                    : "Inbound SMS replies will appear here"}
-                </p>
-              </Card>
-            ) : (
-              filteredSms.map((message) => (
-                <Card key={message.id} className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg">
-                          {message.demandcom ? (
-                            <Button
-                              variant="link"
-                              className="p-0 h-auto font-semibold text-lg"
-                              onClick={() =>
-                                handleParticipantClick(message.demandcom_id!)
-                              }
-                            >
-                              {message.demandcom.first_name}{" "}
-                              {message.demandcom.last_name}
-                            </Button>
-                          ) : (
-                            message.from_number
-                          )}
-                        </h3>
-                        {message.is_opt_out && (
-                          <Badge variant="destructive" className="flex items-center gap-1">
-                            <Ban className="h-3 w-3" />
-                            Opt-Out
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                        <span>{message.from_number}</span>
-                        <span>•</span>
-                        <span>
-                          {format(
-                            new Date(message.received_at),
-                            "MMM dd, yyyy 'at' h:mm a"
-                          )}
-                        </span>
-                      </div>
-                      {message.campaigns && (
-                        <Badge variant="outline" className="mb-3">
-                          {message.campaigns.name}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <ScrollArea className="max-h-32">
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {message.message_text}
-                    </p>
-                  </ScrollArea>
-
-                  {message.demandcom && (
-                    <div className="mt-4 pt-4 border-t">
-                      <p className="text-sm text-muted-foreground">
-                        DemandCom Email: {message.demandcom.email}
-                      </p>
-                    </div>
-                  )}
-                </Card>
-              ))
-            )}
-          </div>
-
-          {filteredSms.length > 0 && (
-            <PaginationControls
-              currentPage={smsPage}
-              totalPages={Math.ceil(smsTotalCount / smsPerPage)}
-              totalItems={smsTotalCount}
-              itemsPerPage={smsPerPage}
-              onPageChange={setSmsPage}
-              onItemsPerPageChange={(newItemsPerPage) => {
-                setSmsPerPage(newItemsPerPage);
-                setSmsPage(1);
-              }}
             />
           )}
         </TabsContent>
