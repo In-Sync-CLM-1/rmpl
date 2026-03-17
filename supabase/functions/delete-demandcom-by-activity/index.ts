@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     // Use service role for deletion via PostgreSQL function
-    const adminSupabase = createSupabaseClient(authHeader);
+    const adminSupabase = createSupabaseClient();
 
     // Call batched PostgreSQL function
     const { data, error } = await adminSupabase.rpc('delete_demandcom_by_activity_batch', {
