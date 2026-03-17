@@ -413,7 +413,7 @@ export default function Users() {
         .from('profiles')
         .select('full_name, email')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
       await supabase.from('password_reset_logs').insert({
         admin_user_id: session.user.id,
