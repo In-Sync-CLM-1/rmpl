@@ -77,7 +77,7 @@ export function useOnboarding() {
           .select("*")
           .eq("user_id", user.id)
           .eq("tour_id", tour.id)
-          .single();
+          .maybeSingle();
 
         // Show initial tour if not completed
         if (tour.tour_type === "initial" && (!userProgress || userProgress.status !== "completed")) {
@@ -140,7 +140,7 @@ export function useOnboarding() {
         .select("*")
         .eq("user_id", user.id)
         .eq("tour_id", tour.id)
-        .single();
+        .maybeSingle();
 
       if (existingProgress) {
         await supabase
