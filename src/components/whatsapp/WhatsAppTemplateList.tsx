@@ -4,8 +4,9 @@
  import { Button } from "@/components/ui/button";
  import { Skeleton } from "@/components/ui/skeleton";
  import { ScrollArea } from "@/components/ui/scroll-area";
- import { FileText, CheckCircle2, Clock, XCircle, RefreshCw, Plus } from "lucide-react";
+ import { FileText, CheckCircle2, Clock, XCircle, RefreshCw, Plus, Loader2 } from "lucide-react";
  import { useWhatsAppTemplates } from "@/hooks/useWhatsAppTemplates";
+ import { useWhatsAppSettings } from "@/hooks/useWhatsAppSettings";
  import { CreateTemplateDialog } from "./CreateTemplateDialog";
  import { format } from "date-fns";
 
@@ -17,6 +18,7 @@
 
  export function WhatsAppTemplateList() {
    const { templates, isLoading } = useWhatsAppTemplates();
+   const { syncTemplates, isSyncing } = useWhatsAppSettings();
    const [showCreate, setShowCreate] = useState(false);
 
    if (isLoading) {
@@ -50,10 +52,16 @@
                  {templates.length} template{templates.length !== 1 ? "s" : ""} created from this portal
                </CardDescription>
              </div>
-             <Button onClick={() => setShowCreate(true)} size="sm">
-               <Plus className="h-4 w-4 mr-1" />
-               Create Template
-             </Button>
+             <div className="flex items-center gap-2">
+               <Button variant="outline" size="sm" onClick={() => syncTemplates()} disabled={isSyncing}>
+                 {isSyncing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                 Sync Status
+               </Button>
+               <Button onClick={() => setShowCreate(true)} size="sm">
+                 <Plus className="h-4 w-4 mr-1" />
+                 Create Template
+               </Button>
+             </div>
            </div>
          </CardHeader>
          <CardContent>

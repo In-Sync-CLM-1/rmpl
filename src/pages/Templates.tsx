@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Mail, MessageSquare, LogOut, Edit, Trash2 } from "lucide-react";
+import { Plus, Mail, LogOut, Edit, Trash2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import rmplLogo from "@/assets/rmpl-logo.png";
 import { useAuthCheck } from "@/hooks/useAuthCheck";
 import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
 import { DataTable, DataTableColumn } from "@/components/data-table/DataTable";
+import { WhatsAppTemplateList } from "@/components/whatsapp/WhatsAppTemplateList";
 
 interface EmailTemplate {
   id: string;
@@ -19,16 +20,6 @@ interface EmailTemplate {
   category: string | null;
   is_active: boolean;
   version: number;
-  created_at: string;
-}
-
-interface SMSTemplate {
-  id: string;
-  name: string;
-  body: string;
-  category: string | null;
-  is_active: boolean;
-  character_count: number | null;
   created_at: string;
 }
 
@@ -58,28 +49,6 @@ export default function Templates() {
     },
   });
 
-  const {
-    data: smsTemplates,
-    totalCount: smsCount,
-    totalPages: smsTotalPages,
-    currentPage: smsPage,
-    itemsPerPage: smsPerPage,
-    isLoading: smsLoading,
-    handlePageChange: handleSmsPageChange,
-    handleItemsPerPageChange: handleSmsPerPageChange,
-    refetch: refetchSms,
-  } = usePaginatedQuery<SMSTemplate>({
-    queryKey: ["sms_templates"],
-    queryFn: async (from, to) => {
-      const { data, error, count } = await supabase
-        .from("sms_templates")
-        .select("*", { count: "exact" })
-        .order("created_at", { ascending: false })
-        .range(from, to);
-      return { data, count, error };
-    },
-  });
-
   const handleDeleteEmailTemplate = async (id: string) => {
     if (!confirm("Are you sure you want to delete this template?")) return;
 
@@ -91,20 +60,6 @@ export default function Templates() {
       refetchEmail();
     } catch (error: any) {
       toast.error("Failed to delete email template");
-    }
-  };
-
-  const handleDeleteSMSTemplate = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this template?")) return;
-
-    try {
-      const { error } = await supabase.from("sms_templates").delete().eq("id", id);
-      if (error) throw error;
-
-      toast.success("SMS template deleted");
-      refetchSms();
-    } catch (error: any) {
-      toast.error("Failed to delete SMS template");
     }
   };
 
@@ -124,33 +79,6 @@ export default function Templates() {
     {
       header: "Version",
       cell: (template) => `v${template.version}`,
-    },
-    {
-      header: "Status",
-      cell: (template) => (
-        <Badge variant={template.is_active ? "default" : "outline"}>
-          {template.is_active ? "Active" : "Inactive"}
-        </Badge>
-      ),
-    },
-  ];
-
-  const smsColumns: DataTableColumn<SMSTemplate>[] = [
-    {
-      header: "Name",
-      cell: (template) => <span className="font-medium">{template.name}</span>,
-    },
-    {
-      header: "Message Preview",
-      cell: (template) => <span className="max-w-xs truncate">{template.body}</span>,
-    },
-    {
-      header: "Category",
-      cell: (template) => template.category || "—",
-    },
-    {
-      header: "Characters",
-      cell: (template) => template.character_count || template.body.length,
     },
     {
       header: "Status",
@@ -196,23 +124,22 @@ export default function Templates() {
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Templates</h2>
           <p className="text-muted-foreground">
-            Create and manage email and SMS templates for your campaigns
+            Create and manage email and WhatsApp templates
           </p>
         </div>
 
-        <Tabs defaultValue="email" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+        <Tabs defaultValue="email" className="space-y-4">
+          <TabsList>
             <TabsTrigger value="email" className="flex items-center gap-2">
               <Mail className="h-4 w-4" />
               Email Templates
             </TabsTrigger>
-            <TabsTrigger value="sms" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              SMS Templates
+            <TabsTrigger value="whatsapp" className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp Templates
             </TabsTrigger>
           </TabsList>
 
-          {/* Email Templates Tab */}
           <TabsContent value="email">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -271,63 +198,8 @@ export default function Templates() {
             </Card>
           </TabsContent>
 
-          {/* SMS Templates Tab */}
-          <TabsContent value="sms">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>SMS Templates ({smsTemplates.length})</CardTitle>
-                  <CardDescription>
-                    Create concise SMS templates with merge tags
-                  </CardDescription>
-                </div>
-                <Button onClick={() => navigate("/templates/sms/new")}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New SMS Template
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <DataTable
-                  data={smsTemplates}
-                  columns={smsColumns}
-                  isLoading={smsLoading}
-                  getRowKey={(template) => template.id}
-                  emptyState={{
-                    icon: MessageSquare,
-                    title: "No SMS templates found",
-                    description: "Get started by creating your first SMS template",
-                    actionLabel: "New SMS Template",
-                    onAction: () => navigate("/templates/sms/new"),
-                  }}
-                  pagination={{
-                    currentPage: smsPage,
-                    totalPages: smsTotalPages,
-                    totalItems: smsCount,
-                    itemsPerPage: smsPerPage,
-                    onPageChange: handleSmsPageChange,
-                    onItemsPerPageChange: handleSmsPerPageChange,
-                  }}
-                  actions={(template) => (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/templates/sms/${template.id}`)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteSMSTemplate(template.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                />
-              </CardContent>
-            </Card>
+          <TabsContent value="whatsapp">
+            <WhatsAppTemplateList />
           </TabsContent>
         </Tabs>
       </main>

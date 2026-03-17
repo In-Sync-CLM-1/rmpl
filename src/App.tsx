@@ -72,7 +72,7 @@ import Install from "./pages/Install";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Chat from "./pages/Chat";
-import WhatsAppSettings from "./pages/WhatsAppSettings";
+// WhatsApp settings removed from frontend — managed via backend only
 import MicrosoftCallback from "./pages/MicrosoftCallback";
 import OnboardingPublicForm from "./pages/OnboardingPublicForm";
 import HROnboardingAdmin from "./pages/HROnboardingAdmin";
@@ -182,7 +182,7 @@ const App = () => (
               <Route path="/hr-onboarding" element={<HROnboardingAdmin />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/chat/:conversationId" element={<Chat />} />
-              <Route path="/whatsapp-settings" element={<WhatsAppSettings />} />
+              {/* WhatsApp settings removed — managed via backend */}
               <Route path="/vapi-scheduler" element={<VapiScheduler />} />
               <Route path="/travel-expenses" element={<TravelExpenseClaims />} />
               <Route path="/travel-expense-approvals" element={<TravelExpenseApprovals />} />
