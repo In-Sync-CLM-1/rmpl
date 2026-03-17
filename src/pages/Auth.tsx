@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, Mail, Lock } from "lucide-react";
 import { z } from "zod";
@@ -22,6 +23,10 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -51,6 +56,33 @@ export default function Auth() {
       </div>
     );
   }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail || !z.string().email().safeParse(forgotEmail).success) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    try {
+      setSendingReset(true);
+      const { error } = await supabase.functions.invoke("send-password-otp", {
+        body: { email: forgotEmail },
+      });
+      if (error) throw error;
+      setResetEmailSent(true);
+      toast.success("Verification code sent to your email!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send verification code");
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
+  const handleCloseForgotPassword = () => {
+    setShowForgotPassword(false);
+    setResetEmailSent(false);
+    setForgotEmail("");
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,9 +169,21 @@ export default function Auth() {
                 />
               </div>
             </div>
-            <Button 
-              type="submit" 
-              className="w-full h-10 bg-[#0397d5] hover:bg-[#0397d5]/90 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-300" 
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(loginData.email);
+                  setShowForgotPassword(true);
+                }}
+                className="text-xs text-[#0397d5] hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+            <Button
+              type="submit"
+              className="w-full h-10 bg-[#0397d5] hover:bg-[#0397d5]/90 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-300"
               disabled={isLoading}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -154,6 +198,64 @@ export default function Auth() {
           </p>
         </CardFooter>
       </Card>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={showForgotPassword} onOpenChange={handleCloseForgotPassword}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              {resetEmailSent
+                ? "Check your email for the 6-digit verification code."
+                : "Enter your email address and we'll send you a 6-digit verification code."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!resetEmailSent ? (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">Email</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  disabled={sendingReset}
+                />
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button type="button" variant="outline" onClick={handleCloseForgotPassword} disabled={sendingReset}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={sendingReset}>
+                  {sendingReset ? "Sending..." : "Send Verification Code"}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center">
+                Check your email for the 6-digit code, then click below to reset your password.
+              </p>
+              <DialogFooter className="flex-col gap-2 sm:gap-2">
+                <Button
+                  onClick={() => {
+                    handleCloseForgotPassword();
+                    navigate("/reset-password", { state: { email: forgotEmail } });
+                  }}
+                  className="w-full"
+                >
+                  Enter Verification Code
+                </Button>
+                <Button variant="outline" onClick={handleCloseForgotPassword} className="w-full">
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -23,7 +23,7 @@ import CSBDProjections from "./pages/CSBDProjections";
 import CSBDTargets from "./pages/CSBDTargets";
 import Templates from "./pages/Templates";
 import EmailTemplateForm from "./pages/EmailTemplateForm";
-import SMSTemplateForm from "./pages/SMSTemplateForm";
+
 import Campaigns from "./pages/Campaigns";
 import CampaignForm from "./pages/CampaignForm";
 import CampaignAnalytics from "./pages/CampaignAnalytics";
@@ -69,6 +69,7 @@ import SalarySlipsAdmin from "./pages/SalarySlipsAdmin";
 import NewJoinerDocuments from "./pages/NewJoinerDocuments";
 import EmployeeDirectory from "./pages/EmployeeDirectory";
 import Install from "./pages/Install";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Chat from "./pages/Chat";
 import WhatsAppSettings from "./pages/WhatsAppSettings";
@@ -104,6 +105,7 @@ const App = () => (
             <Route path="/install" element={<Install />} />
             <Route path="/welcome" element={<Index />} />
             <Route path="/onboarding/:slug" element={<OnboardingPublicForm />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/ticket-status" element={<TicketTracker />} />
             
             <Route element={<AppLayout />}>
@@ -117,8 +119,7 @@ const App = () => (
               <Route path="/templates" element={<Templates />} />
               <Route path="/templates/email/new" element={<EmailTemplateForm />} />
               <Route path="/templates/email/:id" element={<EmailTemplateForm />} />
-              <Route path="/templates/sms/new" element={<SMSTemplateForm />} />
-              <Route path="/templates/sms/:id" element={<SMSTemplateForm />} />
+
               <Route path="/campaigns" element={<Campaigns />} />
               <Route path="/campaigns/new" element={<CampaignForm />} />
               <Route path="/campaigns/:id" element={<CampaignForm />} />
