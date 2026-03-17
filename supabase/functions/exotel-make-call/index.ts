@@ -18,8 +18,8 @@ Deno.serve(async (req) => {
 
     if (!EXOTEL_API_KEY || !EXOTEL_API_TOKEN || !EXOTEL_SID) {
       return new Response(
-        JSON.stringify({ error: "Exotel credentials not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Exotel credentials not configured" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
 
     if (!EXOTEL_CALLER_ID) {
       return new Response(
-        JSON.stringify({ error: "EXOPhone (Caller ID) not configured. Please add an EXOPhone number in Admin Settings." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "EXOPhone (Caller ID) not configured. Please add an EXOPhone number in Admin Settings." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -57,15 +57,15 @@ Deno.serve(async (req) => {
 
     if (!to_number) {
       return new Response(
-        JSON.stringify({ error: "to_number (participant phone) is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Participant phone number is required" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!from_number) {
       return new Response(
-        JSON.stringify({ error: "from_number (your phone number) is required. Please update your profile with a valid phone number." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Your phone number is required. Please update your profile." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -110,9 +110,10 @@ Deno.serve(async (req) => {
     console.log("Exotel API response:", response.status, JSON.stringify(responseData));
 
     if (!response.ok) {
+      const exotelMsg = responseData?.RestException?.Message || "Failed to initiate call";
       return new Response(
-        JSON.stringify({ error: "Failed to initiate call", details: responseData }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: exotelMsg, details: responseData }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -165,8 +166,8 @@ Deno.serve(async (req) => {
   } catch (error: any) {
     console.error("Error in exotel-make-call:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: error.message || "Internal server error" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

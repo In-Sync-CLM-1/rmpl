@@ -329,11 +329,17 @@ export function EnhancedCallDialog({ open, onOpenChange, demandcomData, onCallIn
 
       if (error) {
         console.error("Call error:", error);
-        toast.error(error.message || "Failed to initiate call");
+        toast.error("Failed to initiate call. Please try again.");
         return;
       }
 
-      toast.success("Call initiated! You will receive a call shortly.");
+      if (data && !data.success) {
+        console.error("Exotel error:", data.error);
+        toast.error(data.error || "Failed to initiate call");
+        return;
+      }
+
+      toast.success(data?.message || "Call initiated! You will receive a call shortly.");
       
       // Call the onCallInitiated callback if provided
       if (onCallInitiated) {
