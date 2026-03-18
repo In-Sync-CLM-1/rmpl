@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const LOGO_URL = "https://redefine.in/assets/img/logo.png";
-const FROM_EMAIL = "RMPL OPM <noreply@redefinemarcom.in>";
+const FROM_EMAIL = "RMPL OPM <approval@redefinemarcom.in>";
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   casual_leave: "Casual Leave",

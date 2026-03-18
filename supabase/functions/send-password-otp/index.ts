@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "RMPL OPM <noreply@redefinemarcom.in>",
+        from: "RMPL OPM <approval@redefinemarcom.in>",
         to: [email],
         subject: "Reset Your Password - Verification Code",
         html: htmlContent,
