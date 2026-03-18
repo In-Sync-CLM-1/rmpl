@@ -121,7 +121,7 @@ serve(async (req) => {
 
     // Send email
     const emailResponse = await resend.emails.send({
-      from: `${from_name} <approval@redefine.in>`,
+      from: `${from_name} <noreply@redefinemarcom.in>`,
       to: [to_email],
       subject: processedSubject,
       html: processedBody,
