@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Mail, Phone, MapPin, LogOut, LayoutDashboard, Upload, Filter, Download, Send, X, Check, ChevronsUpDown, Users, Trash2 } from "lucide-react";
+import { Plus, Search, Mail, Phone, MapPin, LogOut, LayoutDashboard, Upload, Filter, Download, Send, X, Check, ChevronsUpDown, Users, Trash2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -21,6 +21,8 @@ import { EmailComposeDialog } from "@/components/EmailComposeDialog";
 import { DemandComAssignmentDialog } from "@/components/DemandComAssignmentDialog";
 import { BulkSelectAssignDialog } from "@/components/BulkSelectAssignDialog";
 import { DeleteActivityDialog } from "@/components/DeleteActivityDialog";
+import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
+import { WhatsAppHistory } from "@/components/whatsapp/WhatsAppHistory";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -119,6 +121,8 @@ export default function DemandCom() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [selectedRecipient, setSelectedRecipient] = useState<DemandCom | null>(null);
+  const [whatsappContact, setWhatsappContact] = useState<DemandCom | null>(null);
+  const [showWhatsappSend, setShowWhatsappSend] = useState(false);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [canAssign, setCanAssign] = useState(false);
   const [canBulkAssign, setCanBulkAssign] = useState(false);
@@ -899,6 +903,14 @@ export default function DemandCom() {
                               variant="ghost"
                               size="icon"
                             />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setWhatsappContact(demandCom)}
+                              title="WhatsApp"
+                            >
+                              <MessageSquare className="h-4 w-4 text-green-600" />
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">{demandCom.name}</TableCell>
@@ -1143,6 +1155,61 @@ export default function DemandCom() {
         onOpenChange={setShowDeleteActivityDialog}
         onSuccess={checkAuthAndFetchDemandCom}
       />
+
+      {/* WhatsApp Conversation Dialog */}
+      <Dialog open={!!whatsappContact} onOpenChange={(open) => { if (!open) setWhatsappContact(null); }}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+          {whatsappContact && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-green-600" />
+                  WhatsApp — {whatsappContact.name}
+                </DialogTitle>
+                <DialogDescription>{whatsappContact.mobile_numb}</DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 min-h-0">
+                <WhatsAppHistory
+                  demandcomId={whatsappContact.id}
+                  phoneNumber={whatsappContact.mobile_numb}
+                  maxHeight="400px"
+                />
+              </div>
+              <div className="flex justify-end pt-2 border-t">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const contact = whatsappContact;
+                    setWhatsappContact(null);
+                    setTimeout(() => {
+                      setWhatsappContact(contact);
+                      setShowWhatsappSend(true);
+                    }, 150);
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Message
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* WhatsApp Send Dialog */}
+      {whatsappContact && (
+        <SendWhatsAppDialog
+          open={showWhatsappSend}
+          onOpenChange={(open) => {
+            setShowWhatsappSend(open);
+            if (!open) setWhatsappContact(null);
+          }}
+          demandcomId={whatsappContact.id}
+          contactName={whatsappContact.name}
+          phoneNumber={whatsappContact.mobile_numb}
+        />
+      )}
     </div>
   );
 }

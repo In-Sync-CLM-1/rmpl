@@ -11,9 +11,11 @@ import { toast } from "sonner";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CalendarIcon } from "lucide-react";
+import { ArrowLeft, CalendarIcon, MessageSquare } from "lucide-react";
 import rmplLogo from "@/assets/rmpl-logo.png";
 import { VapiCallHistory } from "@/components/VapiCallHistory";
+import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
+import { WhatsAppHistory } from "@/components/whatsapp/WhatsAppHistory";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -145,6 +147,7 @@ export default function DemandComForm() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
   const [lastCallDate, setLastCallDate] = useState<Date | undefined>();
   const [nextCallDate, setNextCallDate] = useState<Date | undefined>();
   const [assignmentInfo, setAssignmentInfo] = useState<{
@@ -467,12 +470,27 @@ export default function DemandComForm() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="mobile_numb">Mobile Number *</Label>
-                    <Input
-                      id="mobile_numb"
-                      value={formData.mobile_numb}
-                      onChange={(e) => updateFormData("mobile_numb", e.target.value)}
-                      required
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="mobile_numb"
+                        value={formData.mobile_numb}
+                        onChange={(e) => updateFormData("mobile_numb", e.target.value)}
+                        required
+                        className="flex-1"
+                      />
+                      {isEditMode && formData.mobile_numb && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setWhatsappDialogOpen(true)}
+                          title="Send WhatsApp message"
+                          className="shrink-0 border-green-300 hover:bg-green-50 hover:border-green-400"
+                        >
+                          <MessageSquare className="h-4 w-4 text-green-600" />
+                        </Button>
+                      )}
+                    </div>
                     {validationErrors.mobile_numb && (
                       <p className="text-sm text-destructive mt-1">{validationErrors.mobile_numb}</p>
                     )}
@@ -924,6 +942,29 @@ export default function DemandComForm() {
                 </div>
               )}
 
+              {/* WhatsApp Conversation */}
+              {isEditMode && id && formData.mobile_numb && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-green-600" />
+                      WhatsApp Conversation
+                    </h3>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setWhatsappDialogOpen(true)}
+                      className="border-green-300 hover:bg-green-50"
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2 text-green-600" />
+                      Send Message
+                    </Button>
+                  </div>
+                  <WhatsAppHistory demandcomId={id} phoneNumber={formData.mobile_numb} maxHeight="400px" />
+                </div>
+              )}
+
               {/* VAPI Call History & Responses */}
               {isEditMode && id && (
                 <div className="space-y-4">
@@ -991,6 +1032,17 @@ export default function DemandComForm() {
           </CardContent>
         </Card>
       </div>
+
+      {/* WhatsApp Send Dialog */}
+      {isEditMode && formData.mobile_numb && (
+        <SendWhatsAppDialog
+          open={whatsappDialogOpen}
+          onOpenChange={setWhatsappDialogOpen}
+          demandcomId={id}
+          contactName={formData.name}
+          phoneNumber={formData.mobile_numb}
+        />
+      )}
     </div>
   );
 }
