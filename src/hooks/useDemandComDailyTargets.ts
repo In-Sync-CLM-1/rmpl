@@ -84,8 +84,10 @@ export const useDemandComDailyTargets = (targetDate: string) => {
 
       const roles = userRoles?.map(r => r.role) || [];
       const isAdmin = roles.some(r => ADMIN_ROLES.includes(r));
+      const isManager = roles.includes('manager');
+      const isLeadership = roles.includes('leadership');
       console.log('User roles:', roles);
-      console.log('Is Admin:', isAdmin);
+      console.log('Is Admin:', isAdmin, 'Is Manager:', isManager, 'Is Leadership:', isLeadership);
 
       // Step 1: Get all active members of Demandcom-Calling team (by name, not hardcoded ID)
       const { data: teamMembers, error: tmError } = await supabase
@@ -137,12 +139,15 @@ export const useDemandComDailyTargets = (targetDate: string) => {
       }
 
       // Step 4: Filter based on user role
+      // Check TL first so TLs with 'manager' role only see their own team
       let filteredTeamLeaderIds: string[];
 
-      if (isAdmin) {
-        filteredTeamLeaderIds = allTeamLeaderIds;
-      } else if (allTeamLeaderIds.includes(user.id)) {
+      if (allTeamLeaderIds.includes(user.id)) {
         filteredTeamLeaderIds = [user.id];
+        console.log('TL mode: showing only self');
+      } else if (isAdmin || isManager || isLeadership) {
+        filteredTeamLeaderIds = allTeamLeaderIds;
+        console.log('Admin/Manager/Leadership mode: showing all TLs');
       } else {
         return { hierarchy: [], teamLeaderIds: [], isAdmin };
       }
@@ -296,15 +301,8 @@ export const useDemandComDailyTargets = (targetDate: string) => {
         }
       }
 
-      // Bulk registrations
-      const { data: allAgentConvertedEver } = await supabase
-        .from('demandcom_field_changes')
-        .select('demandcom_id')
-        .eq('field_name', 'disposition')
-        .in('new_value', ['Connected', 'Connected 1', 'Connected 2', 'Connected 3', 'Connected 4']);
-      
-      const allAgentConvertedIds = new Set(allAgentConvertedEver?.map(c => c.demandcom_id).filter(Boolean) || []);
-
+      // Bulk registrations - find records created on target date that are registered
+      // but were NOT converted by an agent (i.e., bulk imports)
       const { data: bulkRegistrations } = await supabase
         .from('demandcom')
         .select('id, assigned_to')
@@ -312,9 +310,12 @@ export const useDemandComDailyTargets = (targetDate: string) => {
         .in('assigned_to', allAgentIds)
         .gte('created_at', dateStart.toISOString())
         .lte('created_at', dateEnd.toISOString());
-      
+
+      // Exclude records that were already counted via agent disposition changes
+      const agentConvertedDemandcomIdsSet = new Set(agentConvertedDemandcomIds);
+
       for (const reg of bulkRegistrations || []) {
-        if (allAgentConvertedIds.has(reg.id)) continue;
+        if (agentConvertedDemandcomIdsSet.has(reg.id)) continue;
         if (reg.assigned_to) {
           registrationsMap.set(reg.assigned_to, (registrationsMap.get(reg.assigned_to) || 0) + 1);
         }
