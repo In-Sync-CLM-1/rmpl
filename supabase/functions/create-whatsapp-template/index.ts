@@ -61,14 +61,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Use service role client to read settings (bypasses RLS)
+    const serviceClient = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } }
+    );
+
     // Get WhatsApp settings
-    const { data: settings, error: settingsError } = await supabase
+    const { data: settings, error: settingsError } = await serviceClient
       .from('whatsapp_settings')
       .select('*')
       .eq('is_active', true)
       .single();
 
     if (settingsError || !settings) {
+      console.error('Settings error:', settingsError);
       return new Response(
         JSON.stringify({ success: false, error: 'WhatsApp not configured. Please set up WhatsApp settings.' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -142,12 +150,6 @@ Deno.serve(async (req) => {
     }
 
     // Save template to local database
-    const serviceClient = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } }
-    );
-
     const bodyComponent = components.find(c => c.type === 'BODY');
     const headerComponent = components.find(c => c.type === 'HEADER');
     const footerComponent = components.find(c => c.type === 'FOOTER');

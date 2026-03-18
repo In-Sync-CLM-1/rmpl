@@ -36,14 +36,22 @@
        );
      }
 
+     // Use service role to read settings (bypasses RLS)
+     const serviceClient = createClient(
+       supabaseUrl,
+       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+       { auth: { persistSession: false } }
+     );
+
      // Get WhatsApp settings
-     const { data: settings, error: settingsError } = await supabase
+     const { data: settings, error: settingsError } = await serviceClient
        .from('whatsapp_settings')
        .select('*')
        .eq('is_active', true)
        .single();
 
      if (settingsError || !settings) {
+       console.error('Settings error:', settingsError);
        return new Response(
          JSON.stringify({ error: 'WhatsApp not configured' }),
          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -100,13 +108,6 @@
 
      let synced = 0;
      let errors: string[] = [];
-
-     // Use service role for upserting templates
-     const serviceClient = createClient(
-       supabaseUrl,
-       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-       { auth: { persistSession: false } }
-     );
 
      // Get existing portal-created templates to filter sync
      const { data: portalTemplates } = await serviceClient

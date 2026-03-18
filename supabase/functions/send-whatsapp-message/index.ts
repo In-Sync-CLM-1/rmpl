@@ -114,8 +114,13 @@ async function findDemandcomByPhone(supabase: any, phoneNumber: string): Promise
        );
      }
  
+     // Use service role to read settings (bypasses RLS)
+     const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+       auth: { persistSession: false },
+     });
+
      // Get WhatsApp settings
-     const { data: whatsappSettings, error: settingsError } = await supabase
+     const { data: whatsappSettings, error: settingsError } = await serviceClient
        .from('whatsapp_settings')
        .select('*')
        .eq('is_active', true)
