@@ -116,7 +116,7 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
       const batch1Promises: Promise<any>[] = [
         /* 0 */ connectedCallsQueryBuilder,
         /* 1 */ dispositionChangesQueryBuilder,
-        /* 2 */ supabase.from("projects").select("id, status").in("status", ["active", "in_progress"]),
+        /* 2 */ supabase.from("projects").select("id, project_name, status").in("status", ["active", "in_progress"]),
         /* 3 */ supabase.from('demandcom_execution_stats_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
         /* 4 */ supabase.from('team_members').select('user_id, teams!inner(name)').eq('teams.name', 'Demandcom-Database').eq('is_active', true),
       ];
@@ -215,7 +215,9 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
       }
 
       // === BATCH 2: Queries that depend on batch 1 results ===
-      const activeProjectIds = (projectsResult.data || []).map((p: any) => p.id);
+      const activeProjects = projectsResult.data || [];
+      const activeProjectIds = activeProjects.map((p: any) => p.id);
+      const activeProjectNames = new Set(activeProjects.map((p: any) => p.project_name).filter(Boolean));
       const dataTeamMemberIds = dataTeamMembersResult.data?.map((tm: any) => tm.user_id) || [];
 
       const batch2Promises: Promise<any>[] = [];
@@ -343,21 +345,23 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
           .sort((a: any, b: any) => b.efficiency - a.efficiency);
       }
 
-      // === Process execution stats ===
-      const activityStats = (executionStatsResult.data || []).map((stat: any) => {
-        const assignedData = Number(stat.assigned_data) || 0;
-        const interestedCount = Number(stat.interested_count) || 0;
-        const registeredCount = Number(stat.registered_count) || 0;
-        const rate = assignedData > 0 ? Math.round(((interestedCount + registeredCount) / assignedData) * 100) : 0;
-        return {
-          projectName: stat.project_name,
-          requiredParticipants: stat.required_participants || 0,
-          assignedData,
-          interestedCount,
-          registeredCount,
-          rate,
-        };
-      });
+      // === Process execution stats (only active projects) ===
+      const activityStats = (executionStatsResult.data || [])
+        .filter((stat: any) => activeProjectNames.has(stat.project_name))
+        .map((stat: any) => {
+          const assignedData = Number(stat.assigned_data) || 0;
+          const interestedCount = Number(stat.interested_count) || 0;
+          const registeredCount = Number(stat.registered_count) || 0;
+          const rate = assignedData > 0 ? Math.round(((interestedCount + registeredCount) / assignedData) * 100) : 0;
+          return {
+            projectName: stat.project_name,
+            requiredParticipants: stat.required_participants || 0,
+            assignedData,
+            interestedCount,
+            registeredCount,
+            rate,
+          };
+        });
 
       // === Process data team stats ===
       const dataTeamProfiles = batch2[1].data || [];

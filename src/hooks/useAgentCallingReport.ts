@@ -58,6 +58,15 @@ export function useAgentCallingReport({ projectFilter, startDate, endDate, teamM
       if (normalizedStartDate) bulkRegistrationsQueryBuilder = bulkRegistrationsQueryBuilder.gte('updated_at', normalizedStartDate.toISOString());
       if (normalizedEndDate) bulkRegistrationsQueryBuilder = bulkRegistrationsQueryBuilder.lte('updated_at', normalizedEndDate.toISOString());
 
+      // Also get users who set dispositions in the date range (so they appear in agent performance)
+      let dispositionChangersQueryBuilder = supabase
+        .from('demandcom_field_changes')
+        .select('changed_by')
+        .eq('field_name', 'disposition')
+        .not('changed_by', 'is', null);
+      if (normalizedStartDate) dispositionChangersQueryBuilder = dispositionChangersQueryBuilder.gte('changed_at', normalizedStartDate.toISOString());
+      if (normalizedEndDate) dispositionChangersQueryBuilder = dispositionChangersQueryBuilder.lte('changed_at', normalizedEndDate.toISOString());
+
       const [
         teamMembersResult,
         callersResult,
@@ -66,6 +75,7 @@ export function useAgentCallingReport({ projectFilter, startDate, endDate, teamM
         agentConvertedResult,
         allAgentConvertedEverResult,
         bulkRegistrationsResult,
+        dispositionChangersResult,
       ] = await Promise.all([
         /* 0 */ supabase.from('team_members').select('user_id, teams!inner(name)').eq('teams.name', 'Demandcom-Calling'),
         /* 1 */ supabase.from('call_logs').select('initiated_by').not('initiated_by', 'is', null),
@@ -76,12 +86,14 @@ export function useAgentCallingReport({ projectFilter, startDate, endDate, teamM
         /* 5 */ supabase.from('demandcom_field_changes').select('demandcom_id')
           .eq('field_name', 'disposition').eq('new_value', 'Connected'),
         /* 6 */ bulkRegistrationsQueryBuilder,
+        /* 7 */ dispositionChangersQueryBuilder,
       ]);
 
-      // Merge agent IDs from team members + callers
+      // Merge agent IDs from team members + callers + disposition changers
       const dbTeamMemberIds = new Set(teamMembersResult.data?.map((tm: any) => tm.user_id) || []);
       const callerIds = new Set(callersResult.data?.map((c: any) => c.initiated_by).filter(Boolean) || []);
-      let allAgentIds = [...new Set([...dbTeamMemberIds, ...callerIds])];
+      const dispositionChangerIds = new Set(dispositionChangersResult.data?.map((d: any) => d.changed_by).filter(Boolean) || []);
+      let allAgentIds = [...new Set([...dbTeamMemberIds, ...callerIds, ...dispositionChangerIds])];
 
       if (teamMemberIds && teamMemberIds.length > 0) {
         const filterSet = new Set(teamMemberIds);
