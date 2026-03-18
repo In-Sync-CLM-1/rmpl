@@ -419,33 +419,37 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
   };
 
   const addButton = (type: ButtonType) => {
-    if (form.buttons.length >= 10) {
-      toast.error("Maximum 10 buttons allowed.");
-      return;
-    }
-    const qrCount = form.buttons.filter((b) => b.type === "QUICK_REPLY").length;
-    const urlCount = form.buttons.filter((b) => b.type === "URL").length;
-    const phoneCount = form.buttons.filter((b) => b.type === "PHONE_NUMBER").length;
-    const copyCount = form.buttons.filter((b) => b.type === "COPY_CODE").length;
+    setForm((prev) => {
+      if (prev.buttons.length >= 10) {
+        toast.error("Maximum 10 buttons allowed.");
+        return prev;
+      }
+      const qrCount = prev.buttons.filter((b) => b.type === "QUICK_REPLY").length;
+      const urlCount = prev.buttons.filter((b) => b.type === "URL").length;
+      const phoneCount = prev.buttons.filter((b) => b.type === "PHONE_NUMBER").length;
+      const copyCount = prev.buttons.filter((b) => b.type === "COPY_CODE").length;
 
-    if (type === "QUICK_REPLY" && qrCount >= 3) { toast.error("Maximum 3 quick reply buttons."); return; }
-    if (type === "URL" && urlCount >= 2) { toast.error("Maximum 2 URL buttons."); return; }
-    if (type === "PHONE_NUMBER" && phoneCount >= 1) { toast.error("Maximum 1 phone button."); return; }
-    if (type === "COPY_CODE" && copyCount >= 1) { toast.error("Maximum 1 copy code button."); return; }
+      if (type === "QUICK_REPLY" && qrCount >= 3) { toast.error("Maximum 3 quick reply buttons."); return prev; }
+      if (type === "URL" && urlCount >= 2) { toast.error("Maximum 2 URL buttons."); return prev; }
+      if (type === "PHONE_NUMBER" && phoneCount >= 1) { toast.error("Maximum 1 phone button."); return prev; }
+      if (type === "COPY_CODE" && copyCount >= 1) { toast.error("Maximum 1 copy code button."); return prev; }
 
-    const newBtn: TemplateButton = { type, text: "" };
-    if (type === "FLOW") newBtn.flow_action = "navigate";
-    updateForm({ buttons: [...form.buttons, newBtn] });
+      const newBtn: TemplateButton = { type, text: "" };
+      if (type === "FLOW") newBtn.flow_action = "navigate";
+      return { ...prev, buttons: [...prev.buttons, newBtn] };
+    });
   };
 
   const updateButton = (index: number, patch: Partial<TemplateButton>) => {
-    const updated = [...form.buttons];
-    updated[index] = { ...updated[index], ...patch };
-    updateForm({ buttons: updated });
+    setForm((prev) => {
+      const updated = [...prev.buttons];
+      updated[index] = { ...updated[index], ...patch };
+      return { ...prev, buttons: updated };
+    });
   };
 
   const removeButton = (index: number) => {
-    updateForm({ buttons: form.buttons.filter((_, i) => i !== index) });
+    setForm((prev) => ({ ...prev, buttons: prev.buttons.filter((_, i) => i !== index) }));
   };
 
   const buildComponents = () => {
