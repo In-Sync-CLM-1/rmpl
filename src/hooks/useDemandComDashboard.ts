@@ -116,7 +116,7 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
       const batch1Promises: Promise<any>[] = [
         /* 0 */ connectedCallsQueryBuilder,
         /* 1 */ dispositionChangesQueryBuilder,
-        /* 2 */ supabase.from("projects").select("id, project_name, status").in("status", ["active", "in_progress"]),
+        /* 2 */ supabase.from("projects").select("id, project_name, status").in("status", ["execution", "po_received"]),
         /* 3 */ supabase.from('demandcom_execution_stats_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
         /* 4 */ supabase.from('team_members').select('user_id, teams!inner(name)').eq('teams.name', 'Demandcom-Database').eq('is_active', true),
       ];
