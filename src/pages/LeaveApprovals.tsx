@@ -260,10 +260,34 @@ export default function LeaveApprovals() {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async (_data, leaveId) => {
       queryClient.invalidateQueries({ queryKey: ["pending-leaves"] });
       setSelectedLeave(null);
       toast.success("Leave approved successfully!");
+
+      // Send employee notification email
+      try {
+        const leave = pendingLeaves?.find((l: any) => l.id === leaveId) || staleLeaves?.find((l: any) => l.id === leaveId);
+        if (leave?.profile?.email) {
+          const approverProfile = user?.email;
+          await supabase.functions.invoke("send-approval-email", {
+            body: {
+              notification_type: "result",
+              request_type: "leave",
+              employee_name: leave.profile.full_name,
+              employee_email: leave.profile.email,
+              approver_name: "HR/Manager",
+              status: "approved",
+              leave_type: leave.leave_type,
+              start_date: leave.start_date,
+              end_date: leave.end_date,
+              total_days: leave.total_days,
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.error("Failed to send employee notification:", emailErr);
+      }
     },
     onError: (error: Error) => {
       toast.error("Failed to approve leave: " + error.message);
@@ -286,11 +310,35 @@ export default function LeaveApprovals() {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["pending-leaves"] });
+      const leave = selectedLeave;
       setSelectedLeave(null);
       setRejectionReason("");
       toast.success("Leave rejected!");
+
+      // Send employee notification email
+      try {
+        if (leave?.profile?.email) {
+          await supabase.functions.invoke("send-approval-email", {
+            body: {
+              notification_type: "result",
+              request_type: "leave",
+              employee_name: leave.profile.full_name,
+              employee_email: leave.profile.email,
+              approver_name: "HR/Manager",
+              status: "rejected",
+              leave_type: leave.leave_type,
+              start_date: leave.start_date,
+              end_date: leave.end_date,
+              total_days: leave.total_days,
+              rejection_reason: variables.reason,
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.error("Failed to send employee notification:", emailErr);
+      }
     },
     onError: (error: Error) => {
       toast.error("Failed to reject leave: " + error.message);

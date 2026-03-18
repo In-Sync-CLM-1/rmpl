@@ -68,7 +68,7 @@ serve(async (req) => {
 
       const resend = new Resend(resendApiKey);
       const emailResponse = await resend.emails.send({
-        from: 'RMPL Onboarding <noreply@redefinemarcom.in>',
+        from: 'RMPL Onboarding <approval@redefine.in>',
         to: [contact],
         subject: 'Your Onboarding Verification Code',
         html: `

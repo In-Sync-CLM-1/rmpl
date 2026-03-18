@@ -7,7 +7,7 @@ const Index = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-blue/10 via-healthcare-teal/10 to-accent-purple/10">
+    <div className="min-h-screen bg-gradient-to-br from-primary-blue/10 via-success-green/10 to-accent-purple/10">
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="text-center max-w-4xl mx-auto mb-16">
@@ -30,7 +30,7 @@ const Index = () => {
             />
           </div>
           <p className="text-xl text-muted-foreground mb-8">
-            Streamline your healthcare recruitment with powerful participant management, 
+            Streamline your recruitment with powerful participant management,
             intelligent campaigns, and seamless ATS integration
           </p>
           <div className="flex gap-4 justify-center">
@@ -51,14 +51,14 @@ const Index = () => {
             </div>
             <h3 className="text-xl font-bold mb-2">Participant Management</h3>
             <p className="text-muted-foreground">
-              Organize and track healthcare professionals with advanced search, 
+              Organize and track professionals with advanced search,
               filters, and custom fields
             </p>
           </div>
 
           <div className="glass-card p-6 hover-lift">
-            <div className="p-3 rounded-lg bg-healthcare-teal/10 w-fit mb-4">
-              <Briefcase className="h-6 w-6 text-healthcare-teal" />
+            <div className="p-3 rounded-lg bg-success-green/10 w-fit mb-4">
+              <Briefcase className="h-6 w-6 text-success-green" />
             </div>
             <h3 className="text-xl font-bold mb-2">Campaign Builder</h3>
             <p className="text-muted-foreground">
@@ -116,7 +116,7 @@ const Index = () => {
         <div className="text-center glass-card p-12 rounded-2xl">
           <h2 className="text-3xl font-bold mb-4">Ready to transform your recruitment?</h2>
           <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join healthcare staffing agencies using RMPL OPM to streamline their 
+            Join organizations using RMPL OPM to streamline their
             recruitment process and place more participants faster
           </p>
           <Button size="lg" onClick={() => navigate("/")} className="shadow-elegant">

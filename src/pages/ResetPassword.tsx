@@ -74,7 +74,7 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary-blue/5 via-healthcare-teal/5 to-accent-purple/5">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary-blue/5 via-success-green/5 to-accent-purple/5">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">

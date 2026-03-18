@@ -121,7 +121,7 @@ serve(async (req) => {
 
     // Send email
     const emailResponse = await resend.emails.send({
-      from: `${from_name} <noreply@uhcstaffing.info>`,
+      from: `${from_name} <approval@redefine.in>`,
       to: [to_email],
       subject: processedSubject,
       html: processedBody,

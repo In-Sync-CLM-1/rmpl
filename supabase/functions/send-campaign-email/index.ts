@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     })
     const emailResponse = await retryApiCall(
       async () => await resend.emails.send({
-        from: 'RMPL <noreply@uhcstaffing.info>',
+        from: 'RMPL <approval@redefine.in>',
         to: [candidate.email],
         subject: processedSubject,
         html: processedHtml,

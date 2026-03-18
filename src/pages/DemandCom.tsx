@@ -518,13 +518,13 @@ export default function DemandCom() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-blue/5 via-healthcare-teal/5 to-accent-purple/5">
+    <div className="min-h-screen bg-gradient-to-br from-primary-blue/5 via-success-green/5 to-accent-purple/5">
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold mb-2">DemandCom</h2>
             <p className="text-muted-foreground">
-              Manage your healthcare professional database
+              Manage your professional database
             </p>
           </div>
           <div className="flex gap-2">

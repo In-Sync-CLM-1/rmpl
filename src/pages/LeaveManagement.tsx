@@ -111,7 +111,7 @@ export default function LeaveManagement() {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leave-applications"] });
       setOpen(false);
       setFormData({
@@ -123,6 +123,28 @@ export default function LeaveManagement() {
       });
       setSandwichResult(null);
       toast.success("Leave application submitted successfully!");
+
+      // Send approval email to manager
+      try {
+        // Get the just-inserted leave application
+        if (!user?.id) return;
+        const { data: latest } = await supabase
+          .from("leave_applications")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("status", "pending" as any)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (latest) {
+          await supabase.functions.invoke("send-approval-email", {
+            body: { request_type: "leave", request_id: latest.id },
+          });
+        }
+      } catch (emailErr) {
+        console.error("Failed to send approval email:", emailErr);
+      }
     },
     onError: (error: Error) => {
       toast.error("Failed to submit leave: " + error.message);

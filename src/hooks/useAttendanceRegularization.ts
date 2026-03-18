@@ -208,9 +208,30 @@ export function useAttendanceRegularization() {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["my-regularizations"] });
       toast.success("Regularization request submitted successfully!");
+
+      // Send approval email to manager
+      try {
+        if (!user?.id) return;
+        const { data: latest } = await supabase
+          .from("attendance_regularizations")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (latest) {
+          await supabase.functions.invoke("send-approval-email", {
+            body: { request_type: "regularization", request_id: latest.id },
+          });
+        }
+      } catch (emailErr) {
+        console.error("Failed to send approval email:", emailErr);
+      }
     },
     onError: (error: Error) => {
       toast.error("Failed to submit request: " + error.message);
@@ -233,12 +254,31 @@ export function useAttendanceRegularization() {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async (_data, regularizationId) => {
       queryClient.invalidateQueries({ queryKey: ["pending-regularizations"] });
       queryClient.invalidateQueries({ queryKey: ["my-regularizations"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-recent"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-today"] });
       toast.success("Regularization approved! Attendance record updated.");
+
+      // Send employee notification
+      try {
+        const reg = pendingRegularizations?.find((r: any) => r.id === regularizationId);
+        if (reg?.profile?.email) {
+          await supabase.functions.invoke("send-approval-email", {
+            body: {
+              notification_type: "result",
+              request_type: "regularization",
+              employee_name: reg.profile.full_name,
+              employee_email: reg.profile.email,
+              approver_name: "HR/Manager",
+              status: "approved",
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.error("Failed to send employee notification:", emailErr);
+      }
     },
     onError: (error: Error) => {
       toast.error("Failed to approve: " + error.message);
@@ -249,7 +289,7 @@ export function useAttendanceRegularization() {
   const rejectRegularization = useMutation({
     mutationFn: async ({ regularizationId, reason }: { regularizationId: string; reason: string }) => {
       if (!user?.id) throw new Error("User not found");
-      
+
       const { error } = await supabase
         .from("attendance_regularizations")
         .update({
@@ -259,13 +299,33 @@ export function useAttendanceRegularization() {
           rejection_reason: reason,
         })
         .eq("id", regularizationId);
-      
+
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["pending-regularizations"] });
       queryClient.invalidateQueries({ queryKey: ["my-regularizations"] });
       toast.success("Regularization request rejected.");
+
+      // Send employee notification
+      try {
+        const reg = pendingRegularizations?.find((r: any) => r.id === variables.regularizationId);
+        if (reg?.profile?.email) {
+          await supabase.functions.invoke("send-approval-email", {
+            body: {
+              notification_type: "result",
+              request_type: "regularization",
+              employee_name: reg.profile.full_name,
+              employee_email: reg.profile.email,
+              approver_name: "HR/Manager",
+              status: "rejected",
+              rejection_reason: variables.reason,
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.error("Failed to send employee notification:", emailErr);
+      }
     },
     onError: (error: Error) => {
       toast.error("Failed to reject: " + error.message);
