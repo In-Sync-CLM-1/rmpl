@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { z } from "zod";
@@ -31,11 +32,25 @@ import {
   ExternalLink,
   X,
   Save,
+  PhoneCall,
+  PhoneIncoming,
+  PhoneOutgoing,
+  PhoneMissed,
+  Bot,
+  FileText,
+  Tag,
+  ArrowRightLeft,
+  Brain,
+  ChevronDown,
+  ChevronUp,
+  Send,
+  CheckCircle2,
+  CheckCheck,
+  XCircle,
+  MessageCircle,
 } from "lucide-react";
 import rmplLogo from "@/assets/rmpl-logo.png";
-import { VapiCallHistory } from "@/components/VapiCallHistory";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
-import { WhatsAppHistory } from "@/components/whatsapp/WhatsAppHistory";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -146,6 +161,465 @@ function InfoRow({ icon: Icon, label, value, href }: {
 
 function getInitials(name: string) {
   return name.split(" ").map(n => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+}
+
+// ─── Timeline Types ───
+
+interface TimelineItem {
+  id: string;
+  type: "whatsapp" | "call" | "vapi_call" | "email" | "field_change";
+  timestamp: string;
+  data: any;
+}
+
+// ─── Timeline Hook ───
+
+function useContactTimeline(demandcomId: string, phoneNumber?: string) {
+  const [items, setItems] = useState<TimelineItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!demandcomId) return;
+    let cancelled = false;
+
+    async function fetchAll() {
+      setIsLoading(true);
+      try {
+        const queries = [
+          // WhatsApp messages
+          supabase
+            .from("whatsapp_messages")
+            .select("*, sender:profiles!sent_by(full_name)")
+            .eq("demandcom_id", demandcomId)
+            .order("sent_at", { ascending: false })
+            .limit(200),
+          // Exotel/normal call logs
+          supabase
+            .from("call_logs" as any)
+            .select("*, initiator:profiles!call_logs_initiated_by_fkey(full_name)")
+            .eq("demandcom_id", demandcomId)
+            .order("created_at", { ascending: false })
+            .limit(200),
+          // VAPI call logs
+          supabase
+            .from("vapi_call_logs")
+            .select("*")
+            .eq("demandcom_id", demandcomId)
+            .order("created_at", { ascending: false })
+            .limit(200),
+          // Field changes (disposition updates, etc.)
+          supabase
+            .from("demandcom_field_changes" as any)
+            .select("*, changer:profiles!demandcom_field_changes_changed_by_fkey(full_name)")
+            .eq("demandcom_id", demandcomId)
+            .order("changed_at", { ascending: false })
+            .limit(200),
+          // Email activity
+          supabase
+            .from("email_activity_log" as any)
+            .select("*")
+            .eq("demandcom_id", demandcomId)
+            .order("sent_at", { ascending: false })
+            .limit(200),
+        ];
+
+        const [waRes, callRes, vapiRes, fieldRes, emailRes] = await Promise.all(queries);
+
+        if (cancelled) return;
+
+        const timeline: TimelineItem[] = [];
+
+        (waRes.data || []).forEach((m: any) =>
+          timeline.push({ id: `wa-${m.id}`, type: "whatsapp", timestamp: m.sent_at || m.created_at, data: m })
+        );
+        (callRes.data || []).forEach((c: any) =>
+          timeline.push({ id: `call-${c.id}`, type: "call", timestamp: c.start_time || c.created_at, data: c })
+        );
+        (vapiRes.data || []).forEach((v: any) =>
+          timeline.push({ id: `vapi-${v.id}`, type: "vapi_call", timestamp: v.started_at || v.created_at, data: v })
+        );
+        (fieldRes.data || []).forEach((f: any) =>
+          timeline.push({ id: `fc-${f.id}`, type: "field_change", timestamp: f.changed_at || f.created_at, data: f })
+        );
+        (emailRes.data || []).forEach((e: any) =>
+          timeline.push({ id: `email-${e.id}`, type: "email", timestamp: e.sent_at, data: e })
+        );
+
+        timeline.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setItems(timeline);
+      } catch (err) {
+        console.error("Timeline fetch error:", err);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    fetchAll();
+    return () => { cancelled = true; };
+  }, [demandcomId, phoneNumber]);
+
+  return { items, isLoading };
+}
+
+// ─── Timeline Renderers ───
+
+function TimelineDateSeparator({ date }: { date: string }) {
+  return (
+    <div className="flex items-center gap-3 my-4">
+      <div className="flex-1 h-px bg-border" />
+      <Badge variant="secondary" className="text-xs font-normal shrink-0">
+        {format(new Date(date), "EEEE, MMMM d, yyyy")}
+      </Badge>
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
+function WhatsAppTimelineItem({ data }: { data: any }) {
+  const isOutbound = data.direction === "outbound";
+  const statusMap: Record<string, { icon: React.ElementType; color: string }> = {
+    pending: { icon: Clock, color: "text-yellow-500" },
+    sent: { icon: Send, color: "text-blue-500" },
+    delivered: { icon: CheckCircle2, color: "text-green-500" },
+    read: { icon: CheckCheck, color: "text-green-600" },
+    failed: { icon: XCircle, color: "text-red-500" },
+    received: { icon: MessageCircle, color: "text-purple-500" },
+  };
+  const st = statusMap[data.status] || statusMap.pending;
+  const StatusIcon = st.icon;
+
+  return (
+    <div className="flex gap-3">
+      <div className={cn("mt-1 rounded-full p-1.5 shrink-0", isOutbound ? "bg-green-100" : "bg-purple-100")}>
+        <MessageSquare className={cn("h-3.5 w-3.5", isOutbound ? "text-green-600" : "text-purple-600")} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="text-xs font-medium">
+            {isOutbound ? `WhatsApp sent${data.sender?.full_name ? ` by ${data.sender.full_name}` : ""}` : "WhatsApp received"}
+          </span>
+          {data.template_name && (
+            <Badge variant="outline" className="text-[10px] h-4 px-1">
+              {data.template_name}
+            </Badge>
+          )}
+        </div>
+        <div className={cn(
+          "rounded-lg px-3 py-2 text-sm max-w-[90%]",
+          isOutbound ? "bg-green-50 border border-green-200" : "bg-purple-50 border border-purple-200"
+        )}>
+          <p className="whitespace-pre-wrap break-words">{data.message_content || "[No content]"}</p>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[11px] text-muted-foreground">
+            {data.sent_at ? format(new Date(data.sent_at), "hh:mm a") : format(new Date(data.created_at), "hh:mm a")}
+          </span>
+          <StatusIcon className={cn("h-3 w-3", st.color)} />
+          <span className={cn("text-[10px]", st.color)}>{data.status}</span>
+          {data.error_message && <span className="text-[10px] text-red-500">{data.error_message}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CallTimelineItem({ data }: { data: any }) {
+  const statusIcons: Record<string, React.ElementType> = {
+    completed: PhoneCall,
+    "no-answer": PhoneMissed,
+    busy: PhoneMissed,
+    failed: PhoneMissed,
+    canceled: PhoneMissed,
+    "in-progress": PhoneOutgoing,
+    ringing: PhoneOutgoing,
+    initiated: PhoneOutgoing,
+  };
+  const statusColors: Record<string, string> = {
+    completed: "bg-green-100 text-green-700",
+    "no-answer": "bg-orange-100 text-orange-700",
+    busy: "bg-yellow-100 text-yellow-700",
+    failed: "bg-red-100 text-red-700",
+    canceled: "bg-gray-100 text-gray-700",
+    "in-progress": "bg-blue-100 text-blue-700",
+    ringing: "bg-purple-100 text-purple-700",
+    initiated: "bg-blue-100 text-blue-700",
+  };
+  const Icon = statusIcons[data.status] || PhoneCall;
+  const badgeColor = statusColors[data.status] || "bg-gray-100 text-gray-700";
+
+  return (
+    <div className="flex gap-3">
+      <div className="mt-1 rounded-full p-1.5 bg-blue-100 shrink-0">
+        <Icon className="h-3.5 w-3.5 text-blue-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+          <span className="text-xs font-medium">
+            {data.call_method === "screen" ? "Screen Call" : "Phone Call"}
+            {data.initiator?.full_name ? ` by ${data.initiator.full_name}` : ""}
+          </span>
+          <Badge className={cn("text-[10px] h-4 px-1.5 border-0", badgeColor)}>
+            {data.status}
+          </Badge>
+          {data.conversation_duration != null && data.conversation_duration > 0 && (
+            <span className="text-[10px] text-muted-foreground">
+              {Math.floor(data.conversation_duration / 60)}m {data.conversation_duration % 60}s
+            </span>
+          )}
+        </div>
+        {(data.disposition || data.subdisposition) && (
+          <div className="flex items-center gap-1.5 mt-1">
+            <Tag className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs">
+              {[data.disposition, data.subdisposition].filter(Boolean).join(" / ")}
+            </span>
+          </div>
+        )}
+        {data.notes && (
+          <p className="text-xs text-muted-foreground mt-1 bg-muted rounded px-2 py-1">{data.notes}</p>
+        )}
+        {data.recording_url && (
+          <a href={data.recording_url} target="_blank" rel="noopener noreferrer"
+            className="text-[11px] text-primary hover:underline mt-1 inline-block">
+            Recording
+          </a>
+        )}
+        <div className="text-[11px] text-muted-foreground mt-1">
+          {format(new Date(data.start_time || data.created_at), "hh:mm a")}
+          {data.to_number && <span className="ml-2">{data.to_number}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VapiCallTimelineItem({ data }: { data: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const sentimentColors: Record<string, string> = {
+    positive: "bg-green-100 text-green-700",
+    neutral: "bg-yellow-100 text-yellow-700",
+    negative: "bg-red-100 text-red-700",
+  };
+  const statusColors: Record<string, string> = {
+    ended: "bg-green-100 text-green-700",
+    failed: "bg-red-100 text-red-700",
+    queued: "bg-yellow-100 text-yellow-700",
+    "in-progress": "bg-blue-100 text-blue-700",
+  };
+  const hasDetails = data.transcript || data.call_summary || data.response_summary;
+
+  return (
+    <div className="flex gap-3">
+      <div className="mt-1 rounded-full p-1.5 bg-violet-100 shrink-0">
+        <Bot className="h-3.5 w-3.5 text-violet-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+          <span className="text-xs font-medium">VAPI AI Call</span>
+          <Badge className={cn("text-[10px] h-4 px-1.5 border-0", statusColors[data.status] || "bg-gray-100 text-gray-700")}>
+            {data.status}
+          </Badge>
+          {data.duration_seconds != null && data.duration_seconds > 0 && (
+            <span className="text-[10px] text-muted-foreground">
+              {Math.floor(data.duration_seconds / 60)}m {data.duration_seconds % 60}s
+            </span>
+          )}
+          {data.sentiment && (
+            <Badge className={cn("text-[10px] h-4 px-1.5 border-0", sentimentColors[data.sentiment] || "")}>
+              {data.sentiment}
+              {data.sentiment_score != null && ` (${Math.round(data.sentiment_score * 100)}%)`}
+            </Badge>
+          )}
+          {hasDetails && (
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setExpanded(!expanded)}>
+              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </Button>
+          )}
+        </div>
+        {data.key_topics && data.key_topics.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {data.key_topics.map((t: string, i: number) => (
+              <Badge key={i} variant="secondary" className="text-[10px] h-4 px-1">{t}</Badge>
+            ))}
+          </div>
+        )}
+        {expanded && (
+          <div className="mt-2 space-y-2">
+            {data.response_summary && (
+              <div>
+                <p className="text-[10px] font-medium flex items-center gap-1 mb-0.5"><Brain className="h-3 w-3" /> AI Summary</p>
+                <p className="text-xs text-muted-foreground bg-muted rounded px-2 py-1">{data.response_summary}</p>
+              </div>
+            )}
+            {data.call_summary && (
+              <div>
+                <p className="text-[10px] font-medium flex items-center gap-1 mb-0.5"><FileText className="h-3 w-3" /> Call Summary</p>
+                <p className="text-xs text-muted-foreground bg-muted rounded px-2 py-1">{data.call_summary}</p>
+              </div>
+            )}
+            {data.transcript && (
+              <div>
+                <p className="text-[10px] font-medium mb-0.5">Transcript</p>
+                <pre className="text-xs text-muted-foreground bg-muted rounded px-2 py-1 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                  {data.transcript}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="text-[11px] text-muted-foreground mt-1">
+          {format(new Date(data.started_at || data.created_at), "hh:mm a")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FieldChangeTimelineItem({ data }: { data: any }) {
+  const fieldLabels: Record<string, string> = {
+    latest_disposition: "Disposition",
+    latest_subdisposition: "Sub-Disposition",
+    disposition: "Disposition",
+    subdisposition: "Sub-Disposition",
+    company_name: "Company",
+    name: "Name",
+    mobile_numb: "Mobile",
+    official: "Email",
+    city: "City",
+    state: "State",
+    address: "Address",
+    designation: "Designation",
+    deppt: "Department",
+  };
+  const label = fieldLabels[data.field_name] || data.field_name;
+  const isDisposition = data.field_name?.includes("disposition");
+
+  return (
+    <div className="flex gap-3">
+      <div className={cn("mt-1 rounded-full p-1.5 shrink-0", isDisposition ? "bg-amber-100" : "bg-gray-100")}>
+        <ArrowRightLeft className={cn("h-3.5 w-3.5", isDisposition ? "text-amber-600" : "text-gray-500")} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium">{label} updated</span>
+          {data.changer?.full_name && (
+            <span className="text-[10px] text-muted-foreground">by {data.changer.full_name}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5 text-xs">
+          {data.old_value && (
+            <span className="line-through text-muted-foreground">{data.old_value}</span>
+          )}
+          {data.old_value && data.new_value && <span className="text-muted-foreground">&rarr;</span>}
+          {data.new_value && (
+            <span className="font-medium">{data.new_value}</span>
+          )}
+          {!data.old_value && !data.new_value && (
+            <span className="text-muted-foreground italic">cleared</span>
+          )}
+        </div>
+        <div className="text-[11px] text-muted-foreground mt-0.5">
+          {format(new Date(data.changed_at || data.created_at), "hh:mm a")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmailTimelineItem({ data }: { data: any }) {
+  return (
+    <div className="flex gap-3">
+      <div className="mt-1 rounded-full p-1.5 bg-sky-100 shrink-0">
+        <Mail className="h-3.5 w-3.5 text-sky-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="text-xs font-medium">Email sent</span>
+          {data.status && (
+            <Badge variant="outline" className="text-[10px] h-4 px-1">{data.status}</Badge>
+          )}
+        </div>
+        {data.subject && (
+          <p className="text-xs font-medium">{data.subject}</p>
+        )}
+        <div className="text-[11px] text-muted-foreground mt-0.5">
+          {format(new Date(data.sent_at), "hh:mm a")}
+          {data.to_email && <span className="ml-2">to {data.to_email}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Contact Timeline Component ───
+
+function ContactTimeline({ demandcomId, phoneNumber }: { demandcomId: string; phoneNumber?: string }) {
+  const { items, isLoading } = useContactTimeline(demandcomId, phoneNumber);
+
+  const grouped = useMemo(() => {
+    const groups: { date: string; items: TimelineItem[] }[] = [];
+    let currentDate = "";
+    for (const item of items) {
+      const d = format(new Date(item.timestamp), "yyyy-MM-dd");
+      if (d !== currentDate) {
+        currentDate = d;
+        groups.push({ date: d, items: [item] });
+      } else {
+        groups[groups.length - 1].items.push(item);
+      }
+    }
+    return groups;
+  }, [items]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 p-4">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="flex gap-3">
+            <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <Clock className="h-12 w-12 mb-3 opacity-40" />
+        <p className="text-sm font-medium">No activity yet</p>
+        <p className="text-xs">Communication history will appear here</p>
+      </div>
+    );
+  }
+
+  return (
+    <ScrollArea className="h-[calc(100vh-380px)] min-h-[400px]">
+      <div className="px-1 py-2 space-y-3">
+        {grouped.map(group => (
+          <div key={group.date}>
+            <TimelineDateSeparator date={group.date} />
+            <div className="space-y-4">
+              {group.items.map(item => {
+                switch (item.type) {
+                  case "whatsapp": return <WhatsAppTimelineItem key={item.id} data={item.data} />;
+                  case "call": return <CallTimelineItem key={item.id} data={item.data} />;
+                  case "vapi_call": return <VapiCallTimelineItem key={item.id} data={item.data} />;
+                  case "field_change": return <FieldChangeTimelineItem key={item.id} data={item.data} />;
+                  case "email": return <EmailTimelineItem key={item.id} data={item.data} />;
+                  default: return null;
+                }
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </ScrollArea>
+  );
 }
 
 // ─── Details View ───
@@ -324,108 +798,50 @@ function ParticipantDetails({
                 </CardContent>
               </Card>
             )}
+
+            {/* Remarks & Notes */}
+            {(formData.remarks || formData.extra || formData.extra_1 || formData.extra_2) && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4" /> Notes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {formData.remarks && <p className="text-sm whitespace-pre-wrap">{formData.remarks}</p>}
+                  {(formData.extra || formData.extra_1 || formData.extra_2) && (
+                    <>
+                      {formData.remarks && <Separator className="my-2" />}
+                      <div className="space-y-1">
+                        {formData.extra && <p className="text-xs"><span className="text-muted-foreground">Extra:</span> {formData.extra}</p>}
+                        {formData.extra_1 && <p className="text-xs"><span className="text-muted-foreground">Extra 1:</span> {formData.extra_1}</p>}
+                        {formData.extra_2 && <p className="text-xs"><span className="text-muted-foreground">Extra 2:</span> {formData.extra_2}</p>}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          {/* Right: Communication & Activity */}
+          {/* Right: Unified Contact History Timeline */}
           <div className="lg:col-span-2">
-            <Tabs defaultValue="whatsapp" className="w-full">
-              <TabsList className="w-full justify-start">
-                <TabsTrigger value="whatsapp" className="gap-2">
-                  <MessageSquare className="h-4 w-4" /> WhatsApp
-                </TabsTrigger>
-                <TabsTrigger value="calls" className="gap-2">
-                  <Phone className="h-4 w-4" /> Call History
-                </TabsTrigger>
-                <TabsTrigger value="activity" className="gap-2">
-                  <Clock className="h-4 w-4" /> Activity & Notes
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="whatsapp" className="mt-4">
-                <Card>
-                  <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
-                    <CardTitle className="text-sm">WhatsApp Conversation</CardTitle>
-                    {formData.mobile_numb && (
-                      <Button size="sm" variant="outline" onClick={() => setWhatsappDialogOpen(true)}
-                        className="border-green-300 hover:bg-green-50 gap-2 h-8">
-                        <MessageSquare className="h-3.5 w-3.5 text-green-600" /> Send
-                      </Button>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    {formData.mobile_numb ? (
-                      <WhatsAppHistory demandcomId={id} phoneNumber={formData.mobile_numb} maxHeight="500px" />
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-8">No mobile number available</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="calls" className="mt-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">VAPI Call History & Responses</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <VapiCallHistory demandcomId={id} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="activity" className="mt-4 space-y-4">
-                {/* Call Tracking */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Call Tracking</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Latest Disposition</p>
-                        <p className="text-sm font-medium mt-0.5">{formData.latest_disposition || "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Sub-Disposition</p>
-                        <p className="text-sm font-medium mt-0.5">{formData.latest_subdisposition || "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Last Call Date</p>
-                        <p className="text-sm font-medium mt-0.5">
-                          {formData.last_call_date ? format(new Date(formData.last_call_date), "PPP") : "—"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Next Call Date</p>
-                        <p className="text-sm font-medium mt-0.5">
-                          {formData.next_call_date ? format(new Date(formData.next_call_date), "PPP") : "—"}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Remarks & Notes */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Remarks & Notes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm whitespace-pre-wrap">{formData.remarks || "No remarks."}</p>
-                    {(formData.extra || formData.extra_1 || formData.extra_2) && (
-                      <>
-                        <Separator className="my-3" />
-                        <div className="grid grid-cols-3 gap-3">
-                          {formData.extra && <div><p className="text-xs text-muted-foreground">Extra</p><p className="text-sm">{formData.extra}</p></div>}
-                          {formData.extra_1 && <div><p className="text-xs text-muted-foreground">Extra 1</p><p className="text-sm">{formData.extra_1}</p></div>}
-                          {formData.extra_2 && <div><p className="text-xs text-muted-foreground">Extra 2</p><p className="text-sm">{formData.extra_2}</p></div>}
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+            <Card>
+              <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4" /> Contact History
+                </CardTitle>
+                {formData.mobile_numb && (
+                  <Button size="sm" variant="outline" onClick={() => setWhatsappDialogOpen(true)}
+                    className="border-green-300 hover:bg-green-50 gap-2 h-8">
+                    <MessageSquare className="h-3.5 w-3.5 text-green-600" /> Send WhatsApp
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                <ContactTimeline demandcomId={id} phoneNumber={formData.mobile_numb} />
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
