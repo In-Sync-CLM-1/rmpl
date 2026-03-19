@@ -1,5 +1,6 @@
- import { useQuery } from "@tanstack/react-query";
+ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
  import { supabase } from "@/integrations/supabase/client";
+ import { toast } from "sonner";
 
  export interface WhatsAppTemplate {
    id: string;
@@ -23,6 +24,8 @@
  }
 
  export function useWhatsAppTemplates(onlyApproved = false) {
+   const queryClient = useQueryClient();
+
    const { data: templates = [], isLoading, error } = useQuery({
      queryKey: ["whatsapp-templates", onlyApproved],
      queryFn: async () => {
@@ -43,9 +46,28 @@
      },
    });
 
+   const deleteTemplate = useMutation({
+     mutationFn: async (templateId: string) => {
+       const { error } = await supabase
+         .from("whatsapp_templates")
+         .delete()
+         .eq("id", templateId);
+       if (error) throw error;
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+       toast.success("Template deleted");
+     },
+     onError: (error: Error) => {
+       toast.error("Failed to delete template: " + error.message);
+     },
+   });
+
    return {
      templates,
      isLoading,
      error,
+     deleteTemplate: deleteTemplate.mutate,
+     isDeleting: deleteTemplate.isPending,
    };
  }

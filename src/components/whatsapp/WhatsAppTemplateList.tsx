@@ -4,7 +4,17 @@
  import { Button } from "@/components/ui/button";
  import { Skeleton } from "@/components/ui/skeleton";
  import { ScrollArea } from "@/components/ui/scroll-area";
- import { FileText, CheckCircle2, Clock, XCircle, RefreshCw, Plus, Loader2 } from "lucide-react";
+ import {
+   AlertDialog,
+   AlertDialogAction,
+   AlertDialogCancel,
+   AlertDialogContent,
+   AlertDialogDescription,
+   AlertDialogFooter,
+   AlertDialogHeader,
+   AlertDialogTitle,
+ } from "@/components/ui/alert-dialog";
+ import { FileText, CheckCircle2, Clock, XCircle, RefreshCw, Plus, Loader2, Trash2 } from "lucide-react";
  import { useWhatsAppTemplates } from "@/hooks/useWhatsAppTemplates";
  import { useWhatsAppSettings } from "@/hooks/useWhatsAppSettings";
  import { CreateTemplateDialog } from "./CreateTemplateDialog";
@@ -17,9 +27,10 @@
  };
 
  export function WhatsAppTemplateList() {
-   const { templates, isLoading } = useWhatsAppTemplates();
+   const { templates, isLoading, deleteTemplate, isDeleting } = useWhatsAppTemplates();
    const { syncTemplates, isSyncing } = useWhatsAppSettings();
    const [showCreate, setShowCreate] = useState(false);
+   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
    if (isLoading) {
      return (
@@ -99,6 +110,15 @@
                              </Badge>
                            </div>
                          </div>
+                         <Button
+                           variant="ghost"
+                           size="icon"
+                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                           onClick={() => setDeleteTarget({ id: template.id, name: template.template_name })}
+                           disabled={isDeleting}
+                         >
+                           <Trash2 className="h-4 w-4" />
+                         </Button>
                        </div>
 
                        {template.header_content && (
@@ -144,6 +164,31 @@
        </Card>
 
        <CreateTemplateDialog open={showCreate} onOpenChange={setShowCreate} />
+
+       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle>Delete Template</AlertDialogTitle>
+             <AlertDialogDescription>
+               Are you sure you want to delete "{deleteTarget?.name}"? This cannot be undone.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel>Cancel</AlertDialogCancel>
+             <AlertDialogAction
+               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+               onClick={() => {
+                 if (deleteTarget) {
+                   deleteTemplate(deleteTarget.id);
+                   setDeleteTarget(null);
+                 }
+               }}
+             >
+               Delete
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
      </>
    );
  }
