@@ -20,74 +20,57 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Mail, MessageSquare, Send, Loader2, Database, FileSpreadsheet } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Mail, MessageSquare, Send, Loader2, Database, FileSpreadsheet, Users, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 
-// Same field mapping as CampaignForm / process-campaign
 const DEMANDCOM_FIELDS = [
-  { tag: "name", field: "name", label: "Full Name", category: "Personal" },
-  { tag: "first_name", field: "name", label: "First Name", category: "Personal" },
-  { tag: "last_name", field: "name", label: "Last Name", category: "Personal" },
-  { tag: "email", field: "email", label: "Email", category: "Personal" },
-  { tag: "phone", field: "mobile_numb", label: "Phone", category: "Personal" },
-  { tag: "mobile2", field: "mobile2", label: "Mobile 2", category: "Personal" },
-  { tag: "official", field: "official", label: "Official Phone", category: "Personal" },
-  { tag: "linkedin", field: "linkedin", label: "LinkedIn", category: "Personal" },
-  { tag: "designation", field: "designation", label: "Designation", category: "Professional" },
-  { tag: "department", field: "deppt", label: "Department", category: "Professional" },
-  { tag: "job_level_updated", field: "job_level_updated", label: "Job Level", category: "Professional" },
-  { tag: "company_name", field: "company_name", label: "Company Name", category: "Company" },
-  { tag: "industry", field: "industry_type", label: "Industry", category: "Company" },
-  { tag: "sub_industry", field: "sub_industry", label: "Sub Industry", category: "Company" },
-  { tag: "turnover", field: "turnover", label: "Turnover", category: "Company" },
-  { tag: "emp_size", field: "emp_size", label: "Employee Size", category: "Company" },
-  { tag: "erp_name", field: "erp_name", label: "ERP Name", category: "Company" },
-  { tag: "erp_vendor", field: "erp_vendor", label: "ERP Vendor", category: "Company" },
-  { tag: "website", field: "website", label: "Website", category: "Company" },
-  { tag: "activity_name", field: "activity_name", label: "Activity Name", category: "Company" },
-  { tag: "address", field: "address", label: "Address", category: "Location" },
-  { tag: "location", field: "location", label: "Location", category: "Location" },
-  { tag: "city", field: "city", label: "City", category: "Location" },
-  { tag: "state", field: "state", label: "State", category: "Location" },
-  { tag: "zone", field: "zone", label: "Zone", category: "Location" },
-  { tag: "tier", field: "tier", label: "Tier", category: "Location" },
-  { tag: "pincode", field: "pincode", label: "Pincode", category: "Location" },
-  { tag: "latest_disposition", field: "latest_disposition", label: "Latest Disposition", category: "Engagement" },
-  { tag: "latest_subdisposition", field: "latest_subdisposition", label: "Latest Sub-disposition", category: "Engagement" },
-  { tag: "last_call_date", field: "last_call_date", label: "Last Call Date", category: "Engagement" },
+  { tag: "name", label: "Full Name", category: "Personal" },
+  { tag: "first_name", label: "First Name", category: "Personal" },
+  { tag: "last_name", label: "Last Name", category: "Personal" },
+  { tag: "email", label: "Email", category: "Personal" },
+  { tag: "phone", label: "Phone", category: "Personal" },
+  { tag: "mobile2", label: "Mobile 2", category: "Personal" },
+  { tag: "official", label: "Official Phone", category: "Personal" },
+  { tag: "linkedin", label: "LinkedIn", category: "Personal" },
+  { tag: "designation", label: "Designation", category: "Professional" },
+  { tag: "department", label: "Department", category: "Professional" },
+  { tag: "job_level_updated", label: "Job Level", category: "Professional" },
+  { tag: "company_name", label: "Company Name", category: "Company" },
+  { tag: "industry", label: "Industry", category: "Company" },
+  { tag: "sub_industry", label: "Sub Industry", category: "Company" },
+  { tag: "turnover", label: "Turnover", category: "Company" },
+  { tag: "emp_size", label: "Employee Size", category: "Company" },
+  { tag: "erp_name", label: "ERP Name", category: "Company" },
+  { tag: "erp_vendor", label: "ERP Vendor", category: "Company" },
+  { tag: "website", label: "Website", category: "Company" },
+  { tag: "activity_name", label: "Activity Name", category: "Company" },
+  { tag: "address", label: "Address", category: "Location" },
+  { tag: "location", label: "Location", category: "Location" },
+  { tag: "city", label: "City", category: "Location" },
+  { tag: "state", label: "State", category: "Location" },
+  { tag: "zone", label: "Zone", category: "Location" },
+  { tag: "tier", label: "Tier", category: "Location" },
+  { tag: "pincode", label: "Pincode", category: "Location" },
+  { tag: "latest_disposition", label: "Latest Disposition", category: "Engagement" },
+  { tag: "latest_subdisposition", label: "Latest Sub-disposition", category: "Engagement" },
+  { tag: "last_call_date", label: "Last Call Date", category: "Engagement" },
 ];
-
 const CATEGORIES = ["Personal", "Professional", "Company", "Location", "Engagement"];
 
-// Map merge tag name → demandcom row field
-const TAG_TO_ROW_FIELD: Record<string, string> = {
-  name: "name",
-  first_name: "__first_name__",
-  last_name: "__last_name__",
-  email: "email",
-  phone: "mobile_numb",
-  mobile2: "mobile2",
-  official: "official",
-  linkedin: "linkedin",
-  designation: "designation",
-  department: "deppt",
+// Merge-tag → actual demandcom row field
+const TAG_TO_ROW: Record<string, string> = {
+  name: "name", first_name: "__first__", last_name: "__last__",
+  email: "email", phone: "mobile_numb", mobile2: "mobile2",
+  official: "official", linkedin: "linkedin",
+  designation: "designation", department: "deppt",
   job_level_updated: "job_level_updated",
-  company_name: "company_name",
-  industry: "industry_type",
-  sub_industry: "sub_industry",
-  turnover: "turnover",
-  emp_size: "emp_size",
-  erp_name: "erp_name",
-  erp_vendor: "erp_vendor",
-  website: "website",
-  activity_name: "activity_name",
-  address: "address",
-  location: "location",
-  city: "city",
-  state: "state",
-  zone: "zone",
-  tier: "tier",
-  pincode: "pincode",
+  company_name: "company_name", industry: "industry_type",
+  sub_industry: "sub_industry", turnover: "turnover",
+  emp_size: "emp_size", erp_name: "erp_name", erp_vendor: "erp_vendor",
+  website: "website", activity_name: "activity_name",
+  address: "address", location: "location", city: "city",
+  state: "state", zone: "zone", tier: "tier", pincode: "pincode",
   latest_disposition: "latest_disposition",
   latest_subdisposition: "latest_subdisposition",
   last_call_date: "last_call_date",
@@ -102,31 +85,72 @@ interface Template {
   merge_tags?: string[];
 }
 
+interface AppliedFilters {
+  nameEmail: string;
+  city: string;
+  activityName: string;
+  assignedTo: string;
+  disposition: string[];
+  subdisposition: string[];
+}
+
 interface QuickCampaignDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  participants: any[];
+  selectedParticipants: any[]; // checkbox-selected rows
+  appliedFilters: AppliedFilters;
+  totalFilteredCount: number;
+  currentPageCount: number;
 }
 
-export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickCampaignDialogProps) {
+export function QuickCampaignDialog({
+  open,
+  onOpenChange,
+  selectedParticipants,
+  appliedFilters,
+  totalFilteredCount,
+  currentPageCount,
+}: QuickCampaignDialogProps) {
+  const hasSelection = selectedParticipants.length > 0;
+  const hasFilters = !!(appliedFilters.nameEmail || appliedFilters.city || appliedFilters.activityName ||
+    (appliedFilters.assignedTo && appliedFilters.assignedTo !== "all") ||
+    appliedFilters.disposition.length > 0 || appliedFilters.subdisposition.length > 0);
+
+  // Audience scope: "selected" or "all_filtered"
+  const [scope, setScope] = useState<"selected" | "all_filtered">(hasSelection ? "selected" : "all_filtered");
   const [type, setType] = useState<"email" | "whatsapp">("email");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templateId, setTemplateId] = useState("");
   const [subject, setSubject] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [variableMapping, setVariableMapping] = useState<Record<string, string>>({});
+  const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [isSending, setIsSending] = useState(false);
   const [sendingProgress, setSendingProgress] = useState(0);
+  const [isFetchingAll, setIsFetchingAll] = useState(false);
 
-  // Fetch templates when type changes
+  // Reset on open
+  useEffect(() => {
+    if (!open) return;
+    setScope(hasSelection ? "selected" : "all_filtered");
+    setTemplateId("");
+    setSubject("");
+    setVariableMapping({});
+    setCustomValues({});
+    setCampaignName(`Quick ${type === "whatsapp" ? "WhatsApp" : "Email"} - ${new Date().toLocaleDateString()}`);
+    fetchTemplates();
+  }, [open]);
+
+  // Refetch templates on channel change
   useEffect(() => {
     if (!open) return;
     setTemplateId("");
     setSubject("");
     setVariableMapping({});
+    setCustomValues({});
     setCampaignName(`Quick ${type === "whatsapp" ? "WhatsApp" : "Email"} - ${new Date().toLocaleDateString()}`);
     fetchTemplates();
-  }, [type, open]);
+  }, [type]);
 
   const fetchTemplates = async () => {
     try {
@@ -151,7 +175,7 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
         setTemplates(data || []);
       }
     } catch (err: any) {
-      toast.error("Failed to load templates: " + err.message);
+      toast.error("Failed to load templates");
     }
   };
 
@@ -184,57 +208,95 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
     } else {
       setVariableMapping({});
     }
+    setCustomValues({});
   }, [templateId]);
 
-  // Custom variables that need user input
   const customVars = templateVariables.filter(v => {
     const m = variableMapping[v];
     return !m || m === "__custom__";
   });
 
-  // Custom variable values (single value applied to all recipients)
-  const [customValues, setCustomValues] = useState<Record<string, string>>({});
+  const recipientCount = scope === "selected" ? selectedParticipants.length : totalFilteredCount;
 
-  // Reset custom values when template changes
-  useEffect(() => {
-    setCustomValues({});
-  }, [templateId]);
-
-  // Resolve a tag value from a demandcom row
+  // Resolve a field value from a demandcom row
   function resolveValue(tagName: string, row: any): string {
     if (tagName === "first_name") return (row.name || "").split(" ")[0] || "";
     if (tagName === "last_name") return (row.name || "").split(" ").slice(1).join(" ") || "";
-    const field = TAG_TO_ROW_FIELD[tagName];
-    if (field && row[field] !== undefined && row[field] !== null) return String(row[field]);
-    // Fallback: try the tag name directly on the row
-    if (row[tagName] !== undefined && row[tagName] !== null) return String(row[tagName]);
+    const field = TAG_TO_ROW[tagName];
+    if (field && row[field] != null) return String(row[field]);
+    if (row[tagName] != null) return String(row[tagName]);
     return "";
   }
 
-  // Build enriched audience data
-  function buildAudienceData(): any[] {
-    return participants.map(dc => {
-      const row: any = {
-        // Contact identifiers
-        email: dc.personal_email_id || dc.generic_email_id || dc.email || "",
-        phone: dc.mobile_numb || dc.phone || "",
-      };
+  // Enrich a single demandcom row into audience-ready data
+  function enrichRow(dc: any): any {
+    const row: any = {
+      email: dc.personal_email_id || dc.generic_email_id || dc.email || "",
+      phone: dc.mobile_numb || dc.phone || "",
+    };
+    for (const varName of templateVariables) {
+      const mapping = variableMapping[varName];
+      if (mapping && mapping !== "__custom__") {
+        row[varName] = resolveValue(mapping, dc);
+      } else {
+        row[varName] = customValues[varName] || "";
+      }
+    }
+    return { ...dc, ...row };
+  }
 
-      // For each template variable, fill the value
-      for (const varName of templateVariables) {
-        const mapping = variableMapping[varName];
-        if (mapping && mapping !== "__custom__") {
-          // DB-mapped: resolve from the demandcom row
-          row[varName] = resolveValue(mapping, dc);
-        } else {
-          // Custom: use the single custom value
-          row[varName] = customValues[varName] || "";
+  // Fetch ALL filtered records from DB (no pagination limit)
+  async function fetchAllFiltered(): Promise<any[]> {
+    setIsFetchingAll(true);
+    try {
+      const batchSize = 1000;
+      let allRecords: any[] = [];
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        let query = supabase.from("demandcom" as any).select("*");
+
+        // Apply same filters as the main page
+        if (appliedFilters.nameEmail) {
+          const p = `%${appliedFilters.nameEmail}%`;
+          query = query.or(`name.ilike.${p},personal_email_id.ilike.${p},generic_email_id.ilike.${p},mobile_numb.ilike.${p}`);
         }
+        if (appliedFilters.city) {
+          query = query.ilike("city", `%${appliedFilters.city}%`);
+        }
+        if (appliedFilters.activityName) {
+          query = query.ilike("activity_name", `%${appliedFilters.activityName}%`);
+        }
+        if (appliedFilters.assignedTo && appliedFilters.assignedTo !== "all") {
+          if (appliedFilters.assignedTo === "unassigned") {
+            query = query.is("assigned_to", null);
+          } else {
+            query = query.eq("assigned_to", appliedFilters.assignedTo);
+          }
+        }
+        if (appliedFilters.disposition.length > 0) {
+          query = query.in("latest_disposition", appliedFilters.disposition);
+        }
+        if (appliedFilters.subdisposition.length > 0) {
+          query = query.in("latest_subdisposition", appliedFilters.subdisposition);
+        }
+
+        query = query.order("created_at", { ascending: false }).range(offset, offset + batchSize - 1);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const batch = (data || []) as any[];
+        allRecords = allRecords.concat(batch);
+        offset += batchSize;
+        hasMore = batch.length === batchSize;
       }
 
-      // Keep original fields for backward compat
-      return { ...dc, ...row };
-    });
+      return allRecords;
+    } finally {
+      setIsFetchingAll(false);
+    }
   }
 
   const handleSend = async () => {
@@ -242,27 +304,44 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
       toast.error("Please select a template");
       return;
     }
-
-    // Validate contact identifiers
-    const contactField = type === "whatsapp" ? "phone" : "email";
-    const enriched = buildAudienceData();
-    const missing = enriched.filter(r => !r[contactField]);
-    if (missing.length === enriched.length) {
-      toast.error(`No participants have a ${contactField}. Cannot send.`);
+    if (scope === "selected" && selectedParticipants.length === 0) {
+      toast.error("No participants selected. Use checkboxes to select rows or choose 'All filtered records'.");
       return;
-    }
-    if (missing.length > 0) {
-      toast.warning(`${missing.length} of ${enriched.length} participants have no ${contactField} and will be skipped.`);
     }
 
     setIsSending(true);
     setSendingProgress(0);
 
     try {
+      // Get participants based on scope
+      let rawParticipants: any[];
+      if (scope === "selected") {
+        rawParticipants = selectedParticipants;
+      } else {
+        toast.info(`Fetching all ${totalFilteredCount} filtered records...`);
+        rawParticipants = await fetchAllFiltered();
+        toast.success(`Loaded ${rawParticipants.length} records`);
+      }
+
+      // Enrich all participants
+      const enriched = rawParticipants.map(enrichRow);
+
+      // Validate contact identifiers
+      const contactField = type === "whatsapp" ? "phone" : "email";
+      const withContact = enriched.filter(r => r[contactField]);
+      if (withContact.length === 0) {
+        toast.error(`No participants have a ${contactField}. Cannot send.`);
+        setIsSending(false);
+        return;
+      }
+      if (withContact.length < enriched.length) {
+        toast.warning(`${enriched.length - withContact.length} participants without ${contactField} will be skipped.`);
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Create campaign record
+      // Create campaign
       const { data: newCampaign, error: createError } = await supabase
         .from("campaigns")
         .insert([{
@@ -278,7 +357,6 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
         }])
         .select()
         .single();
-
       if (createError) throw createError;
 
       // Trigger processing
@@ -286,7 +364,6 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
         "process-campaign",
         { body: { campaign_id: newCampaign.id } }
       );
-
       if (processError) throw processError;
 
       // Poll for completion
@@ -299,8 +376,7 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
 
         if (campaign) {
           const progress = campaign.total_recipients > 0
-            ? (campaign.sent_count / campaign.total_recipients) * 100
-            : 0;
+            ? (campaign.sent_count / campaign.total_recipients) * 100 : 0;
           setSendingProgress(progress);
 
           if (campaign.status === "sent" || campaign.status === "failed") {
@@ -314,17 +390,14 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
                   : `Campaign sent to ${campaign.sent_count} recipients`
               );
             } else {
-              toast.error("Campaign failed. Check logs for details.");
+              toast.error("Campaign failed. Check logs.");
             }
             onOpenChange(false);
           }
         }
       }, 1000);
 
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        setIsSending(false);
-      }, 300000);
+      setTimeout(() => { clearInterval(pollInterval); setIsSending(false); }, 300000);
     } catch (err: any) {
       toast.error("Campaign failed: " + err.message);
       setIsSending(false);
@@ -335,13 +408,61 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
     <Dialog open={open} onOpenChange={isSending ? undefined : onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Quick Campaign</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Quick Campaign
+          </DialogTitle>
           <DialogDescription>
-            Send to {participants.length} selected participant{participants.length !== 1 ? "s" : ""}
+            Send Email or WhatsApp campaign to DemandCom contacts
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Audience Scope */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold">Who to send to</Label>
+            <RadioGroup
+              value={scope}
+              onValueChange={(v) => setScope(v as "selected" | "all_filtered")}
+              className="space-y-1"
+              disabled={isSending}
+            >
+              {hasSelection && (
+                <div className="flex items-center gap-2 p-2 border rounded-lg">
+                  <RadioGroupItem value="selected" id="scope-selected" />
+                  <Label htmlFor="scope-selected" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
+                    <CheckSquare className="h-4 w-4 text-blue-500" />
+                    Selected rows only
+                    <Badge variant="secondary" className="ml-auto">{selectedParticipants.length}</Badge>
+                  </Label>
+                </div>
+              )}
+              <div className="flex items-center gap-2 p-2 border rounded-lg">
+                <RadioGroupItem value="all_filtered" id="scope-all" />
+                <Label htmlFor="scope-all" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
+                  <Users className="h-4 w-4 text-green-500" />
+                  All filtered records (all pages)
+                  <Badge variant="secondary" className="ml-auto">{totalFilteredCount.toLocaleString()}</Badge>
+                </Label>
+              </div>
+            </RadioGroup>
+            {scope === "all_filtered" && hasFilters && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {appliedFilters.nameEmail && <Badge variant="outline" className="text-[10px]">Search: {appliedFilters.nameEmail}</Badge>}
+                {appliedFilters.city && <Badge variant="outline" className="text-[10px]">City: {appliedFilters.city}</Badge>}
+                {appliedFilters.activityName && <Badge variant="outline" className="text-[10px]">Activity: {appliedFilters.activityName}</Badge>}
+                {appliedFilters.assignedTo && appliedFilters.assignedTo !== "all" && (
+                  <Badge variant="outline" className="text-[10px]">Assigned: {appliedFilters.assignedTo === "unassigned" ? "Unassigned" : "Specific user"}</Badge>
+                )}
+                {appliedFilters.disposition.length > 0 && <Badge variant="outline" className="text-[10px]">Disposition: {appliedFilters.disposition.join(", ")}</Badge>}
+                {appliedFilters.subdisposition.length > 0 && <Badge variant="outline" className="text-[10px]">Sub: {appliedFilters.subdisposition.join(", ")}</Badge>}
+              </div>
+            )}
+            {scope === "all_filtered" && !hasFilters && (
+              <p className="text-[10px] text-amber-600">No filters applied — this will send to ALL records in the database.</p>
+            )}
+          </div>
+
           {/* Campaign Name */}
           <div className="space-y-1">
             <Label className="text-xs">Campaign Name</Label>
@@ -350,34 +471,19 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
               onChange={e => setCampaignName(e.target.value)}
               placeholder="Campaign name"
               className="h-8 text-sm"
+              disabled={isSending}
             />
           </div>
 
-          {/* Channel Selector */}
+          {/* Channel */}
           <div className="space-y-1">
             <Label className="text-xs">Channel</Label>
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={type === "email" ? "default" : "outline"}
-                onClick={() => setType("email")}
-                className="flex-1 h-9"
-                size="sm"
-                disabled={isSending}
-              >
-                <Mail className="h-4 w-4 mr-1" />
-                Email
+              <Button type="button" variant={type === "email" ? "default" : "outline"} onClick={() => setType("email")} className="flex-1 h-9" size="sm" disabled={isSending}>
+                <Mail className="h-4 w-4 mr-1" /> Email
               </Button>
-              <Button
-                type="button"
-                variant={type === "whatsapp" ? "default" : "outline"}
-                onClick={() => setType("whatsapp")}
-                className="flex-1 h-9"
-                size="sm"
-                disabled={isSending}
-              >
-                <MessageSquare className="h-4 w-4 mr-1" />
-                WhatsApp
+              <Button type="button" variant={type === "whatsapp" ? "default" : "outline"} onClick={() => setType("whatsapp")} className="flex-1 h-9" size="sm" disabled={isSending}>
+                <MessageSquare className="h-4 w-4 mr-1" /> WhatsApp
               </Button>
             </div>
           </div>
@@ -401,53 +507,35 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
           {type === "email" && templateId && (
             <div className="space-y-1">
               <Label className="text-xs">Subject Line</Label>
-              <Input
-                value={subject}
-                onChange={e => setSubject(e.target.value)}
-                placeholder="Email subject"
-                className="h-8 text-sm"
-                disabled={isSending}
-              />
+              <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Email subject" className="h-8 text-sm" disabled={isSending} />
             </div>
           )}
 
           {/* Variable Mapping */}
           {templateId && templateVariables.length > 0 && (
             <div className="space-y-2">
-              <Label className="text-xs">Variable Mapping</Label>
+              <Label className="text-xs font-semibold">Variable Mapping</Label>
               <div className="space-y-1.5">
                 {templateVariables.map(varName => {
-                  const currentMapping = variableMapping[varName] || "__custom__";
-                  const isMapped = currentMapping !== "__custom__";
+                  const cur = variableMapping[varName] || "__custom__";
+                  const isMapped = cur !== "__custom__";
                   return (
                     <div key={varName} className="flex items-center gap-2">
-                      <Badge variant="outline" className="font-mono text-[10px] min-w-[90px] justify-center">
-                        {`{{${varName}}}`}
-                      </Badge>
-                      <Select
-                        value={currentMapping}
-                        onValueChange={val => setVariableMapping(prev => ({ ...prev, [varName]: val }))}
-                        disabled={isSending}
-                      >
+                      <Badge variant="outline" className="font-mono text-[10px] min-w-[90px] justify-center">{`{{${varName}}}`}</Badge>
+                      <Select value={cur} onValueChange={val => setVariableMapping(prev => ({ ...prev, [varName]: val }))} disabled={isSending}>
                         <SelectTrigger className="flex-1 h-8 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__custom__">
-                            <span className="flex items-center gap-1 text-xs">
-                              <FileSpreadsheet className="h-3 w-3" />
-                              Custom value
-                            </span>
+                            <span className="flex items-center gap-1 text-xs"><FileSpreadsheet className="h-3 w-3" /> Custom value</span>
                           </SelectItem>
                           {CATEGORIES.map(cat => (
                             <SelectGroup key={cat}>
                               <SelectLabel className="text-[10px]">{cat}</SelectLabel>
                               {DEMANDCOM_FIELDS.filter(f => f.category === cat).map(f => (
                                 <SelectItem key={f.tag} value={f.tag}>
-                                  <span className="flex items-center gap-1 text-xs">
-                                    <Database className="h-3 w-3" />
-                                    {f.label}
-                                  </span>
+                                  <span className="flex items-center gap-1 text-xs"><Database className="h-3 w-3" /> {f.label}</span>
                                 </SelectItem>
                               ))}
                             </SelectGroup>
@@ -467,16 +555,12 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
           {/* Custom variable inputs */}
           {customVars.length > 0 && (
             <div className="space-y-2">
-              <Label className="text-xs">Custom Variable Values</Label>
-              <p className="text-[10px] text-muted-foreground">
-                These values will be the same for all {participants.length} recipients.
-              </p>
+              <Label className="text-xs font-semibold">Custom Variable Values</Label>
+              <p className="text-[10px] text-muted-foreground">Same value for all {recipientCount.toLocaleString()} recipients.</p>
               <div className="space-y-1.5">
                 {customVars.map(varName => (
                   <div key={varName} className="flex items-center gap-2">
-                    <Badge variant="secondary" className="font-mono text-[10px] min-w-[90px] justify-center">
-                      {`{{${varName}}}`}
-                    </Badge>
+                    <Badge variant="secondary" className="font-mono text-[10px] min-w-[90px] justify-center">{`{{${varName}}}`}</Badge>
                     <Input
                       value={customValues[varName] || ""}
                       onChange={e => setCustomValues(prev => ({ ...prev, [varName]: e.target.value }))}
@@ -490,38 +574,25 @@ export function QuickCampaignDialog({ open, onOpenChange, participants }: QuickC
             </div>
           )}
 
-          {/* Sending Progress */}
-          {isSending && (
+          {/* Progress */}
+          {(isSending || isFetchingAll) && (
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
-                <span>Sending...</span>
-                <span>{Math.round(sendingProgress)}%</span>
+                <span>{isFetchingAll ? "Fetching records..." : "Sending..."}</span>
+                {!isFetchingAll && <span>{Math.round(sendingProgress)}%</span>}
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${sendingProgress}%` }}
-                />
+                <div className="h-full bg-primary transition-all duration-300" style={{ width: isFetchingAll ? "100%" : `${sendingProgress}%` }} />
               </div>
             </div>
           )}
 
           {/* Send */}
-          <Button
-            onClick={handleSend}
-            disabled={!templateId || isSending || participants.length === 0}
-            className="w-full"
-          >
-            {isSending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Sending...
-              </>
+          <Button onClick={handleSend} disabled={!templateId || isSending || isFetchingAll} className="w-full">
+            {isSending || isFetchingAll ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isFetchingAll ? "Fetching..." : "Sending..."}</>
             ) : (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                Send to {participants.length} Recipient{participants.length !== 1 ? "s" : ""}
-              </>
+              <><Send className="h-4 w-4 mr-2" /> Send to {recipientCount.toLocaleString()} Recipient{recipientCount !== 1 ? "s" : ""}</>
             )}
           </Button>
         </div>

@@ -564,26 +564,15 @@ export default function DemandCom() {
               </Button>
             )}
             <Button
-              onClick={() => {
-                // Get selected participants or all visible if none selected
-                const participants = selectedIds.size > 0
-                  ? filteredDemandCom.filter(dc => selectedIds.has(dc.id))
-                  : filteredDemandCom;
-                if (participants.length === 0) {
-                  toast.error("No participants to send campaign to");
-                  return;
-                }
-                setShowQuickCampaign(true);
-              }}
-              variant="outline"
-              size="icon"
-              className="shadow-elegant relative"
-              title="Quick Campaign (Email / WhatsApp)"
+              onClick={() => setShowQuickCampaign(true)}
+              className="bg-green-600 hover:bg-green-700 text-white shadow-elegant gap-2"
+              title="Quick Campaign — Email or WhatsApp"
             >
               <Send className="h-4 w-4" />
+              <span>Campaign</span>
               {selectedIds.size > 0 && (
-                <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-                  {selectedIds.size}
+                <Badge variant="secondary" className="ml-1 text-[10px]">
+                  {selectedIds.size} selected
                 </Badge>
               )}
             </Button>
@@ -1179,11 +1168,14 @@ export default function DemandCom() {
       <QuickCampaignDialog
         open={showQuickCampaign}
         onOpenChange={setShowQuickCampaign}
-        participants={
+        selectedParticipants={
           selectedIds.size > 0
             ? filteredDemandCom.filter(dc => selectedIds.has(dc.id))
-            : filteredDemandCom
+            : []
         }
+        appliedFilters={appliedFilters}
+        totalFilteredCount={totalCount}
+        currentPageCount={filteredDemandCom.length}
       />
     </div>
   );
