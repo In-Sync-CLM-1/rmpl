@@ -194,3 +194,9 @@ verify_jwt = false
 
 [functions.export-backup]
 verify_jwt = false
+
+[functions.handle-approval]
+verify_jwt = false
+
+[functions.send-approval-email]
+verify_jwt = false

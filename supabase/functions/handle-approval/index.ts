@@ -278,7 +278,7 @@ Deno.serve(async (req) => {
           "This approval link is invalid or malformed. Please check your email or log in to RMPL OPM.",
           false
         ),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
 
@@ -296,7 +296,7 @@ Deno.serve(async (req) => {
           "This approval link is invalid or has already been used. Please log in to RMPL OPM to take action.",
           false
         ),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
 
@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
           "This request has already been processed. No further action is needed.",
           false
         ),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
 
@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
           "This approval link has expired (72-hour limit). Please log in to RMPL OPM to take action.",
           false
         ),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
 
@@ -359,7 +359,7 @@ Deno.serve(async (req) => {
           "The original request could not be found. It may have been deleted.",
           false
         ),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
 
@@ -376,7 +376,7 @@ Deno.serve(async (req) => {
           `This request has already been ${currentRequest.status}. No further action is needed.`,
           false
         ),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
 
@@ -408,7 +408,7 @@ Deno.serve(async (req) => {
           "Something went wrong while processing your action. Please try again or log in to RMPL OPM.",
           false
         ),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
 
@@ -456,7 +456,7 @@ Deno.serve(async (req) => {
           `You have successfully approved the ${requestTypeLabel} for <strong>${employeeName}</strong>. They will be notified via email.`,
           true
         ),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     } else {
       return new Response(
@@ -465,7 +465,7 @@ Deno.serve(async (req) => {
           `You have rejected the ${requestTypeLabel} for <strong>${employeeName}</strong>. They will be notified via email with the reason provided.`,
           false
         ),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
   } catch (error: any) {
@@ -476,7 +476,7 @@ Deno.serve(async (req) => {
         "An unexpected error occurred. Please try again or log in to RMPL OPM.",
         false
       ),
-      { headers: { "Content-Type": "text/html" } }
+      { headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
   }
 });
