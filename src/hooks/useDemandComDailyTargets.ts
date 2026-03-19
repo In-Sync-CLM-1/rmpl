@@ -139,15 +139,18 @@ export const useDemandComDailyTargets = (targetDate: string) => {
       }
 
       // Step 4: Filter based on user role
-      // Check TL first so TLs with 'manager' role only see their own team
+      // Admins always see all teams, even if they happen to be a TL
       let filteredTeamLeaderIds: string[];
 
-      if (allTeamLeaderIds.includes(user.id)) {
+      if (isAdmin || isLeadership) {
+        filteredTeamLeaderIds = allTeamLeaderIds;
+        console.log('Admin/Leadership mode: showing all TLs');
+      } else if (allTeamLeaderIds.includes(user.id)) {
         filteredTeamLeaderIds = [user.id];
         console.log('TL mode: showing only self');
-      } else if (isAdmin || isManager || isLeadership) {
+      } else if (isManager) {
         filteredTeamLeaderIds = allTeamLeaderIds;
-        console.log('Admin/Manager/Leadership mode: showing all TLs');
+        console.log('Manager mode: showing all TLs');
       } else {
         return { hierarchy: [], teamLeaderIds: [], isAdmin };
       }
