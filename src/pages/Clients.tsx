@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Building2, Download, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Download, Upload, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
@@ -56,6 +57,7 @@ const Clients = () => {
   const [canBulkDelete, setCanBulkDelete] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const {
     data: clients,
@@ -67,11 +69,20 @@ const Clients = () => {
     handlePageChange,
     handleItemsPerPageChange,
   } = usePaginatedQuery<Client>({
-    queryKey: ["clients"],
+    queryKey: ["clients", searchQuery],
     queryFn: async (from, to) => {
-      const { data, error, count } = await supabase
+      let query = supabase
         .from("clients")
-        .select("*", { count: "exact" })
+        .select("*", { count: "exact" });
+
+      if (searchQuery.trim()) {
+        const term = `%${searchQuery.trim()}%`;
+        query = query.or(
+          `company_name.ilike.${term},contact_name.ilike.${term},email_id.ilike.${term},contact_number.ilike.${term}`
+        );
+      }
+
+      const { data, error, count } = await query
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -239,6 +250,17 @@ const Clients = () => {
             Add Client
           </Button>
         </div>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search by name, company, email or phone..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {isLoading ? (
