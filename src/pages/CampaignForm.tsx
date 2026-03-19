@@ -4,13 +4,52 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Send, Calendar, Save, MessageSquare, Mail } from "lucide-react";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Send, Calendar, Save, MessageSquare, Mail, Database, FileSpreadsheet } from "lucide-react";
 import { logError, getCurrentUserId, getSupabaseErrorMessage } from "@/lib/errorLogger";
 import { CsvAudienceUpload } from "@/components/CsvAudienceUpload";
+
+// DemandCom fields available for variable mapping
+// tag: the merge tag name used in templates
+// field: the actual demandcom table column name
+const DEMANDCOM_FIELDS = [
+  { tag: "name", field: "name", label: "Full Name", category: "Personal" },
+  { tag: "first_name", field: "name", label: "First Name (from name)", category: "Personal" },
+  { tag: "last_name", field: "name", label: "Last Name (from name)", category: "Personal" },
+  { tag: "email", field: "email", label: "Email", category: "Personal" },
+  { tag: "phone", field: "mobile_numb", label: "Phone (mobile)", category: "Personal" },
+  { tag: "mobile2", field: "mobile2", label: "Mobile 2", category: "Personal" },
+  { tag: "official", field: "official", label: "Official Phone", category: "Personal" },
+  { tag: "linkedin", field: "linkedin", label: "LinkedIn URL", category: "Personal" },
+  { tag: "designation", field: "designation", label: "Designation", category: "Professional" },
+  { tag: "department", field: "deppt", label: "Department", category: "Professional" },
+  { tag: "job_level_updated", field: "job_level_updated", label: "Job Level", category: "Professional" },
+  { tag: "company_name", field: "company_name", label: "Company Name", category: "Company" },
+  { tag: "industry", field: "industry_type", label: "Industry", category: "Company" },
+  { tag: "sub_industry", field: "sub_industry", label: "Sub Industry", category: "Company" },
+  { tag: "turnover", field: "turnover", label: "Turnover", category: "Company" },
+  { tag: "emp_size", field: "emp_size", label: "Employee Size", category: "Company" },
+  { tag: "erp_name", field: "erp_name", label: "ERP Name", category: "Company" },
+  { tag: "erp_vendor", field: "erp_vendor", label: "ERP Vendor", category: "Company" },
+  { tag: "website", field: "website", label: "Website", category: "Company" },
+  { tag: "activity_name", field: "activity_name", label: "Activity Name", category: "Company" },
+  { tag: "address", field: "address", label: "Address", category: "Location" },
+  { tag: "location", field: "location", label: "Location", category: "Location" },
+  { tag: "city", field: "city", label: "City", category: "Location" },
+  { tag: "state", field: "state", label: "State", category: "Location" },
+  { tag: "zone", field: "zone", label: "Zone", category: "Location" },
+  { tag: "tier", field: "tier", label: "Tier", category: "Location" },
+  { tag: "pincode", field: "pincode", label: "Pincode", category: "Location" },
+  { tag: "latest_disposition", field: "latest_disposition", label: "Latest Disposition", category: "Engagement" },
+  { tag: "latest_subdisposition", field: "latest_subdisposition", label: "Latest Sub-disposition", category: "Engagement" },
+  { tag: "last_call_date", field: "last_call_date", label: "Last Call Date", category: "Engagement" },
+];
+
+const DEMANDCOM_CATEGORIES = ["Personal", "Professional", "Company", "Location", "Engagement"];
 
 interface Template {
   id: string;
@@ -31,7 +70,7 @@ export default function CampaignForm() {
   const [recipientCount, setRecipientCount] = useState(0);
   const [sendingProgress, setSendingProgress] = useState(0);
   const [isSending, setIsSending] = useState(false);
-  
+
   // Form state
   const [name, setName] = useState("");
   const [type, setType] = useState<"email" | "whatsapp">("email");
@@ -41,7 +80,10 @@ export default function CampaignForm() {
   const [audienceData, setAudienceData] = useState<any[]>([]);
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
-  
+
+  // Variable mapping: variable name → demandcom field tag or "__custom__"
+  const [variableMapping, setVariableMapping] = useState<Record<string, string>>({});
+
   // Check if we have preselected participants from navigation state
   const preselectedParticipants = location.state?.preselectedParticipants;
 
@@ -50,13 +92,6 @@ export default function CampaignForm() {
     if (id) {
       fetchCampaign();
     } else if (preselectedParticipants && preselectedParticipants.length > 0) {
-      // Debug logging for preselected participants
-      console.log('=== PRESELECTED PARTICIPANTS DEBUG ===');
-      console.log('Count:', preselectedParticipants.length);
-      console.log('Sample record:', preselectedParticipants[0]);
-      console.log('Available fields:', Object.keys(preselectedParticipants[0] || {}));
-      
-      // If we have preselected participants, populate the audience data
       setAudienceData(preselectedParticipants);
       toast({
         title: "Participants loaded",
@@ -69,6 +104,8 @@ export default function CampaignForm() {
   useEffect(() => {
     setTemplateId("");
     setSubject("");
+    setVariableMapping({});
+    setAudienceData([]);
     fetchTemplates(type);
   }, [type]);
 
@@ -125,6 +162,10 @@ export default function CampaignForm() {
       setTemplateId(data.template_id || "");
       setSubject(data.subject || "");
       setAudienceData(Array.isArray(data.audience_data) ? data.audience_data : []);
+      // Restore variable mapping from filter_criteria
+      if (data.filter_criteria?.variable_mapping) {
+        setVariableMapping(data.filter_criteria.variable_mapping);
+      }
       if (data.scheduled_at) {
         const date = new Date(data.scheduled_at);
         setScheduledDate(date.toISOString().split("T")[0]);
@@ -148,50 +189,80 @@ export default function CampaignForm() {
   };
 
   const selectedTemplate = templates.find(t => t.id === templateId);
-  let mergeTags = selectedTemplate?.merge_tags || [];
+  let templateVariables: string[] = []; // variable names without braces
 
-  // Extract merge tags from template if not stored
-  if (mergeTags.length === 0 && selectedTemplate) {
-    const tagPattern = /\{\{[a-zA-Z_]+\}\}/g;
-    const extractedTags: string[] = [];
-
-    if (selectedTemplate.body_html) {
-      const bodyTags = selectedTemplate.body_html.match(tagPattern) || [];
-      extractedTags.push(...bodyTags);
+  if (selectedTemplate) {
+    // Get merge tags from template
+    let rawTags = selectedTemplate.merge_tags || [];
+    if (rawTags.length === 0) {
+      const tagPattern = /\{\{[a-zA-Z_0-9]+\}\}/g;
+      const extractedTags: string[] = [];
+      if (selectedTemplate.body_html) {
+        extractedTags.push(...(selectedTemplate.body_html.match(tagPattern) || []));
+      }
+      if (selectedTemplate.body) {
+        extractedTags.push(...(selectedTemplate.body.match(tagPattern) || []));
+      }
+      if (subject) {
+        extractedTags.push(...(subject.match(tagPattern) || []));
+      }
+      rawTags = [...new Set(extractedTags)];
     }
-    if (subject) {
-      const subjectTags = subject.match(tagPattern) || [];
-      extractedTags.push(...subjectTags);
-    }
-
-    // Make unique
-    mergeTags = [...new Set(extractedTags)];
+    templateVariables = rawTags.map(t => t.replace(/[{}]/g, ''));
   }
 
-  // For WhatsApp, always include phone as first required column
-  if (type === "whatsapp") {
-    const hasPhone = mergeTags.some(t => t.replace(/[{}]/g, '').toLowerCase() === 'phone');
-    if (!hasPhone) {
-      mergeTags = ["{{phone}}", ...mergeTags];
+  // Auto-map variables when template changes
+  useEffect(() => {
+    if (templateVariables.length > 0 && Object.keys(variableMapping).length === 0) {
+      const autoMap: Record<string, string> = {};
+      for (const varName of templateVariables) {
+        // Check if variable name matches any demandcom field tag
+        const match = DEMANDCOM_FIELDS.find(f => f.tag === varName.toLowerCase());
+        autoMap[varName] = match ? match.tag : "__custom__";
+      }
+      setVariableMapping(autoMap);
     }
-  }
+  }, [templateId, templateVariables.length]);
 
-  const validateAudienceData = (data: any[], mergeTags: string[]) => {
+  // Reset mapping when template changes
+  useEffect(() => {
+    setVariableMapping({});
+    setAudienceData([]);
+  }, [templateId]);
+
+  // Compute which columns the CSV needs
+  const customVariables = templateVariables.filter(v => {
+    const mapping = variableMapping[v];
+    return !mapping || mapping === "__custom__";
+  });
+
+  // CSV always needs the contact identifier + custom variable columns
+  const contactIdField = type === "whatsapp" ? "phone" : "email";
+  const csvRequiredColumns = [
+    `{{${contactIdField}}}`,
+    ...customVariables
+      .filter(v => v.toLowerCase() !== contactIdField)
+      .map(v => `{{${v}}}`),
+  ];
+
+  const hasMappedVariables = templateVariables.some(v => {
+    const m = variableMapping[v];
+    return m && m !== "__custom__";
+  });
+
+  const validateAudienceData = (data: any[], tags: string[]) => {
     const missingFields: string[] = [];
-    const requiredFields = mergeTags.map(tag => 
-      tag.replace(/[{}]/g, '').trim()
-    );
-    
-    // Check if any recipient is missing data for required fields
+    const requiredFields = tags.map(tag => tag.replace(/[{}]/g, '').trim());
+
     requiredFields.forEach(field => {
-      const recipientsWithMissingData = data.filter(row => 
+      const recipientsWithMissingData = data.filter(row =>
         !row[field] || row[field] === ''
       );
       if (recipientsWithMissingData.length > 0) {
         missingFields.push(`${field} (${recipientsWithMissingData.length} recipients)`);
       }
     });
-    
+
     return missingFields;
   };
 
@@ -208,19 +279,19 @@ export default function CampaignForm() {
     if (audienceData.length === 0) {
       toast({
         title: "Error",
-        description: "Please upload an audience CSV file",
+        description: "Please upload a contacts CSV file",
         variant: "destructive",
       });
       return;
     }
 
-    // Validate audience data against merge tags
-    if (audienceData.length > 0 && mergeTags.length > 0) {
-      const missingFields = validateAudienceData(audienceData, mergeTags);
+    // Validate audience data against CSV required columns
+    if (audienceData.length > 0 && csvRequiredColumns.length > 0) {
+      const missingFields = validateAudienceData(audienceData, csvRequiredColumns);
       if (missingFields.length > 0) {
         console.warn('Some recipients have missing data:', missingFields);
         toast({
-          title: "⚠️ Data Warning",
+          title: "Data Warning",
           description: `Some recipients are missing data for: ${missingFields.slice(0, 3).join(', ')}${missingFields.length > 3 ? '...' : ''}. These fields will appear blank in messages.`,
         });
       }
@@ -247,6 +318,7 @@ export default function CampaignForm() {
         template_id: templateId,
         subject,
         audience_data: audienceData,
+        filter_criteria: { variable_mapping: variableMapping },
         status,
         scheduled_at: scheduledAt,
         total_recipients: recipientCount,
@@ -272,55 +344,35 @@ export default function CampaignForm() {
 
       // If sending immediately, trigger the processing and monitor progress
       if (status === "sent" && campaignId) {
-        console.log('Triggering campaign processing for campaign:', campaignId);
-        
-        // Trigger campaign processing with retry logic
         let processResult: any = null;
         let processError: any = null;
         const maxRetries = 3;
-        
+
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          console.log(`Campaign processing attempt ${attempt}/${maxRetries}`);
-          
           const { data, error } = await supabase.functions.invoke(
             'process-campaign',
             { body: { campaign_id: campaignId } }
           );
-          
+
           processResult = data;
           processError = error;
-          
-          if (!error) {
-            console.log('Campaign processing successful:', data);
-            break;
-          }
-          
-          console.error(`Campaign processing attempt ${attempt} failed:`, {
-            error: error.message,
-            context: error.context,
-            status: error.status,
-          });
-          
-          // Don't retry if it's a validation error (4xx)
-          if (error.status && error.status >= 400 && error.status < 500) {
-            break;
-          }
-          
-          // Wait before retrying (exponential backoff)
+
+          if (!error) break;
+
+          if (error.status && error.status >= 400 && error.status < 500) break;
+
           if (attempt < maxRetries) {
             const delay = Math.pow(2, attempt) * 1000;
-            console.log(`Waiting ${delay}ms before retry...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
 
         if (processError) {
-          console.error('Campaign processing failed after retries:', processError);
           throw new Error(
             processError.message ||
             (type === "whatsapp"
               ? 'Failed to process campaign. Please check your WhatsApp/Exotel settings.'
-              : 'Failed to process campaign. Please check your RESEND_API_KEY configuration and verify your domain at resend.com/domains.')
+              : 'Failed to process campaign. Please check your RESEND_API_KEY configuration.')
           );
         }
 
@@ -338,25 +390,25 @@ export default function CampaignForm() {
               : 0;
             setSendingProgress(progress);
 
-            if (campaign.status === "sent") {
+            if (campaign.status === "sent" || campaign.status === "failed") {
               clearInterval(pollInterval);
               setIsSending(false);
-              
-              const resultMessage = processResult?.message || `Campaign sent to ${campaign.sent_count} recipients`;
-              const skippedCount = processResult?.skipped_count || 0;
-              
-              toast({
-                title: "Campaign Sent",
-                description: skippedCount > 0 
-                  ? `${campaign.sent_count} sent, ${skippedCount} skipped (spam protection or unsubscribed)`
-                  : resultMessage,
-              });
+
+              if (campaign.status === "sent") {
+                const resultMessage = processResult?.message || `Campaign sent to ${campaign.sent_count} recipients`;
+                const skippedCount = processResult?.skipped_count || 0;
+                toast({
+                  title: "Campaign Sent",
+                  description: skippedCount > 0
+                    ? `${campaign.sent_count} sent, ${skippedCount} skipped`
+                    : resultMessage,
+                });
+              }
               navigate("/campaigns");
             }
           }
         }, 1000);
 
-        // Cleanup after 5 minutes
         setTimeout(() => {
           clearInterval(pollInterval);
           setIsSending(false);
@@ -388,6 +440,12 @@ export default function CampaignForm() {
         setIsLoading(false);
       }
     }
+  };
+
+  const updateMapping = (varName: string, value: string) => {
+    setVariableMapping(prev => ({ ...prev, [varName]: value }));
+    // Clear audience data since CSV column requirements may have changed
+    setAudienceData([]);
   };
 
   return (
@@ -477,20 +535,79 @@ export default function CampaignForm() {
                 </div>
               )}
 
-              {/* CSV upload: contacts + variables in one file */}
+              {/* Variable Mapping */}
+              {templateId && templateVariables.length > 0 && (
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-sm font-semibold mb-1">Variable Mapping</h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    For each template variable, pick a DemandCom field (auto-filled) or keep as Custom (from CSV).
+                  </p>
+                  <div className="space-y-2">
+                    {templateVariables.map(varName => {
+                      const currentMapping = variableMapping[varName] || "__custom__";
+                      const isMapped = currentMapping !== "__custom__";
+                      return (
+                        <div key={varName} className="flex items-center gap-2">
+                          <Badge variant="outline" className="font-mono text-xs min-w-[100px] justify-center">
+                            {`{{${varName}}}`}
+                          </Badge>
+                          <Select value={currentMapping} onValueChange={(val) => updateMapping(varName, val)}>
+                            <SelectTrigger className="flex-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__custom__">
+                                <span className="flex items-center gap-1">
+                                  <FileSpreadsheet className="h-3 w-3" />
+                                  Custom (from CSV column)
+                                </span>
+                              </SelectItem>
+                              {DEMANDCOM_CATEGORIES.map(cat => (
+                                <SelectGroup key={cat}>
+                                  <SelectLabel>{cat}</SelectLabel>
+                                  {DEMANDCOM_FIELDS.filter(f => f.category === cat).map(f => (
+                                    <SelectItem key={f.tag} value={f.tag}>
+                                      <span className="flex items-center gap-1">
+                                        <Database className="h-3 w-3" />
+                                        {f.label}
+                                      </span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Badge variant={isMapped ? "default" : "secondary"} className="text-[10px] min-w-[50px] justify-center">
+                            {isMapped ? "DB" : "CSV"}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {hasMappedVariables && (
+                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                      <Database className="h-3 w-3" />
+                      DB-mapped variables will be auto-filled from DemandCom data using the contact's {contactIdField}.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* CSV Upload */}
               {templateId && (
                 <div className="border-t pt-4 mt-4">
                   <h3 className="text-sm font-semibold mb-1">Upload Contacts CSV</h3>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Upload a CSV with {type === "whatsapp" ? (
-                      <>a <strong>phone</strong> column and columns for each template variable.</>
-                    ) : (
-                      <>an <strong>email</strong> column and columns for each merge tag.</>
+                    CSV must have a <strong>{contactIdField}</strong> column
+                    {customVariables.length > 0 && (
+                      <> and columns for: <strong>{customVariables.filter(v => v.toLowerCase() !== contactIdField).join(", ") || "none"}</strong></>
                     )}
+                    .
                     {recipientCount > 0 && <span className="ml-1 text-primary font-medium">({recipientCount} contacts loaded)</span>}
                   </p>
                   <CsvAudienceUpload
-                    mergeTags={mergeTags}
+                    mergeTags={csvRequiredColumns}
                     onDataLoaded={setAudienceData}
                     existingData={audienceData}
                     disabled={!!preselectedParticipants && audienceData.length > 0}
@@ -509,20 +626,34 @@ export default function CampaignForm() {
           <Card>
             <CardHeader>
               <CardTitle>Preview & Review</CardTitle>
-              <CardDescription>
-                Review your campaign before sending
-              </CardDescription>
+              <CardDescription>Review your campaign before sending</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p><strong>Name:</strong> {name}</p>
-                <p><strong>Type:</strong> {type === "whatsapp" ? "WhatsApp" : "Email"}</p>
+                <p><strong>Channel:</strong> {type === "whatsapp" ? "WhatsApp" : "Email"}</p>
                 <p><strong>Recipients:</strong> {recipientCount}</p>
                 {type === "email" && <p><strong>Subject:</strong> {subject}</p>}
-                {selectedTemplate && (
-                  <p><strong>Template:</strong> {selectedTemplate.name}</p>
-                )}
+                {selectedTemplate && <p><strong>Template:</strong> {selectedTemplate.name}</p>}
               </div>
+
+              {templateVariables.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-1">Variable Sources:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {templateVariables.map(v => {
+                      const m = variableMapping[v];
+                      const isMapped = m && m !== "__custom__";
+                      const dcField = isMapped ? DEMANDCOM_FIELDS.find(f => f.tag === m) : null;
+                      return (
+                        <Badge key={v} variant={isMapped ? "default" : "secondary"} className="text-xs">
+                          {`{{${v}}}`} → {isMapped ? `DB: ${dcField?.label || m}` : "CSV"}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-4">
                 <Button variant="outline" onClick={() => setCurrentTab("details")}>
@@ -540,9 +671,7 @@ export default function CampaignForm() {
           <Card>
             <CardHeader>
               <CardTitle>Schedule Campaign</CardTitle>
-              <CardDescription>
-                Choose when to send your campaign
-              </CardDescription>
+              <CardDescription>Choose when to send your campaign</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
@@ -573,8 +702,8 @@ export default function CampaignForm() {
                     <span>{Math.round(sendingProgress)}%</span>
                   </div>
                   <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all duration-300" 
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
                       style={{ width: `${sendingProgress}%` }}
                     />
                   </div>

@@ -209,7 +209,145 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log('Template fetched successfully:', template.name)
+    console.log('Template fetched successfully:', template.name || template.template_name)
+
+    // --- Variable mapping: merge DemandCom data with CSV data ---
+    const variableMapping = (campaign.filter_criteria as any)?.variable_mapping || {}
+    const hasMappedVars = Object.values(variableMapping).some((v: any) => v && v !== '__custom__')
+
+    // Mapping from merge-tag names to actual demandcom column names
+    const TAG_TO_COLUMN: Record<string, string> = {
+      name: 'name', first_name: 'name', last_name: 'name',
+      email: 'email', phone: 'mobile_numb', mobile2: 'mobile2',
+      official: 'official', linkedin: 'linkedin',
+      designation: 'designation', department: 'deppt',
+      job_level_updated: 'job_level_updated',
+      company_name: 'company_name', industry: 'industry_type',
+      sub_industry: 'sub_industry', turnover: 'turnover',
+      emp_size: 'emp_size', erp_name: 'erp_name', erp_vendor: 'erp_vendor',
+      website: 'website', activity_name: 'activity_name',
+      address: 'address', location: 'location', city: 'city',
+      state: 'state', zone: 'zone', tier: 'tier', pincode: 'pincode',
+      latest_disposition: 'latest_disposition',
+      latest_subdisposition: 'latest_subdisposition',
+      last_call_date: 'last_call_date',
+    }
+
+    // If we have mapped variables, batch-lookup DemandCom records for all recipients
+    const demandcomLookup = new Map<string, any>()
+    if (hasMappedVars) {
+      console.log('Variable mapping detected, looking up DemandCom records...')
+
+      // Determine which DB columns we need
+      const neededColumns = new Set<string>(['id', 'email', 'mobile_numb'])
+      for (const [, tagName] of Object.entries(variableMapping)) {
+        if (tagName && tagName !== '__custom__') {
+          const col = TAG_TO_COLUMN[tagName as string]
+          if (col) neededColumns.add(col)
+        }
+      }
+      const selectCols = [...neededColumns].join(',')
+
+      // Collect all contact identifiers from CSV
+      const emails = filteredAudience
+        .map((r: any) => r.email?.toLowerCase?.())
+        .filter(Boolean)
+      const phones = filteredAudience
+        .map((r: any) => {
+          const p = r.phone || r.mobile || r.mobile_numb || ''
+          return p.replace(/[^\d]/g, '').slice(-10)
+        })
+        .filter((p: string) => p.length >= 10)
+
+      // Batch fetch in chunks of 200
+      const chunkSize = 200
+      for (let c = 0; c < Math.max(emails.length, phones.length); c += chunkSize) {
+        const emailChunk = emails.slice(c, c + chunkSize)
+        const phoneChunk = phones.slice(c, c + chunkSize)
+
+        let orFilters: string[] = []
+        if (emailChunk.length > 0) {
+          orFilters.push(`email.in.(${emailChunk.join(',')})`)
+        }
+        if (phoneChunk.length > 0) {
+          // Match last 10 digits of mobile_numb
+          for (const ph of phoneChunk) {
+            orFilters.push(`mobile_numb.ilike.%${ph}`)
+          }
+        }
+
+        if (orFilters.length > 0) {
+          // Limit or filter size to avoid query issues
+          const batchOr = orFilters.slice(0, 50).join(',')
+          const { data: dcRecords } = await supabase
+            .from('demandcom')
+            .select(selectCols)
+            .or(batchOr)
+            .limit(500)
+
+          if (dcRecords) {
+            for (const rec of dcRecords) {
+              // Index by email and by phone last-10
+              if (rec.email) {
+                demandcomLookup.set(rec.email.toLowerCase(), rec)
+              }
+              if (rec.mobile_numb) {
+                const digits = rec.mobile_numb.replace(/[^\d]/g, '').slice(-10)
+                if (digits.length >= 10) {
+                  demandcomLookup.set(digits, rec)
+                }
+              }
+            }
+          }
+        }
+      }
+      console.log(`DemandCom lookup: ${demandcomLookup.size} records found`)
+    }
+
+    // Helper: resolve a tag value from DemandCom record
+    function resolveTagValue(tagName: string, dcRecord: any): string {
+      if (!dcRecord) return ''
+      if (tagName === 'first_name') {
+        const name = dcRecord.name || ''
+        return name.split(' ')[0] || ''
+      }
+      if (tagName === 'last_name') {
+        const name = dcRecord.name || ''
+        return name.split(' ').slice(1).join(' ') || ''
+      }
+      const col = TAG_TO_COLUMN[tagName]
+      if (col && dcRecord[col] !== undefined && dcRecord[col] !== null) {
+        return String(dcRecord[col])
+      }
+      return ''
+    }
+
+    // Helper: enrich a recipient with DemandCom data based on variable mapping
+    function enrichRecipient(csvRow: any): any {
+      if (!hasMappedVars) return csvRow
+
+      // Look up DemandCom record by email or phone
+      let dcRecord: any = null
+      if (csvRow.email) {
+        dcRecord = demandcomLookup.get(csvRow.email.toLowerCase())
+      }
+      if (!dcRecord && (csvRow.phone || csvRow.mobile || csvRow.mobile_numb)) {
+        const rawPhone = csvRow.phone || csvRow.mobile || csvRow.mobile_numb || ''
+        const digits = rawPhone.replace(/[^\d]/g, '').slice(-10)
+        if (digits.length >= 10) {
+          dcRecord = demandcomLookup.get(digits)
+        }
+      }
+
+      // Merge: for each mapped variable, fill from DemandCom; for custom, keep CSV value
+      const enriched = { ...csvRow }
+      for (const [varName, tagName] of Object.entries(variableMapping)) {
+        if (tagName && tagName !== '__custom__' && dcRecord) {
+          enriched[varName] = resolveTagValue(tagName as string, dcRecord)
+        }
+      }
+      return enriched
+    }
 
     // Process each recipient with rate limiting
     let successCount = 0
@@ -217,16 +355,16 @@ Deno.serve(async (req) => {
     const totalRecipients = filteredAudience.length;
     const fifteenDaysAgo = new Date();
     fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
-    
-    // Hardcoded rate limiting: 10 emails/min (6 second delay) - slow/safe mode
-    const delayMs = 6000; // 6 seconds between emails
-    const batchSize = 50; // Process in batches to avoid timeouts
-    const batchDelayMs = 10000; // 10 second pause between batches
-    
-    console.log(`Starting campaign with rate limit: 10 emails/min, ${delayMs}ms delay between sends`);
-    
+
+    // Rate limiting
+    const delayMs = 6000;
+    const batchSize = 50;
+    const batchDelayMs = 10000;
+
+    console.log(`Starting campaign: ${totalRecipients} recipients, ${Object.keys(variableMapping).length} variable mappings`);
+
     for (let i = 0; i < filteredAudience.length; i++) {
-      const recipient = filteredAudience[i];
+      const recipient = enrichRecipient(filteredAudience[i]);
       try {
         // Check if recipient is unsubscribed with retry
         const emailOrPhone = recipient.email || recipient.phone;
