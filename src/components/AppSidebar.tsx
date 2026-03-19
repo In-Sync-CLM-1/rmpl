@@ -230,9 +230,11 @@ const fallbackNavigationSections: NavigationSection[] = [
     ],
   },
   {
-    label: "LIVECOM",
+    label: "MARKETING",
     items: [
-      { title: "Dashboard", url: "/livecom-dashboard", icon: Zap },
+      { title: "Campaigns", url: "/campaigns", icon: Rocket },
+      { title: "Inbox", url: "/inbox", icon: MailOpen },
+      { title: "Templates", url: "/templates", icon: FileCode },
     ],
   },
   {
@@ -243,11 +245,27 @@ const fallbackNavigationSections: NavigationSection[] = [
     ],
   },
   {
-    label: "MARKETING",
+    label: "HR",
     items: [
-      { title: "Campaigns", url: "/campaigns", icon: Rocket },
-      { title: "Inbox", url: "/inbox", icon: MailOpen },
-      { title: "Templates", url: "/templates", icon: FileCode },
+      { title: "HR Policies", url: "/hr-policies", icon: ScrollText },
+      { title: "Salary Slips", url: "/salary-slips", icon: Wallet },
+      { title: "My Documents", url: "/hr-documents", icon: FileText },
+      { title: "Employee Directory", url: "/employee-directory", icon: Contact2, requiredPermission: 'canViewEmployeeDirectory' },
+    ],
+  },
+  {
+    label: "HR ADMIN",
+    items: [
+      { title: "My Attendance", url: "/attendance", icon: TimerReset },
+      { title: "Leave Requests", url: "/leave-management", icon: CalendarOff },
+      { title: "Leave Approvals", url: "/leave-approvals", icon: ShieldCheck, requiredPermission: 'canApproveLeaves' },
+      { title: "Regularization Approvals", url: "/regularization-approvals", icon: FileBarChart, requiredPermission: 'canApproveLeaves' },
+      { title: "Reports", url: "/attendance-reports", icon: ScrollText, requiredPermission: 'canViewAttendanceReports' },
+      { title: "Travel Expenses", url: "/travel-expenses", icon: Plane },
+      { title: "Expense Approvals", url: "/travel-expense-approvals", icon: ShieldCheck, requiredPermission: 'canApproveLeaves' },
+      { title: "Leave Limits", url: "/leave-limits", icon: SlidersHorizontal, requiredPermission: 'canAdjustLeaveBalances' },
+      { title: "Salary Admin", url: "/salary-slips-admin", icon: UserRoundCog, requiredPermission: 'canManageSalarySlips' },
+      { title: "Employee Onboarding", url: "/hr-onboarding", icon: ClipboardPlus, requiredPermission: 'canManageOnboarding' },
     ],
   },
   {
@@ -262,27 +280,16 @@ const fallbackNavigationSections: NavigationSection[] = [
     ],
   },
   {
-    label: "ATTENDANCE",
+    label: "LIVECOM",
     items: [
-      { title: "My Attendance", url: "/attendance", icon: TimerReset },
-      { title: "Leave Requests", url: "/leave-management", icon: CalendarOff },
-      { title: "Leave Approvals", url: "/leave-approvals", icon: ShieldCheck, requiredPermission: 'canApproveLeaves' },
-      { title: "Regularization Approvals", url: "/regularization-approvals", icon: FileBarChart, requiredPermission: 'canApproveLeaves' },
-      { title: "Reports", url: "/attendance-reports", icon: ScrollText, requiredPermission: 'canViewAttendanceReports' },
-      { title: "Travel Expenses", url: "/travel-expenses", icon: Plane },
-      { title: "Expense Approvals", url: "/travel-expense-approvals", icon: ShieldCheck, requiredPermission: 'canApproveLeaves' },
+      { title: "Dashboard", url: "/livecom-dashboard", icon: Zap },
     ],
   },
   {
-    label: "HR",
+    label: "SYSTEM",
     items: [
-      { title: "HR Policies", url: "/hr-policies", icon: ScrollText },
-      { title: "Salary Slips", url: "/salary-slips", icon: Wallet },
-      { title: "My Documents", url: "/hr-documents", icon: FileText },
-      { title: "Employee Directory", url: "/employee-directory", icon: Contact2, requiredPermission: 'canViewEmployeeDirectory' },
-      { title: "Leave Limits", url: "/leave-limits", icon: SlidersHorizontal, requiredPermission: 'canAdjustLeaveBalances' },
-      { title: "Salary Admin", url: "/salary-slips-admin", icon: UserRoundCog, requiredPermission: 'canManageSalarySlips' },
-      { title: "Employee Onboarding", url: "/hr-onboarding", icon: ClipboardPlus, requiredPermission: 'canManageOnboarding' },
+      { title: "Webhooks", url: "/webhooks", icon: Globe, requiredPermission: 'canViewWebhooks' },
+      { title: "Announcements", url: "/announcements", icon: Bell, requiredPermission: 'canViewWebhooks' },
     ],
   },
   {
@@ -293,14 +300,6 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "Designations", url: "/designations", icon: Award, requiredPermission: 'canViewDesignations' },
       { title: "Pipeline Stages", url: "/pipeline-stages", icon: Workflow, requiredPermission: 'canViewPipelineStages' },
       { title: "View Controller", url: "/view-controller", icon: ScanEye, requiredPermission: 'canViewUsers' },
-    ],
-  },
-
-  {
-    label: "SYSTEM",
-    items: [
-      { title: "Webhooks", url: "/webhooks", icon: Globe, requiredPermission: 'canViewWebhooks' },
-      { title: "Announcements", url: "/announcements", icon: Bell, requiredPermission: 'canViewWebhooks' },
     ],
   },
 ];
