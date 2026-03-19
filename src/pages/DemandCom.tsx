@@ -21,6 +21,7 @@ import { EmailComposeDialog } from "@/components/EmailComposeDialog";
 import { DemandComAssignmentDialog } from "@/components/DemandComAssignmentDialog";
 import { BulkSelectAssignDialog } from "@/components/BulkSelectAssignDialog";
 import { DeleteActivityDialog } from "@/components/DeleteActivityDialog";
+import { QuickCampaignDialog } from "@/components/QuickCampaignDialog";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
 import { WhatsAppHistory } from "@/components/whatsapp/WhatsAppHistory";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
@@ -131,6 +132,7 @@ export default function DemandCom() {
   const [showBulkAssignDialog, setShowBulkAssignDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showDeleteActivityDialog, setShowDeleteActivityDialog] = useState(false);
+  const [showQuickCampaign, setShowQuickCampaign] = useState(false);
 
   useEffect(() => {
     checkAuthAndFetchDemandCom();
@@ -561,67 +563,29 @@ export default function DemandCom() {
                 <span>Bulk Assign</span>
               </Button>
             )}
-            <Button 
+            <Button
               onClick={() => {
-                if (filteredDemandCom.length === 0) {
-                  toast.error("No DemandCom records to add to campaign");
+                // Get selected participants or all visible if none selected
+                const participants = selectedIds.size > 0
+                  ? filteredDemandCom.filter(dc => selectedIds.has(dc.id))
+                  : filteredDemandCom;
+                if (participants.length === 0) {
+                  toast.error("No participants to send campaign to");
                   return;
                 }
-                
-                // Transform DemandCom data to match template merge tag expectations
-                const transformedDemandCom = filteredDemandCom.map(dc => ({
-                  // Map fields to match new structure
-                  name: dc.name || '',
-                  mobile_numb: dc.mobile_numb || '',
-                  email: dc.personal_email_id || dc.generic_email_id || '',
-                  
-                  // Professional fields
-                  designation: dc.designation || '',
-                  deppt: dc.deppt || '',
-                  job_level_updated: dc.job_level_updated || '',
-                  company_name: dc.company_name || '',
-                  industry_type: dc.industry_type || '',
-                  sub_industry: dc.sub_industry || '',
-                  
-                  // Location fields
-                  city: dc.city || '',
-                  state: dc.state || '',
-                  pincode: dc.pincode || '',
-                  location: dc.location || (dc.city && dc.state ? `${dc.city}, ${dc.state}` : ''),
-                  address: dc.address || '',
-                  zone: dc.zone || '',
-                  tier: dc.tier || '',
-                  
-                  // Contact fields
-                  mobile2: dc.mobile2 || '',
-                  official: dc.official || '',
-                  personal_email_id: dc.personal_email_id || '',
-                  generic_email_id: dc.generic_email_id || '',
-                  linkedin: dc.linkedin || '',
-                  
-                  // Company details
-                  website: dc.website || '',
-                  turnover: dc.turnover || '',
-                  emp_size: dc.emp_size || '',
-                  erp_name: dc.erp_name || '',
-                  erp_vendor: dc.erp_vendor || '',
-                  
-                  // Keep all original fields for backward compatibility
-                  ...dc
-                }));
-                
-                navigate("/campaigns/new", { 
-                  state: { 
-                    preselectedParticipants: transformedDemandCom 
-                  } 
-                });
+                setShowQuickCampaign(true);
               }}
               variant="outline"
               size="icon"
-              className="shadow-elegant"
-              title="New Email Campaign"
+              className="shadow-elegant relative"
+              title="Quick Campaign (Email / WhatsApp)"
             >
-              <Mail className="h-4 w-4" />
+              <Send className="h-4 w-4" />
+              {selectedIds.size > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                  {selectedIds.size}
+                </Badge>
+              )}
             </Button>
             <Button 
               onClick={() => setShowExportDialog(true)}
@@ -1210,6 +1174,17 @@ export default function DemandCom() {
           phoneNumber={whatsappContact.mobile_numb}
         />
       )}
+
+      {/* Quick Campaign Dialog */}
+      <QuickCampaignDialog
+        open={showQuickCampaign}
+        onOpenChange={setShowQuickCampaign}
+        participants={
+          selectedIds.size > 0
+            ? filteredDemandCom.filter(dc => selectedIds.has(dc.id))
+            : filteredDemandCom
+        }
+      />
     </div>
   );
 }
