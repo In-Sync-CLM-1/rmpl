@@ -13,12 +13,14 @@ interface AttendanceGateProps {
 }
 
 const EXEMPT_ROLES = ["platform_admin"];
+const EXEMPT_EMAILS = ["amina@in-sync.co.in"];
 
 export function AttendanceGate({ user, userRoles = [], children }: AttendanceGateProps) {
   const [showGate, setShowGate] = useState(false);
 
-  // Check if user has an exempt role
-  const isExempt = userRoles.some(role => EXEMPT_ROLES.includes(role));
+  // Check if user has an exempt role or is in the exempt emails list
+  const isExempt = userRoles.some(role => EXEMPT_ROLES.includes(role)) ||
+    EXEMPT_EMAILS.includes(user?.email?.toLowerCase() || "");
 
   const { data: todayAttendance, isLoading, refetch } = useQuery({
     queryKey: ["attendance-gate-check", user?.id],
