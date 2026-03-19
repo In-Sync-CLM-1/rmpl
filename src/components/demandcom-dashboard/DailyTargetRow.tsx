@@ -80,7 +80,7 @@ export function DailyTargetRow({
         <TableCell className="py-1.5">
           <div className="flex items-center gap-1.5">
             <User className="h-3.5 w-3.5 text-primary" />
-            <span className="font-semibold text-sm">{userName}</span>
+            <span className="font-semibold text-sm text-green-600 dark:text-green-400">{userName}</span>
             <span className="text-[10px] text-muted-foreground">(Team Leader)</span>
           </div>
         </TableCell>
