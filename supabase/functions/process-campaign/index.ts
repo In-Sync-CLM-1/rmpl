@@ -23,18 +23,12 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    
+
     console.log('Environment check:', {
       supabaseUrl: !!supabaseUrl,
       supabaseKey: !!supabaseKey,
       resendApiKey: !!resendApiKey,
     })
-
-    // Critical validation: RESEND_API_KEY must exist
-    if (!resendApiKey) {
-      console.error('FATAL: RESEND_API_KEY not configured')
-      throw new Error('RESEND_API_KEY not configured. Please add it in the backend settings.')
-    }
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -59,6 +53,44 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
+    }
+
+    // Validate API keys based on campaign type
+    if (campaign.type === 'email' && !resendApiKey) {
+      console.error('FATAL: RESEND_API_KEY not configured for email campaign')
+      throw new Error('RESEND_API_KEY not configured. Please add it in the backend settings.')
+    }
+
+    // For WhatsApp campaigns, fetch WhatsApp settings
+    let whatsappSettings: any = null
+    if (campaign.type === 'whatsapp') {
+      const { data: waSettings, error: waError } = await supabase
+        .from('whatsapp_settings')
+        .select('*')
+        .eq('is_active', true)
+        .single()
+
+      if (waError || !waSettings) {
+        console.error('WhatsApp settings not found:', waError)
+        throw new Error('WhatsApp not configured. Please set up WhatsApp settings first.')
+      }
+
+      const exotelSid = waSettings.exotel_sid || Deno.env.get('EXOTEL_SID')
+      const exotelApiKey = waSettings.exotel_api_key || Deno.env.get('EXOTEL_API_KEY')
+      const exotelApiToken = waSettings.exotel_api_token || Deno.env.get('EXOTEL_API_TOKEN')
+
+      if (!exotelSid || !exotelApiKey || !exotelApiToken) {
+        throw new Error('Exotel credentials not configured for WhatsApp.')
+      }
+
+      whatsappSettings = {
+        ...waSettings,
+        exotel_sid: exotelSid,
+        exotel_api_key: exotelApiKey,
+        exotel_api_token: exotelApiToken,
+        exotel_subdomain: waSettings.exotel_subdomain || 'api.exotel.com',
+      }
+      console.log('WhatsApp settings loaded successfully')
     }
 
     // Fetch campaign creator's email for reply-to
@@ -138,7 +170,7 @@ Deno.serve(async (req) => {
     )
 
     // Fetch template with retry
-    const templateTable = campaign.type === 'email' ? 'email_templates' : 'sms_templates'
+    const templateTable = campaign.type === 'whatsapp' ? 'whatsapp_templates' : 'email_templates'
     console.log('Fetching template:', { templateTable, templateId: campaign.template_id })
     
     const { data: template, error: templateError } = await retrySupabaseOperation(
@@ -302,25 +334,17 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // Send email or SMS with retry for edge function invocation
+        // Send email or WhatsApp
         if (campaign.type === 'email') {
           console.log(`Sending email to ${recipient.email} (${i + 1}/${filteredAudience.length})`)
-          console.log('Invoking send-campaign-email with:', {
-            recipient_id: recipientRecord.id,
-            campaign_id: campaign.id,
-            candidate_email: recipient.email,
-            candidate_name: `${recipient.first_name} ${recipient.last_name}`,
-            template_name: template.name,
-            subject: campaign.subject
-          })
-          
+
           const { error: sendError } = await retryWithBackoff(
             async () => {
               const result = await supabase.functions.invoke('send-campaign-email', {
                 body: {
                   recipient_id: recipientRecord.id,
                   campaign_id: campaign.id,
-                  candidate: recipient, // FIXED: Changed from job_seeker to candidate
+                  candidate: recipient,
                   template: template,
                   subject: campaign.subject,
                   reply_to_email: replyToEmail,
@@ -329,12 +353,11 @@ Deno.serve(async (req) => {
               if (result.error) throw result.error
               return result
             },
-            2, // max attempts for edge function
-            2000, // 2 second initial delay
+            2,
+            2000,
             2,
             (error) => {
-              // Retry on network/timeout errors, but not on validation errors
-              return error.message?.includes('network') || 
+              return error.message?.includes('network') ||
                      error.message?.includes('timeout') ||
                      error.status >= 500
             }
@@ -344,7 +367,6 @@ Deno.serve(async (req) => {
             console.error(`✗ Failed to send email to ${recipient.email}:`, {
               error: sendError.message,
               recipientId: recipientRecord.id,
-              stack: sendError.stack
             })
             await retrySupabaseOperation(async () => {
               const { error } = await supabase
@@ -359,6 +381,145 @@ Deno.serve(async (req) => {
           } else {
             console.log(`✓ Email sent successfully to ${recipient.email}`)
             successCount++
+          }
+        } else if (campaign.type === 'whatsapp' && whatsappSettings) {
+          // WhatsApp sending via Exotel API
+          const rawPhone = recipient.phone || recipient.mobile || recipient.mobile_numb || ''
+          if (!rawPhone) {
+            console.log(`Skipping recipient ${i + 1}: no phone number`)
+            await retrySupabaseOperation(async () => {
+              const { error } = await supabase
+                .from('campaign_recipients')
+                .update({ status: 'failed', error_message: 'No phone number' })
+                .eq('id', recipientRecord.id)
+              if (error) throw error
+            })
+            continue
+          }
+
+          // Normalize phone number
+          let phoneDigits = rawPhone.replace(/[^\d+]/g, '')
+          if (!phoneDigits.startsWith('+')) {
+            if (phoneDigits.length === 10) phoneDigits = '91' + phoneDigits
+            else if (phoneDigits.startsWith('+')) phoneDigits = phoneDigits.replace(/^\+/, '')
+          } else {
+            phoneDigits = phoneDigits.replace(/^\+/, '')
+          }
+          const phoneForStorage = '+' + phoneDigits
+
+          console.log(`Sending WhatsApp to ${phoneForStorage} (${i + 1}/${filteredAudience.length})`)
+
+          // Build template variables from CSV data mapped to template variable indices
+          const templateVars = template.variables || []
+          const components: any[] = []
+          if (templateVars.length > 0) {
+            const bodyParams = templateVars
+              .sort((a: any, b: any) => a.index - b.index)
+              .map((v: any) => ({
+                type: 'text',
+                text: recipient[v.placeholder] || recipient[String(v.index)] || '',
+              }))
+            components.push({ type: 'body', parameters: bodyParams })
+          }
+
+          const exotelUrl = `https://${whatsappSettings.exotel_subdomain}/v2/accounts/${whatsappSettings.exotel_sid}/messages`
+          const exotelPayload = {
+            whatsapp: {
+              messages: [{
+                from: whatsappSettings.whatsapp_source_number,
+                to: phoneDigits,
+                content: {
+                  type: 'template',
+                  template: {
+                    name: template.template_name,
+                    language: { code: template.language || 'en' },
+                    components,
+                  },
+                },
+              }],
+            },
+          }
+
+          try {
+            const exotelResponse = await fetch(exotelUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${btoa(`${whatsappSettings.exotel_api_key}:${whatsappSettings.exotel_api_token}`)}`,
+              },
+              body: JSON.stringify(exotelPayload),
+            })
+
+            const responseText = await exotelResponse.text()
+            let exotelResult: any
+            try {
+              exotelResult = JSON.parse(responseText)
+            } catch {
+              const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+              exotelResult = jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: responseText }
+            }
+
+            const messageSid = exotelResult?.response?.whatsapp?.messages?.[0]?.data?.sid ||
+              exotelResult?.sid || exotelResult?.id || null
+            const success = !!messageSid
+
+            // Log to whatsapp_messages table
+            let messageContent = template.content || ''
+            if (templateVars.length > 0) {
+              for (const v of templateVars) {
+                const val = recipient[v.placeholder] || recipient[String(v.index)] || ''
+                messageContent = messageContent.replace(new RegExp(`\\{\\{${v.index}\\}\\}`, 'g'), val)
+              }
+            }
+
+            await supabase.from('whatsapp_messages').insert({
+              template_id: template.id,
+              template_name: template.template_name,
+              sent_by: campaign.created_by,
+              phone_number: phoneForStorage,
+              message_content: messageContent,
+              template_variables: Object.fromEntries(
+                templateVars.map((v: any) => [String(v.index), recipient[v.placeholder] || ''])
+              ),
+              exotel_message_id: messageSid,
+              status: success ? 'sent' : 'failed',
+              direction: 'outbound',
+              sent_at: new Date().toISOString(),
+              error_message: success ? null : (exotelResult?.message || exotelResult?.error || 'Failed to send'),
+            })
+
+            if (success) {
+              console.log(`✓ WhatsApp sent to ${phoneForStorage}`)
+              successCount++
+              await retrySupabaseOperation(async () => {
+                const { error } = await supabase
+                  .from('campaign_recipients')
+                  .update({ status: 'sent', sent_at: new Date().toISOString() })
+                  .eq('id', recipientRecord.id)
+                if (error) throw error
+              })
+            } else {
+              console.error(`✗ WhatsApp failed to ${phoneForStorage}:`, exotelResult)
+              await retrySupabaseOperation(async () => {
+                const { error } = await supabase
+                  .from('campaign_recipients')
+                  .update({
+                    status: 'failed',
+                    error_message: exotelResult?.message || 'Exotel API error',
+                  })
+                  .eq('id', recipientRecord.id)
+                if (error) throw error
+              })
+            }
+          } catch (waError: any) {
+            console.error(`✗ WhatsApp error for ${phoneForStorage}:`, waError.message)
+            await retrySupabaseOperation(async () => {
+              const { error } = await supabase
+                .from('campaign_recipients')
+                .update({ status: 'failed', error_message: waError.message })
+                .eq('id', recipientRecord.id)
+              if (error) throw error
+            })
           }
         }
         

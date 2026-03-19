@@ -8,8 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Send, Calendar, Save } from "lucide-react";
-// SMS removed — campaigns are email-only now
+import { ArrowLeft, Send, Calendar, Save, MessageSquare, Mail } from "lucide-react";
 import { logError, getCurrentUserId, getSupabaseErrorMessage } from "@/lib/errorLogger";
 import { CsvAudienceUpload } from "@/components/CsvAudienceUpload";
 
@@ -35,7 +34,7 @@ export default function CampaignForm() {
   
   // Form state
   const [name, setName] = useState("");
-  const [type] = useState<"email">("email");
+  const [type, setType] = useState<"email" | "whatsapp">("email");
   const [templateId, setTemplateId] = useState("");
   const [subject, setSubject] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -47,7 +46,7 @@ export default function CampaignForm() {
   const preselectedParticipants = location.state?.preselectedParticipants;
 
   useEffect(() => {
-    fetchTemplates();
+    fetchTemplates(type);
     if (id) {
       fetchCampaign();
     } else if (preselectedParticipants && preselectedParticipants.length > 0) {
@@ -66,18 +65,39 @@ export default function CampaignForm() {
     }
   }, [id]);
 
+  // Refetch templates when type changes
+  useEffect(() => {
+    setTemplateId("");
+    setSubject("");
+    fetchTemplates(type);
+  }, [type]);
+
   useEffect(() => {
     setRecipientCount(audienceData.length);
   }, [audienceData]);
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = async (campaignType: "email" | "whatsapp") => {
     try {
-      const { data, error } = await supabase
-        .from("email_templates")
-        .select("id, name, subject, body_html, merge_tags")
-        .eq("is_active", true);
-      if (error) throw error;
-      setTemplates(data || []);
+      if (campaignType === "whatsapp") {
+        const { data, error } = await supabase
+          .from("whatsapp_templates")
+          .select("id, template_name, content, variables")
+          .eq("status", "approved");
+        if (error) throw error;
+        setTemplates((data || []).map((t: any) => ({
+          id: t.id,
+          name: t.template_name,
+          body: t.content,
+          merge_tags: (t.variables || []).map((v: any) => `{{${v.placeholder}}}`),
+        })));
+      } else {
+        const { data, error } = await supabase
+          .from("email_templates")
+          .select("id, name, subject, body_html, merge_tags")
+          .eq("is_active", true);
+        if (error) throw error;
+        setTemplates(data || []);
+      }
     } catch (error: any) {
       const userId = await getCurrentUserId(supabase);
       logError(error, {
@@ -85,7 +105,7 @@ export default function CampaignForm() {
         operation: "FETCH_DATA",
         userId,
         route: "/campaigns/new",
-        metadata: { type },
+        metadata: { type: campaignType },
       });
     }
   };
@@ -101,7 +121,7 @@ export default function CampaignForm() {
       if (error) throw error;
 
       setName(data.name);
-      // type is always email now
+      if (data.type === "whatsapp") setType("whatsapp");
       setTemplateId(data.template_id || "");
       setSubject(data.subject || "");
       setAudienceData(Array.isArray(data.audience_data) ? data.audience_data : []);
@@ -193,7 +213,7 @@ export default function CampaignForm() {
         console.warn('Some recipients have missing data:', missingFields);
         toast({
           title: "⚠️ Data Warning",
-          description: `Some recipients are missing data for: ${missingFields.slice(0, 3).join(', ')}${missingFields.length > 3 ? '...' : ''}. These fields will appear blank in emails.`,
+          description: `Some recipients are missing data for: ${missingFields.slice(0, 3).join(', ')}${missingFields.length > 3 ? '...' : ''}. These fields will appear blank in messages.`,
         });
       }
     }
@@ -289,8 +309,10 @@ export default function CampaignForm() {
         if (processError) {
           console.error('Campaign processing failed after retries:', processError);
           throw new Error(
-            processError.message || 
-            'Failed to process campaign. Please check your RESEND_API_KEY configuration and verify your domain at resend.com/domains.'
+            processError.message ||
+            (type === "whatsapp"
+              ? 'Failed to process campaign. Please check your WhatsApp/Exotel settings.'
+              : 'Failed to process campaign. Please check your RESEND_API_KEY configuration and verify your domain at resend.com/domains.')
           );
         }
 
@@ -397,7 +419,31 @@ export default function CampaignForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="template">Template *</Label>
+                <Label>Channel *</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={type === "email" ? "default" : "outline"}
+                    onClick={() => setType("email")}
+                    className="flex-1"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Email
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={type === "whatsapp" ? "default" : "outline"}
+                    onClick={() => setType("whatsapp")}
+                    className="flex-1"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    WhatsApp
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="template">{type === "whatsapp" ? "WhatsApp Template" : "Email Template"} *</Label>
                 <Select value={templateId} onValueChange={setTemplateId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a template" />
@@ -412,15 +458,17 @@ export default function CampaignForm() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject Line *</Label>
-                <Input
-                  id="subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="e.g., New opportunities in your area"
-                />
-              </div>
+              {type === "email" && (
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Subject Line *</Label>
+                  <Input
+                    id="subject"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="e.g., New opportunities in your area"
+                  />
+                </div>
+              )}
 
               <Button onClick={() => setCurrentTab("audience")}>
                 Next: Select Audience
@@ -468,9 +516,12 @@ export default function CampaignForm() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p><strong>Name:</strong> {name}</p>
-                <p><strong>Type:</strong> Email</p>
+                <p><strong>Type:</strong> {type === "whatsapp" ? "WhatsApp" : "Email"}</p>
                 <p><strong>Recipients:</strong> {recipientCount}</p>
-                <p><strong>Subject:</strong> {subject}</p>
+                {type === "email" && <p><strong>Subject:</strong> {subject}</p>}
+                {type === "whatsapp" && selectedTemplate && (
+                  <p><strong>Template:</strong> {selectedTemplate.name}</p>
+                )}
               </div>
 
               <div className="flex gap-4">
