@@ -40,9 +40,6 @@ export interface TeamLeaderWithAgents {
   agents: TeamMemberWithTarget[];
 }
 
-// Demandcom Calling Team ID
-const DEMANDCOM_CALLING_TEAM_ID = '7f2cbe71-d83a-483e-9127-0cb3176cf957';
-
 // Note: 'manager' role is excluded because team leads often have this role but should only see their own team
 const ADMIN_ROLES = ['platform_admin', 'super_admin', 'admin_administration', 'admin_tech', 'admin'];
 
@@ -90,20 +87,18 @@ export const useDemandComDailyTargets = (targetDate: string) => {
       console.log('User roles:', roles);
       console.log('Is Admin:', isAdmin);
 
-      // Step 1: Get all active members of Demandcom-Calling team
+      // Step 1: Get all active members of Demandcom-Calling team (by name, not hardcoded ID)
       const { data: teamMembers, error: tmError } = await supabase
         .from('team_members')
-        .select('user_id')
-        .eq('team_id', DEMANDCOM_CALLING_TEAM_ID)
+        .select('user_id, teams!inner(name)')
+        .eq('teams.name', 'Demandcom-Calling')
         .eq('is_active', true);
 
       if (tmError) throw tmError;
-      
+
       const memberIds = teamMembers?.map(m => m.user_id) || [];
-      console.log('Team members count:', memberIds.length);
-      
+
       if (memberIds.length === 0) {
-        console.log('No team members found, returning empty');
         return { hierarchy: [], teamLeaderIds: [], isAdmin };
       }
 
@@ -114,62 +109,67 @@ export const useDemandComDailyTargets = (targetDate: string) => {
         .in('id', memberIds);
 
       if (profilesError) throw profilesError;
-      
-      console.log('Profiles fetched:', profiles?.length);
 
-      // Step 3: Identify Team Leaders = members who report to Vibhor (the manager)
-      const VIBHOR_ID = 'e0261662-aff9-4e08-8ede-0aadad826d4d';
+      // Step 3: Dynamically discover team leaders from reports_to relationships
+      // A team leader is anyone who has team members reporting to them
       const memberIdSet = new Set(memberIds);
-      
-      const profilesReportingToVibhor = (profiles || []).filter(p => p.reports_to === VIBHOR_ID);
-      console.log('Profiles reporting to VIBHOR_ID:', profilesReportingToVibhor.map(p => ({ id: p.id, name: p.full_name })));
-      
-      const allTeamLeaderIds = profilesReportingToVibhor
-        .filter(p => memberIdSet.has(p.id))
-        .map(p => p.id);
-      
-      console.log('All Team Leader IDs:', allTeamLeaderIds);
-      console.log('Is current user a TL?', allTeamLeaderIds.includes(user.id));
+      const managerToAgents = new Map<string, string[]>();
+
+      for (const profile of profiles || []) {
+        if (profile.reports_to) {
+          if (!managerToAgents.has(profile.reports_to)) {
+            managerToAgents.set(profile.reports_to, []);
+          }
+          managerToAgents.get(profile.reports_to)!.push(profile.id);
+        }
+      }
+
+      const allTeamLeaderIds = [...managerToAgents.keys()];
+
+      // Get team leader profiles (they may or may not be team members themselves)
+      let leaderProfiles: any[] = [];
+      if (allTeamLeaderIds.length > 0) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, reports_to')
+          .in('id', allTeamLeaderIds);
+        leaderProfiles = data || [];
+      }
 
       // Step 4: Filter based on user role
       let filteredTeamLeaderIds: string[];
-      
+
       if (isAdmin) {
         filteredTeamLeaderIds = allTeamLeaderIds;
-        console.log('Admin mode: showing all TLs');
       } else if (allTeamLeaderIds.includes(user.id)) {
         filteredTeamLeaderIds = [user.id];
-        console.log('TL mode: showing only self');
       } else {
-        console.log('Regular agent: no hierarchy view');
         return { hierarchy: [], teamLeaderIds: [], isAdmin };
       }
-      
-      console.log('Filtered Team Leader IDs:', filteredTeamLeaderIds);
 
-      // Step 5: Build hierarchy with filtered team leaders and their agents
-      const teamLeaders = (profiles || []).filter(p => filteredTeamLeaderIds.includes(p.id));
-      const agents = (profiles || []).filter(p => p.reports_to && filteredTeamLeaderIds.includes(p.reports_to));
-      
-      console.log('Team Leaders found:', teamLeaders.map(tl => ({ id: tl.id, name: tl.full_name })));
-      console.log('Agents found:', agents.map(a => ({ id: a.id, name: a.full_name, reportsTo: a.reports_to })));
+      // Step 5: Build hierarchy
+      const hierarchy = filteredTeamLeaderIds
+        .map(leaderId => {
+          const leaderProfile = leaderProfiles.find(p => p.id === leaderId)
+            || (profiles || []).find(p => p.id === leaderId);
+          const agentIds = managerToAgents.get(leaderId) || [];
+          const agentProfiles = (profiles || []).filter(p => agentIds.includes(p.id));
 
-      const hierarchy = teamLeaders
-        .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
-        .map(tl => ({
-          teamLeader: { ...tl, callTarget: 0, regTarget: 0, dbUpdateTarget: 0 } as TeamMemberWithTarget,
-          agents: agents
-            .filter(agent => agent.reports_to === tl.id)
-            .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
-            .map(a => ({ ...a, callTarget: 0, regTarget: 0, dbUpdateTarget: 0 })) as TeamMemberWithTarget[],
-        }));
-
-      console.log('Final hierarchy:', hierarchy.map(h => ({
-        leader: h.teamLeader.full_name,
-        agentCount: h.agents.length,
-        agents: h.agents.map(a => a.full_name)
-      })));
-      console.log('=== End Debug ===');
+          return {
+            teamLeader: {
+              id: leaderId,
+              full_name: leaderProfile?.full_name || 'Unknown',
+              email: leaderProfile?.email || '',
+              reports_to: leaderProfile?.reports_to || null,
+              callTarget: 0, regTarget: 0, dbUpdateTarget: 0,
+            } as TeamMemberWithTarget,
+            agents: agentProfiles
+              .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+              .map(a => ({ ...a, callTarget: 0, regTarget: 0, dbUpdateTarget: 0 })) as TeamMemberWithTarget[],
+          };
+        })
+        .filter(team => team.agents.length > 0)
+        .sort((a, b) => (a.teamLeader.full_name || '').localeCompare(b.teamLeader.full_name || ''));
 
       return { hierarchy, teamLeaderIds: filteredTeamLeaderIds, isAdmin };
     },
@@ -229,19 +229,41 @@ export const useDemandComDailyTargets = (targetDate: string) => {
       const dateEnd = endOfDay(new Date(targetDate));
 
       // Get disposition changes (calls) for the date
-      const { data: dispositionChanges } = await supabase
-        .from('demandcom_field_changes')
-        .select('changed_by, demandcom_id, new_value')
-        .eq('field_name', 'disposition')
-        .in('changed_by', allAgentIds)
-        .gte('changed_at', dateStart.toISOString())
-        .lte('changed_at', dateEnd.toISOString());
+      const [{ data: dispositionChanges }, { data: callLogs }] = await Promise.all([
+        supabase
+          .from('demandcom_field_changes')
+          .select('changed_by, demandcom_id, new_value')
+          .eq('field_name', 'disposition')
+          .in('changed_by', allAgentIds)
+          .gte('changed_at', dateStart.toISOString())
+          .lte('changed_at', dateEnd.toISOString()),
+        supabase
+          .from('call_logs')
+          .select('initiated_by')
+          .in('initiated_by', allAgentIds)
+          .gte('created_at', dateStart.toISOString())
+          .lte('created_at', dateEnd.toISOString()),
+      ]);
 
-      const callsMap = new Map<string, number>();
+      // Count calls from both sources, take the higher count per agent
+      const dispositionCallsMap = new Map<string, number>();
       for (const change of dispositionChanges || []) {
         if (change.changed_by) {
-          callsMap.set(change.changed_by, (callsMap.get(change.changed_by) || 0) + 1);
+          dispositionCallsMap.set(change.changed_by, (dispositionCallsMap.get(change.changed_by) || 0) + 1);
         }
+      }
+      const callLogCallsMap = new Map<string, number>();
+      for (const log of callLogs || []) {
+        if (log.initiated_by) {
+          callLogCallsMap.set(log.initiated_by, (callLogCallsMap.get(log.initiated_by) || 0) + 1);
+        }
+      }
+      const callsMap = new Map<string, number>();
+      for (const agentId of allAgentIds) {
+        callsMap.set(agentId, Math.max(
+          dispositionCallsMap.get(agentId) || 0,
+          callLogCallsMap.get(agentId) || 0,
+        ));
       }
 
       // Get registrations - Connected dispositions (1, 2, 3, 4)
