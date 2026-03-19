@@ -535,15 +535,15 @@ Deno.serve(async (req) => {
             continue
           }
 
-          // Normalize phone number
-          let phoneDigits = rawPhone.replace(/[^\d+]/g, '')
-          if (!phoneDigits.startsWith('+')) {
-            if (phoneDigits.length === 10) phoneDigits = '91' + phoneDigits
-            else if (phoneDigits.startsWith('+')) phoneDigits = phoneDigits.replace(/^\+/, '')
-          } else {
-            phoneDigits = phoneDigits.replace(/^\+/, '')
+          // Normalize phone number — must be digits only for Exotel (e.g. 919876543210)
+          let cleaned = rawPhone.replace(/[^\d+]/g, '')
+          if (!cleaned.startsWith('+')) {
+            if (cleaned.length === 10) cleaned = '+91' + cleaned
+            else if (cleaned.startsWith('91') && cleaned.length === 12) cleaned = '+' + cleaned
+            else cleaned = '+' + cleaned
           }
-          const phoneForStorage = '+' + phoneDigits
+          const phoneForStorage = cleaned // e.g. +919876543210
+          const phoneDigits = cleaned.replace(/^\+/, '') // e.g. 919876543210
 
           console.log(`Sending WhatsApp to ${phoneForStorage} (${i + 1}/${filteredAudience.length})`)
 
