@@ -217,17 +217,16 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
       // === BATCH 2: Queries that depend on batch 1 results ===
       const activeProjects = projectsResult.data || [];
       const activeProjectIds = activeProjects.map((p: any) => p.id);
-      const activeProjectNames = new Set(activeProjects.map((p: any) => p.project_name).filter(Boolean));
       const dataTeamMemberIds = dataTeamMembersResult.data?.map((tm: any) => tm.user_id) || [];
 
       const batch2Promises: Promise<any>[] = [];
 
-      // Registration targets (depends on projects) - also fetch project_id to identify DemandCom projects
+      // Registration targets (depends on projects)
       if (activeProjectIds.length > 0) {
         batch2Promises.push(
           /* 0 */ supabase
             .from("project_demandcom_checklist")
-            .select("project_id, description")
+            .select("description")
             .eq("checklist_item", "Telecalling - Registration Target")
             .in("project_id", activeProjectIds)
         );
@@ -345,14 +344,8 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
           .sort((a: any, b: any) => b.efficiency - a.efficiency);
       }
 
-      // === Process execution stats (only active DemandCom projects) ===
-      // Only show projects that have DemandCom checklist entries (i.e., actual DemandCom calling projects)
-      const demandcomChecklistProjectIds = new Set((batch2[0].data || []).map((item: any) => item.project_id));
-      const demandcomProjectNames = new Set(
-        activeProjects.filter((p: any) => demandcomChecklistProjectIds.has(p.id)).map((p: any) => p.project_name)
-      );
+      // === Process execution stats (all activities from demandcom data) ===
       const activityStats = (executionStatsResult.data || [])
-        .filter((stat: any) => demandcomProjectNames.has(stat.project_name))
         .map((stat: any) => {
           const assignedData = Number(stat.assigned_data) || 0;
           const interestedCount = Number(stat.interested_count) || 0;
