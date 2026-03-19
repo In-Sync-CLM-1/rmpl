@@ -159,31 +159,37 @@ export function useAgentCallingReport({ projectFilter, startDate, endDate, teamM
         }
       }
 
-      // Aggregate call metrics per agent
+      // Aggregate call metrics per agent (from both call_logs and disposition changes)
       const callMetrics = new Map<string, {
-        totalCalls: number; connectedCalls: number; callsWithDuration: number; totalDuration: number;
+        callLogCalls: number; dispositionCalls: number; connectedCalls: number;
+        callsWithDuration: number; totalDuration: number;
       }>();
 
       for (const agentId of allAgentIds) {
-        callMetrics.set(agentId, { totalCalls: 0, connectedCalls: 0, callsWithDuration: 0, totalDuration: 0 });
+        callMetrics.set(agentId, { callLogCalls: 0, dispositionCalls: 0, connectedCalls: 0, callsWithDuration: 0, totalDuration: 0 });
       }
 
+      // Count from call_logs (actual phone calls)
       for (const call of filteredCallLogs) {
         const agentId = call.initiated_by;
         if (!agentId) continue;
         const existing = callMetrics.get(agentId);
-        if (existing && call.conversation_duration && call.conversation_duration > 0) {
-          existing.callsWithDuration++;
-          existing.totalDuration += call.conversation_duration;
+        if (existing) {
+          existing.callLogCalls++;
+          if (call.conversation_duration && call.conversation_duration > 0) {
+            existing.callsWithDuration++;
+            existing.totalDuration += call.conversation_duration;
+          }
         }
       }
 
+      // Count from disposition changes
       for (const change of filteredDispositions) {
         const agentId = change.changed_by;
         if (!agentId) continue;
         const existing = callMetrics.get(agentId);
         if (existing) {
-          existing.totalCalls++;
+          existing.dispositionCalls++;
           if (change.new_value && !nonConnectedDispositions.includes(change.new_value)) {
             existing.connectedCalls++;
           }
@@ -252,11 +258,12 @@ export function useAgentCallingReport({ projectFilter, startDate, endDate, teamM
       const report: AgentCallReport[] = [];
 
       for (const agentId of allAgentIds) {
-        const metrics = callMetrics.get(agentId) || { totalCalls: 0, connectedCalls: 0, callsWithDuration: 0, totalDuration: 0 };
+        const metrics = callMetrics.get(agentId) || { callLogCalls: 0, dispositionCalls: 0, connectedCalls: 0, callsWithDuration: 0, totalDuration: 0 };
         const target = targetMap.get(agentId) || 0;
         const regs = registrationMap.get(agentId) || 0;
         const dbUpdates = dbUpdatesMap.get(agentId) || 0;
-        const totalCalls = metrics.totalCalls;
+        // Use the higher of call_logs count and disposition count as totalCalls
+        const totalCalls = Math.max(metrics.callLogCalls, metrics.dispositionCalls);
         const connectedCalls = metrics.connectedCalls;
 
         if (totalCalls === 0 && target === 0 && regs === 0 && dbUpdates === 0) continue;
