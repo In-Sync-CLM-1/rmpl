@@ -154,7 +154,7 @@ export default function CampaignForm() {
   if (mergeTags.length === 0 && selectedTemplate) {
     const tagPattern = /\{\{[a-zA-Z_]+\}\}/g;
     const extractedTags: string[] = [];
-    
+
     if (selectedTemplate.body_html) {
       const bodyTags = selectedTemplate.body_html.match(tagPattern) || [];
       extractedTags.push(...bodyTags);
@@ -163,9 +163,17 @@ export default function CampaignForm() {
       const subjectTags = subject.match(tagPattern) || [];
       extractedTags.push(...subjectTags);
     }
-    
+
     // Make unique
     mergeTags = [...new Set(extractedTags)];
+  }
+
+  // For WhatsApp, always include phone as first required column
+  if (type === "whatsapp") {
+    const hasPhone = mergeTags.some(t => t.replace(/[{}]/g, '').toLowerCase() === 'phone');
+    if (!hasPhone) {
+      mergeTags = ["{{phone}}", ...mergeTags];
+    }
   }
 
   const validateAudienceData = (data: any[], mergeTags: string[]) => {
@@ -394,9 +402,8 @@ export default function CampaignForm() {
       </div>
 
       <Tabs value={currentTab} onValueChange={setCurrentTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="audience">Audience</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="details">Details & Contacts</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
         </TabsList>
@@ -470,37 +477,30 @@ export default function CampaignForm() {
                 </div>
               )}
 
-              <Button onClick={() => setCurrentTab("audience")}>
-                Next: Select Audience
+              {/* CSV upload: contacts + variables in one file */}
+              {templateId && (
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-sm font-semibold mb-1">Upload Contacts CSV</h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Upload a CSV with {type === "whatsapp" ? (
+                      <>a <strong>phone</strong> column and columns for each template variable.</>
+                    ) : (
+                      <>an <strong>email</strong> column and columns for each merge tag.</>
+                    )}
+                    {recipientCount > 0 && <span className="ml-1 text-primary font-medium">({recipientCount} contacts loaded)</span>}
+                  </p>
+                  <CsvAudienceUpload
+                    mergeTags={mergeTags}
+                    onDataLoaded={setAudienceData}
+                    existingData={audienceData}
+                    disabled={!!preselectedParticipants && audienceData.length > 0}
+                  />
+                </div>
+              )}
+
+              <Button onClick={() => setCurrentTab("preview")} disabled={audienceData.length === 0}>
+                Next: Preview
               </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="audience" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Audience Upload</CardTitle>
-              <CardDescription>
-                Upload a CSV file with your audience data (Recipients: {recipientCount})
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <CsvAudienceUpload
-                mergeTags={mergeTags}
-                onDataLoaded={setAudienceData}
-                existingData={audienceData}
-                disabled={!!preselectedParticipants && audienceData.length > 0}
-              />
-
-              <div className="flex gap-4">
-                <Button variant="outline" onClick={() => setCurrentTab("details")}>
-                  Back
-                </Button>
-                <Button onClick={() => setCurrentTab("preview")} disabled={audienceData.length === 0}>
-                  Next: Preview
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -519,13 +519,13 @@ export default function CampaignForm() {
                 <p><strong>Type:</strong> {type === "whatsapp" ? "WhatsApp" : "Email"}</p>
                 <p><strong>Recipients:</strong> {recipientCount}</p>
                 {type === "email" && <p><strong>Subject:</strong> {subject}</p>}
-                {type === "whatsapp" && selectedTemplate && (
+                {selectedTemplate && (
                   <p><strong>Template:</strong> {selectedTemplate.name}</p>
                 )}
               </div>
 
               <div className="flex gap-4">
-                <Button variant="outline" onClick={() => setCurrentTab("audience")}>
+                <Button variant="outline" onClick={() => setCurrentTab("details")}>
                   Back
                 </Button>
                 <Button onClick={() => setCurrentTab("schedule")}>
