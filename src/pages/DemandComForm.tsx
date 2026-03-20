@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import rmplLogo from "@/assets/rmpl-logo.png";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
+import { CallAnalysisDialog } from "@/components/CallAnalysisDialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -324,6 +325,7 @@ function WhatsAppTimelineItem({ data }: { data: any }) {
 }
 
 function CallTimelineItem({ data }: { data: any }) {
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const statusIcons: Record<string, React.ElementType> = {
     completed: PhoneCall,
     "no-answer": PhoneMissed,
@@ -346,6 +348,7 @@ function CallTimelineItem({ data }: { data: any }) {
   };
   const Icon = statusIcons[data.status] || PhoneCall;
   const badgeColor = statusColors[data.status] || "bg-gray-100 text-gray-700";
+  const hasAnalysis = data.call_analysis?.status === "completed" && !data.call_analysis?.error;
 
   return (
     <div className="flex gap-3">
@@ -366,6 +369,11 @@ function CallTimelineItem({ data }: { data: any }) {
               {Math.floor(data.conversation_duration / 60)}m {data.conversation_duration % 60}s
             </span>
           )}
+          {hasAnalysis && (
+            <Badge className="text-[10px] h-4 px-1.5 border-0 bg-violet-100 text-violet-700">
+              Score: {data.call_analysis.overall_score}/10
+            </Badge>
+          )}
         </div>
         {(data.disposition || data.subdisposition) && (
           <div className="flex items-center gap-1.5 mt-1">
@@ -378,17 +386,36 @@ function CallTimelineItem({ data }: { data: any }) {
         {data.notes && (
           <p className="text-xs text-muted-foreground mt-1 bg-muted rounded px-2 py-1">{data.notes}</p>
         )}
-        {data.recording_url && (
-          <a href={data.recording_url} target="_blank" rel="noopener noreferrer"
-            className="text-[11px] text-primary hover:underline mt-1 inline-block">
-            Recording
-          </a>
-        )}
+        <div className="flex items-center gap-3 mt-1">
+          {data.recording_url && (
+            <a href={data.recording_url} target="_blank" rel="noopener noreferrer"
+              className="text-[11px] text-primary hover:underline">
+              Recording
+            </a>
+          )}
+          {data.recording_url && (
+            <button
+              onClick={() => setAnalysisOpen(true)}
+              className="text-[11px] text-violet-600 hover:underline flex items-center gap-0.5"
+            >
+              <Brain className="h-3 w-3" />
+              {hasAnalysis ? "View Analysis" : "AI Analyze"}
+            </button>
+          )}
+        </div>
         <div className="text-[11px] text-muted-foreground mt-1">
           {format(new Date(data.start_time || data.created_at), "hh:mm a")}
           {data.to_number && <span className="ml-2">{data.to_number}</span>}
         </div>
       </div>
+      <CallAnalysisDialog
+        open={analysisOpen}
+        onOpenChange={setAnalysisOpen}
+        callLogId={data.id}
+        recordingUrl={data.recording_url}
+        existingTranscript={data.transcript}
+        existingAnalysis={data.call_analysis}
+      />
     </div>
   );
 }

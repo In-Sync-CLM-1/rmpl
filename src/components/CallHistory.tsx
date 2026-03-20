@@ -7,9 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Phone, PlayCircle, Search, FileText, Plus, Edit2 } from "lucide-react";
+import { Phone, PlayCircle, Search, FileText, Plus, Edit2, Brain, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { CallDispositionDialog } from "./CallDispositionDialog";
+import { CallAnalysisDialog } from "./CallAnalysisDialog";
 
 interface CallHistoryProps {
   demandcomId?: string;
@@ -35,6 +36,8 @@ interface CallLog {
   notes: string | null;
   disposition_set_by: string | null;
   disposition_set_at: string | null;
+  transcript: string | null;
+  call_analysis: any | null;
   demandcom?: {
     name: string;
     mobile_numb: string;
@@ -75,6 +78,7 @@ export function CallHistory({ demandcomId, limit = 50, showFilters = true }: Cal
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dispositionDialogOpen, setDispositionDialogOpen] = useState(false);
+  const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
   const [selectedCallLog, setSelectedCallLog] = useState<CallLog | null>(null);
 
   const { data: callLogs, isLoading, refetch } = useQuery({
@@ -200,6 +204,7 @@ export function CallHistory({ demandcomId, limit = 50, showFilters = true }: Cal
                 <TableHead>Disposition</TableHead>
                 <TableHead>Initiated By</TableHead>
                 <TableHead>Recording</TableHead>
+                <TableHead>AI Analysis</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -265,6 +270,27 @@ export function CallHistory({ demandcomId, limit = 50, showFilters = true }: Cal
                     )}
                   </TableCell>
                   <TableCell>
+                    {log.recording_url ? (
+                      <Button
+                        variant={log.call_analysis?.status === "completed" && !log.call_analysis?.error ? "ghost" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setSelectedCallLog(log);
+                          setAnalysisDialogOpen(true);
+                        }}
+                      >
+                        <Brain className="h-4 w-4 mr-1" />
+                        {log.call_analysis?.status === "completed" && !log.call_analysis?.error ? (
+                          <span className="text-xs">{log.call_analysis.overall_score}/10</span>
+                        ) : (
+                          <span className="text-xs">Analyze</span>
+                        )}
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     {log.disposition ? (
                       <Button
                         variant="ghost"
@@ -307,6 +333,17 @@ export function CallHistory({ demandcomId, limit = 50, showFilters = true }: Cal
             subdisposition: selectedCallLog.subdisposition,
             notes: selectedCallLog.notes,
           }}
+        />
+      )}
+
+      {selectedCallLog && (
+        <CallAnalysisDialog
+          open={analysisDialogOpen}
+          onOpenChange={setAnalysisDialogOpen}
+          callLogId={selectedCallLog.id}
+          recordingUrl={selectedCallLog.recording_url}
+          existingTranscript={selectedCallLog.transcript}
+          existingAnalysis={selectedCallLog.call_analysis}
         />
       )}
     </div>
