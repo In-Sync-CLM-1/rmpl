@@ -148,17 +148,19 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
         );
       } else {
         // Always query fresh data via RPC functions (no stale cache)
+        // Only pass date range when filters are active; otherwise count all records
+        const hasFilters = activityFilter || agentFilter;
         batch1Promises.push(
           /* 5 */ supabase.rpc('get_demandcom_kpi_metrics', {
-            p_start_date: startDateTime.toISOString(),
-            p_end_date: endDateTime.toISOString(),
+            p_start_date: hasFilters ? startDateTime.toISOString() : null,
+            p_end_date: hasFilters ? endDateTime.toISOString() : null,
             p_activity_filter: activityFilter || null,
             p_agent_filter: agentFilter || null,
             p_today_start: startDateTime.toISOString()
           }),
           /* 6 */ supabase.rpc('get_demandcom_disposition_breakdown', {
-            p_start_date: startDateTime.toISOString(),
-            p_end_date: endDateTime.toISOString(),
+            p_start_date: hasFilters ? startDateTime.toISOString() : null,
+            p_end_date: hasFilters ? endDateTime.toISOString() : null,
             p_activity_filter: activityFilter || null,
             p_agent_filter: agentFilter || null
           }),
