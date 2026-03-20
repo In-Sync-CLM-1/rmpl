@@ -147,33 +147,23 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
           /* 8 */ supabase.from('demandcom').select('assigned_to, latest_disposition').in('assigned_to', teamMemberIds),
         );
       } else {
-        const hasFilters = activityFilter || agentFilter;
-        if (!hasFilters) {
-          // No filters: use cached materialized views (instant)
-          batch1Promises.push(
-            /* 5 */ supabase.from('demandcom_kpi_cache').select('*').limit(1).then(r => r.error ? { data: [{ total_count: 0, assigned_count: 0, registered_count: 0, updated_today_count: 0 }] } : r).catch(() => ({ data: [{ total_count: 0, assigned_count: 0, registered_count: 0, updated_today_count: 0 }] })),
-            /* 6 */ supabase.from('demandcom_disposition_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
-            /* 7 */ supabase.from('demandcom_agent_stats_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
-          );
-        } else {
-          // With filters: use RPC functions
-          batch1Promises.push(
-            /* 5 */ supabase.rpc('get_demandcom_kpi_metrics', {
-              p_start_date: startDateTime.toISOString(),
-              p_end_date: endDateTime.toISOString(),
-              p_activity_filter: activityFilter || null,
-              p_agent_filter: agentFilter || null,
-              p_today_start: startDateTime.toISOString()
-            }),
-            /* 6 */ supabase.rpc('get_demandcom_disposition_breakdown', {
-              p_start_date: startDateTime.toISOString(),
-              p_end_date: endDateTime.toISOString(),
-              p_activity_filter: activityFilter || null,
-              p_agent_filter: agentFilter || null
-            }),
-            /* 7 */ supabase.from('demandcom_agent_stats_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
-          );
-        }
+        // Always query fresh data via RPC functions (no stale cache)
+        batch1Promises.push(
+          /* 5 */ supabase.rpc('get_demandcom_kpi_metrics', {
+            p_start_date: startDateTime.toISOString(),
+            p_end_date: endDateTime.toISOString(),
+            p_activity_filter: activityFilter || null,
+            p_agent_filter: agentFilter || null,
+            p_today_start: startDateTime.toISOString()
+          }),
+          /* 6 */ supabase.rpc('get_demandcom_disposition_breakdown', {
+            p_start_date: startDateTime.toISOString(),
+            p_end_date: endDateTime.toISOString(),
+            p_activity_filter: activityFilter || null,
+            p_agent_filter: agentFilter || null
+          }),
+          /* 7 */ supabase.from('demandcom_agent_stats_cache').select('*').then(r => r.error ? { data: [] } : r).catch(() => ({ data: [] })),
+        );
       }
 
       const batch1 = await Promise.all(batch1Promises);
@@ -444,6 +434,6 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
         dataTeamStats: dataTeamStats as any,
       };
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
