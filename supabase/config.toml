@@ -121,7 +121,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.generate-demandcom-insights]
-verify_jwt = true
+verify_jwt = false
 
 [functions.parse-payment-image]
 verify_jwt = true

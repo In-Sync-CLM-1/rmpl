@@ -974,6 +974,7 @@ function ParticipantEditForm({
       };
 
       if (!isNew && id) {
+        demandComData.updated_by = user.id;
         const { error } = await supabase.from("demandcom" as any).update(demandComData).eq("id", id);
         if (error) throw error;
         toast.success("Participant updated successfully");

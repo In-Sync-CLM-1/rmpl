@@ -262,10 +262,16 @@ export function EnhancedCallDialog({ open, onOpenChange, demandcomData, onCallIn
       setIsLoading(true);
 
       const editedFields = getEditedFields();
-      
+
       if (Object.keys(editedFields).length === 0) {
         toast.error("No changes to save");
         return;
+      }
+
+      // Set updated_by so the trigger can track who made the change
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        editedFields.updated_by = user.id;
       }
 
       const { error: updateError } = await supabase
