@@ -149,7 +149,8 @@ export function ClientSideExportDialog({
     const exportColumns = columns || STANDARD_EXPORT_COLUMNS;
     let query = supabase
       .from(tableName as "master" | "demandcom")
-      .select(exportColumns.join(","), { count: "exact" });
+      .select(exportColumns.join(","), { count: "exact" })
+      .order("mobile_numb");
 
     if (tableName === "master" && filters && isMasterFilters(filters)) {
       if (filters.activity_name.length > 0) {
