@@ -124,3 +124,33 @@ export const isSameLocalDay = (date1: Date, date2: Date): boolean => {
     date1.getDate() === date2.getDate()
   );
 };
+
+/**
+ * Get current timestamp as ISO string with IST offset (+05:30).
+ * Use this instead of `new Date().toISOString()` when storing timestamps.
+ * TIMESTAMPTZ will interpret the offset correctly.
+ */
+export const getNowISTISOString = (): string => {
+  const now = new Date();
+  const istTime = toIST(now);
+  const y = istTime.getFullYear();
+  const mo = String(istTime.getMonth() + 1).padStart(2, '0');
+  const d = String(istTime.getDate()).padStart(2, '0');
+  const h = String(istTime.getHours()).padStart(2, '0');
+  const mi = String(istTime.getMinutes()).padStart(2, '0');
+  const s = String(istTime.getSeconds()).padStart(2, '0');
+  const ms = String(istTime.getMilliseconds()).padStart(3, '0');
+  return `${y}-${mo}-${d}T${h}:${mi}:${s}.${ms}+05:30`;
+};
+
+/**
+ * Get today's date string (YYYY-MM-DD) in IST.
+ * Use this instead of `new Date().toISOString().split('T')[0]` which gives UTC date.
+ */
+export const getTodayIST = (): string => {
+  const ist = getCurrentTimeIST();
+  const y = ist.getFullYear();
+  const mo = String(ist.getMonth() + 1).padStart(2, '0');
+  const d = String(ist.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${d}`;
+};

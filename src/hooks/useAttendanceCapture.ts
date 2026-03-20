@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getNowISTISOString, getTodayIST } from "@/lib/dateUtils";
 
 interface LocationData {
   latitude: number;
@@ -36,7 +37,7 @@ export function useAttendanceCapture() {
       platform: navigator.platform,
       screenWidth: window.screen.width,
       screenHeight: window.screen.height,
-      timestamp: new Date().toISOString(),
+      timestamp: getNowISTISOString(),
     };
   };
 
@@ -50,7 +51,7 @@ export function useAttendanceCapture() {
     type: "sign_in" | "sign_out"
   ): Promise<string> => {
     const timestamp = new Date().getTime();
-    const fileName = `${userId}/${new Date().toISOString().split('T')[0]}/${type}_${timestamp}.jpg`;
+    const fileName = `${userId}/${getTodayIST()}/${type}_${timestamp}.jpg`;
 
     const { data, error } = await supabase.storage
       .from("attendance-photos")
@@ -135,7 +136,7 @@ export function useAttendanceCapture() {
 
       // Prepare attendance data
       const attendanceData: any = {
-        [`${type}_time`]: new Date().toISOString(),
+        [`${type}_time`]: getNowISTISOString(),
         [`${type}_photo_url`]: photoUrl,
         [`${type}_location_accuracy`]: capturedData.location.accuracy,
         [`${type}_location_city`]: capturedData.location.city,
@@ -149,7 +150,7 @@ export function useAttendanceCapture() {
 
       if (type === "sign_in") {
         // Create new attendance record
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayIST();
         attendanceData.user_id = userId;
         attendanceData.date = today;
         attendanceData.status = "present";

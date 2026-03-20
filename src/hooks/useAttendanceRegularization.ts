@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getNowISTISOString } from "@/lib/dateUtils";
 
 export type RegularizationType = 
   | 'forgot_signin'
@@ -248,7 +249,7 @@ export function useAttendanceRegularization() {
         .update({
           status: "approved",
           approved_by: user.id,
-          approved_at: new Date().toISOString(),
+          approved_at: getNowISTISOString(),
         })
         .eq("id", regularizationId);
       
@@ -295,7 +296,7 @@ export function useAttendanceRegularization() {
         .update({
           status: "rejected",
           approved_by: user.id,
-          approved_at: new Date().toISOString(),
+          approved_at: getNowISTISOString(),
           rejection_reason: reason,
         })
         .eq("id", regularizationId);

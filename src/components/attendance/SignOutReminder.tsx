@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Clock, LogOut, Bell, X } from "lucide-react";
 import { toast } from "sonner";
+import { getNowISTISOString, getTodayIST } from "@/lib/dateUtils";
 
 interface SignOutReminderProps {
   user: User | null;
@@ -25,7 +26,7 @@ const getISTTime = () => {
   };
 };
 
-const getTodayKey = () => new Date().toISOString().split("T")[0];
+const getTodayKey = () => getTodayIST();
 
 export function SignOutReminder({ user }: SignOutReminderProps) {
   const [showReminder, setShowReminder] = useState(false);
@@ -58,7 +59,7 @@ export function SignOutReminder({ user }: SignOutReminderProps) {
         throw new Error("No attendance record found");
       }
 
-      const signOutTime = new Date().toISOString();
+      const signOutTime = getNowISTISOString();
       const signInTime = new Date(todayAttendance.sign_in_time);
       const totalHours = (new Date().getTime() - signInTime.getTime()) / 3600000;
 

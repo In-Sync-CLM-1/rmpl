@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, LogOut, Calendar, Camera, FileEdit } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { formatTimeIST, formatTimeShortIST, formatInIST, getCurrentTimeIST } from "@/lib/dateUtils";
+import { formatTimeIST, formatTimeShortIST, formatInIST, getCurrentTimeIST, getNowISTISOString, getTodayIST } from "@/lib/dateUtils";
 import { AttendanceCapture } from "@/components/attendance/AttendanceCapture";
 import { AttendanceRegularizationDialog } from "@/components/attendance/AttendanceRegularizationDialog";
 import { MyRegularizationRequests } from "@/components/attendance/MyRegularizationRequests";
@@ -37,7 +37,7 @@ export default function Attendance() {
     queryKey: ["attendance-today", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = getTodayIST();
       const { data, error } = await supabase
         .from("attendance_records")
         .select("*")
@@ -100,7 +100,7 @@ export default function Attendance() {
         throw new Error("No attendance record found");
       }
 
-      const signOutTime = new Date().toISOString();
+      const signOutTime = getNowISTISOString();
       const signInTime = new Date(todayAttendance.sign_in_time);
       const totalHours = (new Date().getTime() - signInTime.getTime()) / 3600000;
 
