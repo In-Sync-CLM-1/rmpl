@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, Clock, FileEdit } from "lucide-react";
 import { useAttendanceRegularization, RegularizationWithProfile } from "@/hooks/useAttendanceRegularization";
+import { formatTimeShortIST, formatInIST } from "@/lib/dateUtils";
 
 const REGULARIZATION_TYPE_LABELS: Record<string, string> = {
   forgot_signin: 'Forgot Sign In',
@@ -32,7 +33,7 @@ export default function AttendanceRegularizationApprovals() {
   const formatTime = (timeStr: string | null) => {
     if (!timeStr) return "N/A";
     try {
-      return format(parseISO(timeStr), "HH:mm");
+      return formatTimeShortIST(timeStr);
     } catch {
       return "N/A";
     }
@@ -139,7 +140,7 @@ export default function AttendanceRegularizationApprovals() {
                   
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Submitted:</span>
-                    <span>{format(parseISO(request.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                    <span>{formatInIST(request.created_at, "MMM d, yyyy 'at' h:mm a")}</span>
                   </div>
                 </div>
 

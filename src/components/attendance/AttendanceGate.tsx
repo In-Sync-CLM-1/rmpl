@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AttendanceCapture } from "./AttendanceCapture";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Clock, ShieldCheck } from "lucide-react";
+import { getTodayIST } from "@/lib/dateUtils";
 
 interface AttendanceGateProps {
   user: User | null;
@@ -27,7 +28,7 @@ export function AttendanceGate({ user, userRoles = [], children }: AttendanceGat
     queryFn: async () => {
       if (!user?.id) return null;
       
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayIST();
       const { data, error } = await supabase
         .from("attendance_records")
         .select("id, sign_in_time")

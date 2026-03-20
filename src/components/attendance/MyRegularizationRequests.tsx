@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trash2, Clock, CheckCircle, XCircle, FileEdit, User } from "lucide-react";
 import { useAttendanceRegularization, AttendanceRegularization } from "@/hooks/useAttendanceRegularization";
+import { formatTimeShortIST } from "@/lib/dateUtils";
 
 const REGULARIZATION_TYPE_LABELS: Record<string, string> = {
   forgot_signin: 'Forgot Sign In',
@@ -34,17 +35,11 @@ export function MyRegularizationRequests({ showTitle = true }: MyRegularizationR
     return null;
   }
 
-  // Extract time from ISO timestamp - just get HH:mm portion
+  // Format time in IST from stored TIMESTAMPTZ
   const formatTime = (timeStr: string | null) => {
     if (!timeStr) return null;
     try {
-      // Extract the time part directly from the ISO string (after T and before any timezone)
-      const match = timeStr.match(/T(\d{2}:\d{2})/);
-      if (match) {
-        return match[1];
-      }
-      // Fallback: try parsing
-      return format(parseISO(timeStr), "HH:mm");
+      return formatTimeShortIST(timeStr);
     } catch {
       return null;
     }
