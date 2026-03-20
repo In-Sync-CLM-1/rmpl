@@ -40,7 +40,6 @@ export interface TeamLeaderWithAgents {
   agents: TeamMemberWithTarget[];
 }
 
-// Note: 'manager' role is excluded because team leads often have this role but should only see their own team
 const ADMIN_ROLES = ['platform_admin', 'super_admin', 'admin_administration', 'admin_tech', 'admin'];
 
 export const useDemandComDailyTargets = (targetDate: string) => {
@@ -139,18 +138,15 @@ export const useDemandComDailyTargets = (targetDate: string) => {
       }
 
       // Step 4: Filter based on user role
-      // Admins always see all teams, even if they happen to be a TL
+      // Admins, leadership, and managers always see all teams
       let filteredTeamLeaderIds: string[];
 
-      if (isAdmin || isLeadership) {
+      if (isAdmin || isLeadership || isManager) {
         filteredTeamLeaderIds = allTeamLeaderIds;
-        console.log('Admin/Leadership mode: showing all TLs');
+        console.log('Admin/Leadership/Manager mode: showing all TLs');
       } else if (allTeamLeaderIds.includes(user.id)) {
         filteredTeamLeaderIds = [user.id];
         console.log('TL mode: showing only self');
-      } else if (isManager) {
-        filteredTeamLeaderIds = allTeamLeaderIds;
-        console.log('Manager mode: showing all TLs');
       } else {
         return { hierarchy: [], teamLeaderIds: [], isAdmin };
       }
