@@ -130,7 +130,7 @@
  
    return (
      <Dialog open={open} onOpenChange={onOpenChange}>
-       <DialogContent className="sm:max-w-[500px]">
+       <DialogContent className="sm:max-w-[700px]">
          <DialogHeader>
            <DialogTitle className="flex items-center gap-2">
              <MessageSquare className="h-5 w-5 text-green-500" />
@@ -201,7 +201,7 @@
              {selectedTemplate && (
                <div className="space-y-2">
                  <Label>Preview</Label>
-                 <div className="p-3 bg-muted rounded-lg text-sm whitespace-pre-wrap">
+                 <div className="p-3 bg-muted rounded-lg text-sm whitespace-pre-wrap break-words overflow-hidden">
                    {getPreviewContent()}
                  </div>
                </div>
