@@ -10,6 +10,75 @@ const corsHeaders = {
 const LOGO_URL = "https://redefine.in/assets/img/logo.png";
 const FROM_EMAIL = "RMPL OPM <approval@redefinemarcom.in>";
 
+function normalizePhone(phone: string): string {
+  let cleaned = phone.replace(/[^\d+]/g, "");
+  if (!cleaned.startsWith("+")) {
+    if (cleaned.length === 10) cleaned = "+91" + cleaned;
+    else if (cleaned.startsWith("91") && cleaned.length === 12) cleaned = "+" + cleaned;
+    else cleaned = "+" + cleaned;
+  }
+  return cleaned;
+}
+
+async function sendWhatsAppNotification(
+  supabase: any,
+  phoneNumber: string,
+  message: string
+) {
+  try {
+    if (!phoneNumber) return;
+
+    const { data: settings } = await supabase
+      .from("whatsapp_settings")
+      .select("*")
+      .eq("is_active", true)
+      .single();
+
+    if (!settings) {
+      console.log("WhatsApp not configured, skipping notification");
+      return;
+    }
+
+    const exotelSid = settings.exotel_sid;
+    const exotelApiKey = settings.exotel_api_key;
+    const exotelApiToken = settings.exotel_api_token;
+    const exotelSubdomain = settings.exotel_subdomain || "api.exotel.com";
+    const sourceNumber = settings.whatsapp_source_number;
+
+    if (!exotelSid || !exotelApiKey || !exotelApiToken || !sourceNumber) {
+      console.log("Exotel credentials incomplete, skipping WhatsApp");
+      return;
+    }
+
+    const phoneDigits = normalizePhone(phoneNumber).replace(/^\+/, "");
+    const url = `https://${exotelSubdomain}/v2/accounts/${exotelSid}/messages`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${btoa(`${exotelApiKey}:${exotelApiToken}`)}`,
+      },
+      body: JSON.stringify({
+        whatsapp: {
+          messages: [
+            {
+              from: sourceNumber,
+              to: phoneDigits,
+              content: { type: "text", text: { body: message } },
+            },
+          ],
+        },
+      }),
+    });
+
+    const responseText = await response.text();
+    console.log("WhatsApp notification response:", responseText);
+  } catch (err) {
+    console.error("WhatsApp notification failed (non-blocking):", err);
+  }
+}
+
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   casual_leave: "Casual Leave",
   earned_leave: "Earned Leave",
@@ -446,7 +515,7 @@ Deno.serve(async (req) => {
     // Get manager details
     const { data: manager, error: mgrError } = await supabase
       .from("profiles")
-      .select("id, full_name, email")
+      .select("id, full_name, email, phone")
       .eq("id", employee.reports_to)
       .single();
 
@@ -539,6 +608,25 @@ Deno.serve(async (req) => {
     console.log(
       `Approval email sent to ${manager.email} (${manager.full_name}). Resend ID: ${emailResponse.data?.id}`
     );
+
+    // Send WhatsApp notification to manager (non-blocking)
+    if (manager.phone) {
+      const empName = employee.full_name || "An employee";
+      let whatsappMsg = "";
+
+      if (request_type === "leave") {
+        const leaveLabel =
+          LEAVE_TYPE_LABELS[requestData.leave_type] || requestData.leave_type || "Leave";
+        whatsappMsg = `Hi ${manager.full_name || "Manager"}, ${empName} has submitted a *${leaveLabel}* request (${formatDate(requestData.start_date)} — ${formatDate(requestData.end_date)}, ${requestData.total_days} day(s)).\n\nPlease check your email or log in to RMPL OPM to approve/reject.\n\n— RMPL OPM`;
+      } else {
+        const typeLabel =
+          REGULARIZATION_TYPE_LABELS[requestData.regularization_type] ||
+          requestData.regularization_type || "Regularization";
+        whatsappMsg = `Hi ${manager.full_name || "Manager"}, ${empName} has submitted an attendance regularization request.\n\nType: ${typeLabel}\nDate: ${formatDate(requestData.attendance_date)}\nReason: ${requestData.reason || "Not specified"}\n\nPlease check your email or log in to RMPL OPM to approve/reject.\n\n— RMPL OPM`;
+      }
+
+      sendWhatsAppNotification(supabase, manager.phone, whatsappMsg);
+    }
 
     return new Response(
       JSON.stringify({

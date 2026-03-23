@@ -82,6 +82,7 @@ import DataExport from "./pages/DataExport";
 import TicketTracker from "./pages/TicketTracker";
 import TravelExpenseClaims from "./pages/TravelExpenseClaims";
 import TravelExpenseApprovals from "./pages/TravelExpenseApprovals";
+import ApprovalResult from "./pages/ApprovalResult";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -107,6 +108,7 @@ const App = () => (
             <Route path="/onboarding/:slug" element={<OnboardingPublicForm />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/ticket-status" element={<TicketTracker />} />
+            <Route path="/approval-result" element={<ApprovalResult />} />
             
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />

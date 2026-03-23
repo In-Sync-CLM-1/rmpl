@@ -3,6 +3,81 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const LOGO_URL = "https://redefine.in/assets/img/logo.png";
 const FROM_EMAIL = "RMPL OPM <approval@redefinemarcom.in>";
+const APP_URL = "https://green-sky-073df2c10.3.azurestaticapps.net";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function normalizePhone(phone: string): string {
+  let cleaned = phone.replace(/[^\d+]/g, "");
+  if (!cleaned.startsWith("+")) {
+    if (cleaned.length === 10) cleaned = "+91" + cleaned;
+    else if (cleaned.startsWith("91") && cleaned.length === 12) cleaned = "+" + cleaned;
+    else cleaned = "+" + cleaned;
+  }
+  return cleaned;
+}
+
+async function sendWhatsAppNotification(
+  supabase: any,
+  phoneNumber: string,
+  message: string
+) {
+  try {
+    if (!phoneNumber) return;
+
+    const { data: settings } = await supabase
+      .from("whatsapp_settings")
+      .select("*")
+      .eq("is_active", true)
+      .single();
+
+    if (!settings) {
+      console.log("WhatsApp not configured, skipping notification");
+      return;
+    }
+
+    const exotelSid = settings.exotel_sid;
+    const exotelApiKey = settings.exotel_api_key;
+    const exotelApiToken = settings.exotel_api_token;
+    const exotelSubdomain = settings.exotel_subdomain || "api.exotel.com";
+    const sourceNumber = settings.whatsapp_source_number;
+
+    if (!exotelSid || !exotelApiKey || !exotelApiToken || !sourceNumber) {
+      console.log("Exotel credentials incomplete, skipping WhatsApp");
+      return;
+    }
+
+    const phoneDigits = normalizePhone(phoneNumber).replace(/^\+/, "");
+    const url = `https://${exotelSubdomain}/v2/accounts/${exotelSid}/messages`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${btoa(`${exotelApiKey}:${exotelApiToken}`)}`,
+      },
+      body: JSON.stringify({
+        whatsapp: {
+          messages: [
+            {
+              from: sourceNumber,
+              to: phoneDigits,
+              content: { type: "text", text: { body: message } },
+            },
+          ],
+        },
+      }),
+    });
+
+    const responseText = await response.text();
+    console.log("WhatsApp notification response:", responseText);
+  } catch (err) {
+    console.error("WhatsApp notification failed (non-blocking):", err);
+  }
+}
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   casual_leave: "Casual Leave",
@@ -24,93 +99,18 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function buildHtmlPage(
-  title: string,
-  message: string,
-  isSuccess: boolean,
-  extraContent = ""
-): string {
-  const color = isSuccess ? "#198754" : "#dc3545";
-  const icon = isSuccess ? "&#10003;" : "&#10007;";
-  const bgColor = isSuccess ? "#d1e7dd" : "#f8d7da";
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} - RMPL OPM</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .card { background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); max-width: 500px; width: 100%; overflow: hidden; }
-    .header { background: linear-gradient(135deg, #1e3a5f 0%, #0d2137 100%); padding: 24px; text-align: center; }
-    .header img { height: 40px; width: auto; }
-    .body { padding: 40px 30px; text-align: center; }
-    .status-icon { width: 64px; height: 64px; border-radius: 50%; background: ${bgColor}; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 28px; }
-    .title { color: ${color}; font-size: 22px; font-weight: 700; margin-bottom: 12px; }
-    .message { color: #6c757d; font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
-    .footer { background: #f8f9fa; padding: 16px; text-align: center; border-top: 1px solid #e9ecef; }
-    .footer p { color: #adb5bd; font-size: 12px; }
-    textarea { width: 100%; padding: 12px; border: 1px solid #dee2e6; border-radius: 8px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 100px; margin-bottom: 16px; }
-    textarea:focus { outline: none; border-color: #dc3545; box-shadow: 0 0 0 3px rgba(220,53,69,0.15); }
-    .btn { display: inline-block; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; }
-    .btn-danger { background: #dc3545; color: #fff; }
-    .btn-danger:hover { background: #c82333; }
-    label { display: block; text-align: left; font-size: 14px; font-weight: 600; color: #495057; margin-bottom: 8px; }
-    .error-text { color: #dc3545; font-size: 13px; text-align: left; margin-bottom: 12px; display: none; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="header">
-      <img src="${LOGO_URL}" alt="RMPL" />
-    </div>
-    <div class="body">
-      <div class="status-icon">${icon}</div>
-      <h1 class="title">${title}</h1>
-      <p class="message">${message}</p>
-      ${extraContent}
-    </div>
-    <div class="footer">
-      <p><strong>RMPL OPM</strong> &mdash; Operations & Project Management</p>
-    </div>
-  </div>
-</body>
-</html>`;
+function redirect(path: string): Response {
+  return new Response(null, {
+    status: 302,
+    headers: { Location: `${APP_URL}${path}` },
+  });
 }
 
-function buildRejectForm(token: string): string {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const submitUrl = `${supabaseUrl}/functions/v1/handle-approval`;
-
-  return buildHtmlPage(
-    "Reject Request",
-    "Please provide a reason for rejection. This will be shared with the employee.",
-    false,
-    `<form method="POST" action="${submitUrl}" onsubmit="return validateForm()">
-        <input type="hidden" name="token" value="${token}" />
-        <input type="hidden" name="action" value="reject" />
-        <label for="reason">Reason for Rejection <span style="color: #dc3545;">*</span></label>
-        <textarea id="reason" name="reason" placeholder="Enter reason for rejection..." required></textarea>
-        <p class="error-text" id="error-msg">Please enter a reason for rejection.</p>
-        <div style="display: flex; justify-content: center; gap: 12px;">
-          <button type="submit" class="btn btn-danger">Confirm Rejection</button>
-        </div>
-      </form>
-      <script>
-        function validateForm() {
-          var reason = document.getElementById('reason').value.trim();
-          var errorMsg = document.getElementById('error-msg');
-          if (!reason) {
-            errorMsg.style.display = 'block';
-            return false;
-          }
-          errorMsg.style.display = 'none';
-          return true;
-        }
-      </script>`
-  );
+function jsonResponse(data: any, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 function buildResultEmailHtml(data: {
@@ -237,7 +237,193 @@ async function sendEmployeeNotification(
   }
 }
 
+async function processApproval(
+  supabase: any,
+  token: string,
+  action: string,
+  rejectionReason: string | null,
+  isPost: boolean
+): Promise<Response> {
+  // Look up the token
+  const { data: tokenRecord, error: tokenError } = await supabase
+    .from("approval_tokens")
+    .select("*")
+    .eq("token", token)
+    .single();
+
+  if (tokenError || !tokenRecord) {
+    return isPost
+      ? jsonResponse({ success: false, error: "Invalid or expired approval link." }, 400)
+      : redirect("/approval-result?error=invalid_link");
+  }
+
+  // Check if token is already used
+  if (tokenRecord.used_at) {
+    return isPost
+      ? jsonResponse({ success: false, error: "This request has already been processed." }, 400)
+      : redirect("/approval-result?error=already_processed");
+  }
+
+  // Check if token has expired
+  if (new Date(tokenRecord.expires_at) < new Date()) {
+    return isPost
+      ? jsonResponse({ success: false, error: "This approval link has expired." }, 400)
+      : redirect("/approval-result?error=expired");
+  }
+
+  // For reject action via GET, redirect to frontend rejection form
+  if (action === "reject" && !isPost) {
+    return redirect(`/approval-result?action=reject&token=${encodeURIComponent(token)}`);
+  }
+
+  // For POST reject without reason, return error
+  if (action === "reject" && isPost && !rejectionReason?.trim()) {
+    return jsonResponse({ success: false, error: "Please provide a reason for rejection." }, 400);
+  }
+
+  const effectiveAction = action || tokenRecord.action;
+
+  // Check current status of the request
+  const table =
+    tokenRecord.request_type === "leave"
+      ? "leave_applications"
+      : "attendance_regularizations";
+
+  const { data: currentRequest, error: fetchError } = await supabase
+    .from(table)
+    .select("status")
+    .eq("id", tokenRecord.request_id)
+    .single();
+
+  if (fetchError || !currentRequest) {
+    return isPost
+      ? jsonResponse({ success: false, error: "Request not found." }, 404)
+      : redirect("/approval-result?error=not_found");
+  }
+
+  if (currentRequest.status !== "pending") {
+    await supabase
+      .from("approval_tokens")
+      .update({ used_at: new Date().toISOString() })
+      .eq("request_type", tokenRecord.request_type)
+      .eq("request_id", tokenRecord.request_id);
+
+    return isPost
+      ? jsonResponse({ success: false, error: "This request has already been processed." }, 400)
+      : redirect("/approval-result?error=already_processed");
+  }
+
+  // Perform the approval/rejection
+  const updateData: any = {
+    approved_by: tokenRecord.approver_id,
+    approved_at: new Date().toISOString(),
+  };
+
+  if (effectiveAction === "approve") {
+    updateData.status = "approved";
+  } else {
+    updateData.status = "rejected";
+    updateData.rejection_reason = rejectionReason?.trim() || "Rejected via email";
+  }
+
+  const { error: updateError } = await supabase
+    .from(table)
+    .update(updateData)
+    .eq("id", tokenRecord.request_id)
+    .eq("status", "pending");
+
+  if (updateError) {
+    console.error("Failed to update request:", updateError);
+    return isPost
+      ? jsonResponse({ success: false, error: "Failed to process action." }, 500)
+      : redirect("/approval-result?error=failed");
+  }
+
+  // Mark ALL tokens for this request as used
+  await supabase
+    .from("approval_tokens")
+    .update({ used_at: new Date().toISOString() })
+    .eq("request_type", tokenRecord.request_type)
+    .eq("request_id", tokenRecord.request_id);
+
+  // Get employee name for confirmation
+  const { data: requestData } = await supabase
+    .from(table)
+    .select("user_id")
+    .eq("id", tokenRecord.request_id)
+    .single();
+
+  let employeeName = "the employee";
+  if (requestData?.user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", requestData.user_id)
+      .single();
+    if (profile?.full_name) employeeName = profile.full_name;
+  }
+
+  // Send employee notification email (async, don't block response)
+  sendEmployeeNotification(
+    supabase,
+    tokenRecord,
+    updateData.status,
+    rejectionReason?.trim()
+  );
+
+  // Send WhatsApp notification to employee (async, non-blocking)
+  (async () => {
+    try {
+      const { data: empProfile } = await supabase
+        .from("profiles")
+        .select("full_name, phone")
+        .eq("id", requestData?.user_id)
+        .single();
+
+      const { data: approverProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", tokenRecord.approver_id)
+        .single();
+
+      if (empProfile?.phone) {
+        const rtLabel =
+          tokenRecord.request_type === "leave" ? "leave application" : "attendance regularization";
+        const sLabel = effectiveAction === "approve" ? "approved" : "rejected";
+        let whatsappMsg = `Hi ${empProfile.full_name || "there"}, your ${rtLabel} has been *${sLabel}* by ${approverProfile?.full_name || "your manager"}.`;
+        if (effectiveAction !== "approve" && rejectionReason?.trim()) {
+          whatsappMsg += `\nReason: ${rejectionReason.trim()}`;
+        }
+        whatsappMsg += "\n\n— RMPL OPM";
+        await sendWhatsAppNotification(supabase, empProfile.phone, whatsappMsg);
+      }
+    } catch (err) {
+      console.error("WhatsApp to employee failed:", err);
+    }
+  })();
+
+  const statusStr = effectiveAction === "approve" ? "approved" : "rejected";
+
+  if (isPost) {
+    return jsonResponse({
+      success: true,
+      status: statusStr,
+      name: employeeName,
+      type: tokenRecord.request_type,
+    });
+  }
+
+  return redirect(
+    `/approval-result?status=${statusStr}&name=${encodeURIComponent(employeeName)}&type=${tokenRecord.request_type}`
+  );
+}
+
 Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -249,14 +435,14 @@ Deno.serve(async (req) => {
     let token: string | null = null;
     let action: string | null = null;
     let rejectionReason: string | null = null;
+    const isPost = req.method === "POST";
 
     if (req.method === "GET") {
       const url = new URL(req.url);
       token = url.searchParams.get("token");
       action = url.searchParams.get("action");
-    } else if (req.method === "POST") {
+    } else if (isPost) {
       const contentType = req.headers.get("content-type") || "";
-
       if (contentType.includes("application/x-www-form-urlencoded")) {
         const formData = await req.text();
         const params = new URLSearchParams(formData);
@@ -272,211 +458,16 @@ Deno.serve(async (req) => {
     }
 
     if (!token) {
-      return new Response(
-        buildHtmlPage(
-          "Invalid Link",
-          "This approval link is invalid or malformed. Please check your email or log in to RMPL OPM.",
-          false
-        ),
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      );
+      return isPost
+        ? jsonResponse({ success: false, error: "Token is required." }, 400)
+        : redirect("/approval-result?error=invalid_link");
     }
 
-    // Look up the token
-    const { data: tokenRecord, error: tokenError } = await supabase
-      .from("approval_tokens")
-      .select("*")
-      .eq("token", token)
-      .single();
-
-    if (tokenError || !tokenRecord) {
-      return new Response(
-        buildHtmlPage(
-          "Invalid Token",
-          "This approval link is invalid or has already been used. Please log in to RMPL OPM to take action.",
-          false
-        ),
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      );
-    }
-
-    // Check if token is already used
-    if (tokenRecord.used_at) {
-      return new Response(
-        buildHtmlPage(
-          "Already Processed",
-          "This request has already been processed. No further action is needed.",
-          false
-        ),
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      );
-    }
-
-    // Check if token has expired
-    if (new Date(tokenRecord.expires_at) < new Date()) {
-      return new Response(
-        buildHtmlPage(
-          "Link Expired",
-          "This approval link has expired (72-hour limit). Please log in to RMPL OPM to take action.",
-          false
-        ),
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      );
-    }
-
-    // For reject action via GET, show the rejection reason form
-    if (action === "reject" && req.method === "GET") {
-      return new Response(buildRejectForm(token), {
-        headers: { "Content-Type": "text/html" },
-      });
-    }
-
-    // Validate rejection reason for reject action
-    if (action === "reject" && !rejectionReason?.trim()) {
-      return new Response(buildRejectForm(token), {
-        headers: { "Content-Type": "text/html" },
-      });
-    }
-
-    const effectiveAction = action || tokenRecord.action;
-
-    // Check current status of the request
-    const table =
-      tokenRecord.request_type === "leave"
-        ? "leave_applications"
-        : "attendance_regularizations";
-
-    const { data: currentRequest, error: fetchError } = await supabase
-      .from(table)
-      .select("status")
-      .eq("id", tokenRecord.request_id)
-      .single();
-
-    if (fetchError || !currentRequest) {
-      return new Response(
-        buildHtmlPage(
-          "Request Not Found",
-          "The original request could not be found. It may have been deleted.",
-          false
-        ),
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      );
-    }
-
-    if (currentRequest.status !== "pending") {
-      await supabase
-        .from("approval_tokens")
-        .update({ used_at: new Date().toISOString() })
-        .eq("request_type", tokenRecord.request_type)
-        .eq("request_id", tokenRecord.request_id);
-
-      return new Response(
-        buildHtmlPage(
-          "Already Processed",
-          `This request has already been ${currentRequest.status}. No further action is needed.`,
-          false
-        ),
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      );
-    }
-
-    // Perform the approval/rejection
-    const updateData: any = {
-      approved_by: tokenRecord.approver_id,
-      approved_at: new Date().toISOString(),
-    };
-
-    if (effectiveAction === "approve") {
-      updateData.status = "approved";
-    } else {
-      updateData.status = "rejected";
-      updateData.rejection_reason =
-        rejectionReason?.trim() || "Rejected via email";
-    }
-
-    const { error: updateError } = await supabase
-      .from(table)
-      .update(updateData)
-      .eq("id", tokenRecord.request_id)
-      .eq("status", "pending");
-
-    if (updateError) {
-      console.error("Failed to update request:", updateError);
-      return new Response(
-        buildHtmlPage(
-          "Action Failed",
-          "Something went wrong while processing your action. Please try again or log in to RMPL OPM.",
-          false
-        ),
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      );
-    }
-
-    // Mark ALL tokens for this request as used
-    await supabase
-      .from("approval_tokens")
-      .update({ used_at: new Date().toISOString() })
-      .eq("request_type", tokenRecord.request_type)
-      .eq("request_id", tokenRecord.request_id);
-
-    // Get employee name for confirmation
-    const { data: requestData } = await supabase
-      .from(table)
-      .select("user_id")
-      .eq("id", tokenRecord.request_id)
-      .single();
-
-    let employeeName = "the employee";
-    if (requestData?.user_id) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", requestData.user_id)
-        .single();
-      if (profile?.full_name) employeeName = profile.full_name;
-    }
-
-    // Send employee notification email (async, don't block response)
-    sendEmployeeNotification(
-      supabase,
-      tokenRecord,
-      updateData.status,
-      rejectionReason?.trim()
-    );
-
-    const requestTypeLabel =
-      tokenRecord.request_type === "leave"
-        ? "leave application"
-        : "attendance regularization";
-
-    if (effectiveAction === "approve") {
-      return new Response(
-        buildHtmlPage(
-          "Request Approved",
-          `You have successfully approved the ${requestTypeLabel} for <strong>${employeeName}</strong>. They will be notified via email.`,
-          true
-        ),
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      );
-    } else {
-      return new Response(
-        buildHtmlPage(
-          "Request Rejected",
-          `You have rejected the ${requestTypeLabel} for <strong>${employeeName}</strong>. They will be notified via email with the reason provided.`,
-          false
-        ),
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      );
-    }
+    return await processApproval(supabase, token, action || "", rejectionReason, isPost);
   } catch (error: any) {
     console.error("Error in handle-approval:", error);
-    return new Response(
-      buildHtmlPage(
-        "Error",
-        "An unexpected error occurred. Please try again or log in to RMPL OPM.",
-        false
-      ),
-      { headers: { "Content-Type": "text/html; charset=utf-8" } }
-    );
+    return req.method === "POST"
+      ? jsonResponse({ success: false, error: "An unexpected error occurred." }, 500)
+      : redirect("/approval-result?error=failed");
   }
 });
