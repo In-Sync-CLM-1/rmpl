@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer, View } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay, startOfDay, endOfDay, setHours } from "date-fns";
+import { format, parse, startOfWeek, getDay, startOfDay, endOfDay, setHours, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Trash2, Edit, ArrowLeft, CalendarPlus, Activity, PartyPopper } from "lucide-react";
@@ -65,21 +65,39 @@ export default function Calendar() {
   const currentYear = date.getFullYear();
   const { holidays, applicableHolidays, userLocation } = useCompanyHolidays(currentYear);
 
+  // Build a date range for filtering projects (current month +/- 1 month for navigation)
+  const rangeStart = format(subMonths(startOfMonth(date), 1), "yyyy-MM-dd");
+  const rangeEnd = format(addMonths(endOfMonth(date), 1), "yyyy-MM-dd");
+
   // Fetch projects with event dates
   const { data: projects = [] } = useQuery({
-    queryKey: ["projects-for-calendar"],
+    queryKey: ["projects-for-calendar", rangeStart, rangeEnd],
     queryFn: async () => {
+      // Fetch all projects with event_dates set, then filter client-side by date range
+      // We use a text containment check for the year-month to pre-filter on the server
       const { data, error } = await supabase
         .from("projects")
         .select("id, project_name, project_number, event_dates, status")
-        .not("event_dates", "is", null);
-      
-      if (error) throw error;
-      return (data || []).map(p => ({
-        ...p,
-        event_dates: p.event_dates as unknown as ProjectEventDate[] | null,
-      })) as Project[];
+        .not("event_dates", "is", null)
+        .neq("event_dates", "[]");
+
+      if (error) {
+        console.error("Error fetching projects for calendar:", error);
+        throw error;
+      }
+
+      // Filter projects that have at least one event_date within the visible range
+      return (data || [])
+        .map(p => ({
+          ...p,
+          event_dates: p.event_dates as unknown as ProjectEventDate[] | null,
+        }))
+        .filter(p =>
+          p.event_dates && Array.isArray(p.event_dates) && p.event_dates.length > 0 &&
+          p.event_dates.some(ed => ed.date >= rangeStart && ed.date <= rangeEnd)
+        ) as Project[];
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   const calendarEvents = useMemo(() => {
