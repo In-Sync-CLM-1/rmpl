@@ -54,11 +54,17 @@ serve(async (req) => {
     const systemPrompt = `You are an invoice parsing AI. Analyze the provided invoice PDF and extract the following information:
 
 1. **Client Name**: The name of the client/customer being billed (not the company issuing the invoice)
-2. **Invoice Amount**: The total invoice amount including taxes (in INR/Rupees if possible)
+2. **Invoice Amount**: The grand total / final invoice amount including taxes, as a plain number in INR (Rupees).
+   CRITICAL: Indian invoices use the Indian numbering system where commas are placed as: XX,XX,XXX (lakhs, thousands, hundreds).
+   For example: "47,36,811.00" means 47 lakhs 36 thousand 811 = 4736811 (NOT 47360811).
+   "1,91,632.00" means 1 lakh 91 thousand 632 = 191632.
+   "25,00,000.00" means 25 lakhs = 2500000.
+   Always return the amount as a plain integer/decimal number with NO commas. Double-check your conversion.
 3. **Invoice Date**: The date the invoice was issued
 
 Return the extracted data using the provided function. If a field cannot be determined, return null for that field.
-Be careful to distinguish between the billing company (issuer) and the client (recipient).`;
+Be careful to distinguish between the billing company (issuer) and the client (recipient).
+Also return the raw_amount_text field — the exact amount string as printed on the invoice (e.g. "47,36,811.00") for verification.`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -79,8 +85,9 @@ Be careful to distinguish between the billing company (issuer) and the client (r
               type: "object",
               properties: {
                 client_name: { type: "string", description: "Name of the client/customer being billed" },
-                invoice_amount: { type: "number", description: "Total invoice amount including taxes" },
+                invoice_amount: { type: "number", description: "Total/grand total invoice amount as a plain number in INR. Convert Indian format (e.g. 47,36,811 = 4736811) correctly." },
                 invoice_date: { type: "string", description: "Invoice date in YYYY-MM-DD format" },
+                raw_amount_text: { type: "string", description: "The exact amount string as printed on the invoice, e.g. '47,36,811.00'" },
               },
               required: ["client_name", "invoice_amount", "invoice_date"],
             },
@@ -148,6 +155,7 @@ Be careful to distinguish between the billing company (issuer) and the client (r
           client_name: extractedData.client_name || null,
           invoice_amount: extractedData.invoice_amount || null,
           invoice_date: extractedData.invoice_date || null,
+          raw_amount_text: extractedData.raw_amount_text || null,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

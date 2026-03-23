@@ -25,6 +25,7 @@ interface ParsedData {
   client_name: string;
   invoice_amount: string;
   invoice_date: string;
+  raw_amount_text: string;
 }
 
 function getPaymentAging(invoiceDate: string | null): { label: string; color: string; days: number } | null {
@@ -64,6 +65,7 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
     client_name: "",
     invoice_amount: "",
     invoice_date: "",
+    raw_amount_text: "",
   });
   const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -159,7 +161,7 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
   const resetForm = () => {
     setUploadingFile(null);
     setParseState("idle");
-    setParsedData({ client_name: "", invoice_amount: "", invoice_date: "" });
+    setParsedData({ client_name: "", invoice_amount: "", invoice_date: "", raw_amount_text: "" });
   };
 
   // Download invoice
@@ -264,6 +266,7 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
         client_name: result.client_name || "",
         invoice_amount: result.invoice_amount?.toString() || "",
         invoice_date: result.invoice_date || "",
+        raw_amount_text: result.raw_amount_text || "",
       });
       setParseState("parsed");
     } else {
@@ -402,6 +405,16 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
                     value={parsedData.invoice_amount}
                     onChange={(e) => setParsedData(prev => ({ ...prev, invoice_amount: e.target.value }))}
                   />
+                  {parsedData.invoice_amount && (
+                    <p className="text-xs font-medium text-primary">
+                      = ₹{Number(parsedData.invoice_amount).toLocaleString('en-IN')} ({(Number(parsedData.invoice_amount) / 100000).toFixed(2)} Lacs)
+                    </p>
+                  )}
+                  {parsedData.raw_amount_text && (
+                    <p className="text-xs text-muted-foreground">
+                      Invoice shows: <span className="font-mono font-medium">{parsedData.raw_amount_text}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="invoice-date">Invoice Date</Label>

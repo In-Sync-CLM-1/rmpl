@@ -5,6 +5,7 @@ interface ParsedInvoiceData {
   client_name: string | null;
   invoice_amount: number | null;
   invoice_date: string | null;
+  raw_amount_text: string | null;
 }
 
 interface UseParseInvoiceResult {
