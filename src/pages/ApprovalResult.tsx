@@ -20,7 +20,7 @@ function Header() {
   return (
     <CardHeader className="p-0">
       <div className="bg-gradient-to-r from-[#1e3a5f] to-[#0d2137] py-8 px-8 text-center rounded-t-lg">
-        <img src={LOGO_URL} alt="RMPL" className="h-12 mx-auto" />
+        <img src={LOGO_URL} alt="RMPL" className="h-12 mx-auto brightness-0 invert" />
       </div>
     </CardHeader>
   );
@@ -28,11 +28,7 @@ function Header() {
 
 function Footer() {
   return (
-    <CardFooter className="bg-gray-50 border-t py-4 flex justify-center rounded-b-lg">
-      <p className="text-xs text-muted-foreground">
-        <strong>RMPL OPM</strong> &mdash; Operations &amp; Project Management
-      </p>
-    </CardFooter>
+    <CardFooter className="bg-gray-50 border-t py-4 flex justify-center rounded-b-lg" />
   );
 }
 
