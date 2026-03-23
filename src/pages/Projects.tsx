@@ -81,8 +81,17 @@ export default function Projects() {
         );
 
       // Apply search filter - search in project_name, project_number, and client_id
+      // Split search into words so each word is matched independently (handles word order differences)
       if (searchQuery) {
-        query = query.or(`project_name.ilike.%${searchQuery}%,project_number.ilike.%${searchQuery}%,client_id.ilike.%${searchQuery}%`);
+        const words = searchQuery.trim().split(/\s+/).filter(Boolean);
+        if (words.length === 1) {
+          query = query.or(`project_name.ilike.%${words[0]}%,project_number.ilike.%${words[0]}%,client_id.ilike.%${words[0]}%`);
+        } else {
+          // Each word must appear in the project name (AND logic across words)
+          for (const word of words) {
+            query = query.ilike('project_name', `%${word}%`);
+          }
+        }
       }
 
       // Apply status filter
