@@ -851,6 +851,7 @@ export type Database = {
         Row: {
           anniversary_date: string | null
           birthday_date: string | null
+          branch: string | null
           company_linkedin_page: string | null
           company_name: string
           contact_name: string
@@ -860,6 +861,7 @@ export type Database = {
           email_id: string | null
           id: string
           linkedin_id: string | null
+          managed_by: string | null
           official_address: string | null
           residence_address: string | null
           updated_at: string
@@ -867,6 +869,7 @@ export type Database = {
         Insert: {
           anniversary_date?: string | null
           birthday_date?: string | null
+          branch?: string | null
           company_linkedin_page?: string | null
           company_name: string
           contact_name: string
@@ -876,6 +879,7 @@ export type Database = {
           email_id?: string | null
           id?: string
           linkedin_id?: string | null
+          managed_by?: string | null
           official_address?: string | null
           residence_address?: string | null
           updated_at?: string
@@ -883,6 +887,7 @@ export type Database = {
         Update: {
           anniversary_date?: string | null
           birthday_date?: string | null
+          branch?: string | null
           company_linkedin_page?: string | null
           company_name?: string
           contact_name?: string
@@ -892,6 +897,7 @@ export type Database = {
           email_id?: string | null
           id?: string
           linkedin_id?: string | null
+          managed_by?: string | null
           official_address?: string | null
           residence_address?: string | null
           updated_at?: string

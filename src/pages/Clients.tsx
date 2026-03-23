@@ -44,6 +44,9 @@ interface Client {
   anniversary_date: string | null;
   company_linkedin_page: string | null;
   linkedin_id: string | null;
+  branch: string | null;
+  managed_by: string | null;
+  managed_by_name?: string | null;
   created_at: string;
 }
 
@@ -73,7 +76,7 @@ const Clients = () => {
     queryFn: async (from, to) => {
       let query = supabase
         .from("clients")
-        .select("*", { count: "exact" });
+        .select("*, managed_by_profile:managed_by(full_name)", { count: "exact" });
 
       if (searchQuery.trim()) {
         const term = `%${searchQuery.trim()}%`;
@@ -86,7 +89,13 @@ const Clients = () => {
         .order("created_at", { ascending: false })
         .range(from, to);
 
-      return { data, count, error };
+      // Map managed_by profile name into a flat field
+      const mapped = data?.map((c: any) => ({
+        ...c,
+        managed_by_name: c.managed_by_profile?.full_name || null,
+      })) || null;
+
+      return { data: mapped, count, error };
     },
   });
 
@@ -293,9 +302,10 @@ const Clients = () => {
                 )}
                 <TableHead>Contact Name</TableHead>
                 <TableHead>Company Name</TableHead>
+                <TableHead>Branch</TableHead>
                 <TableHead>Contact Number</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>LinkedIn ID</TableHead>
+                <TableHead>Managed By</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -319,9 +329,10 @@ const Clients = () => {
                   )}
                   <TableCell className="font-medium">{client.contact_name}</TableCell>
                   <TableCell>{client.company_name}</TableCell>
+                  <TableCell>{client.branch || "-"}</TableCell>
                   <TableCell>{client.contact_number || "-"}</TableCell>
                   <TableCell>{client.email_id || "-"}</TableCell>
-                  <TableCell>{client.linkedin_id || "-"}</TableCell>
+                  <TableCell>{client.managed_by_name || "-"}</TableCell>
                   <TableCell>
                     {new Date(client.created_at).toLocaleDateString()}
                   </TableCell>

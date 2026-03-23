@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
 
 interface ClientFormData {
   company_name: string;
   contact_name: string;
+  branch: string;
   official_address: string;
   residence_address: string;
   contact_number: string;
@@ -23,14 +25,36 @@ interface ClientFormData {
   linkedin_id: string;
 }
 
+interface CSBDMember {
+  id: string;
+  full_name: string;
+}
+
 const ClientForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEditMode = !!id;
+  const [managedBy, setManagedBy] = useState<string>("");
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ClientFormData>();
+
+  // Fetch CSBD team members for the Managed By dropdown
+  const { data: csbdMembers = [] } = useQuery({
+    queryKey: ["csbd-members"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, profiles:user_id(id, full_name)")
+        .eq("role", "csbd");
+      if (error) throw error;
+      return (data || [])
+        .map((r: any) => ({ id: r.profiles?.id, full_name: r.profiles?.full_name }))
+        .filter((m: any) => m.id && m.full_name)
+        .sort((a: CSBDMember, b: CSBDMember) => a.full_name.localeCompare(b.full_name)) as CSBDMember[];
+    },
+  });
 
   const { data: client } = useQuery({
     queryKey: ["client", id],
@@ -52,6 +76,7 @@ const ClientForm = () => {
       reset({
         company_name: client.company_name,
         contact_name: client.contact_name,
+        branch: client.branch || "",
         official_address: client.official_address || "",
         residence_address: client.residence_address || "",
         contact_number: client.contact_number || "",
@@ -61,6 +86,7 @@ const ClientForm = () => {
         company_linkedin_page: client.company_linkedin_page || "",
         linkedin_id: client.linkedin_id || "",
       });
+      setManagedBy(client.managed_by || "");
     }
   }, [client, reset]);
 
@@ -69,7 +95,7 @@ const ClientForm = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Validate email format if provided
+      // Validate email format
       if (data.email_id && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email_id)) {
         throw new Error("Invalid email format");
       }
@@ -84,6 +110,8 @@ const ClientForm = () => {
         ...data,
         birthday_date: data.birthday_date || null,
         anniversary_date: data.anniversary_date || null,
+        branch: data.branch || null,
+        managed_by: managedBy || null,
       };
 
       if (isEditMode) {
@@ -156,20 +184,48 @@ const ClientForm = () => {
               </div>
 
               <div>
-                <Label htmlFor="contact_number">Contact Number</Label>
+                <Label htmlFor="branch">Branch</Label>
                 <Input
-                  id="contact_number"
-                  {...register("contact_number")}
-                  placeholder="Enter phone number"
+                  id="branch"
+                  {...register("branch")}
+                  placeholder="Enter branch"
                 />
               </div>
 
               <div>
-                <Label htmlFor="email_id">Email ID</Label>
+                <Label htmlFor="managed_by">Managed By (CSBD)</Label>
+                <Select value={managedBy} onValueChange={setManagedBy}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select CSBD member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {csbdMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="contact_number">Contact Number *</Label>
+                <Input
+                  id="contact_number"
+                  {...register("contact_number", { required: "Contact number is required" })}
+                  placeholder="Enter phone number"
+                />
+                {errors.contact_number && (
+                  <p className="text-sm text-destructive mt-1">{errors.contact_number.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="email_id">Email ID *</Label>
                 <Input
                   id="email_id"
                   type="email"
-                  {...register("email_id")}
+                  {...register("email_id", { required: "Email ID is required" })}
                   placeholder="email@example.com"
                 />
                 {errors.email_id && (
