@@ -41,7 +41,7 @@ export interface Permissions {
   canManageDispositions: boolean;
 }
 
-export const getRolePermissions = (roles: string[], userId?: string, hasSubordinates?: boolean, teamNames?: string[]): Permissions => {
+export const getRolePermissions = (roles: string[], userId?: string, hasSubordinates?: boolean, teamNames?: string[], userEmail?: string): Permissions => {
   const hasRole = (role: string) => roles.includes(role);
   const isHRManager = hasRole('hr_manager');
   const isAdmin = hasRole('platform_admin') || hasRole('super_admin') || hasRole('admin_administration') || hasRole('admin_tech') || hasRole('admin');
@@ -65,7 +65,13 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     '70f7619f-1984-4583-9f2f-53cfec733eb5', // a@in-sync.co.in
   ];
   const isAuthorizedAttendanceUser = userId ? AUTHORIZED_ATTENDANCE_USERS.includes(userId) : false;
-  
+
+  // CSBD Projections: additional authorized users by email
+  const AUTHORIZED_PROJECTION_USERS = [
+    'geeta.punjabi@redefine.in',
+  ];
+  const isAuthorizedProjectionUser = userEmail ? AUTHORIZED_PROJECTION_USERS.includes(userEmail) : false;
+
   return {
     canViewUsers: isAdmin,
     canEditUsers: isAdmin,
@@ -91,7 +97,7 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     canApproveLeaves: isHRAdmin || hasRole('platform_admin') || hasSubordinates === true,
     canViewAttendanceReports: isAuthorizedAttendanceUser || hasSubordinates === true,
     canViewCSBDDashboard: isCSBD || isLeadership || isAdmin,
-    canViewCSBDProjections: isCSBD || isLeadership || isAdmin,
+    canViewCSBDProjections: isCSBD || isLeadership || isAdmin || isAuthorizedProjectionUser,
     canEditOwnCSBDProjections: isCSBD,
     // HR Admin permissions
     canManageHRDocuments: isHRAdmin || hasRole('platform_admin'),

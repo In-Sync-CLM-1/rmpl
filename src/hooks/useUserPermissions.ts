@@ -11,6 +11,7 @@ export const useUserPermissions = (): {
   const [userId, setUserId] = useState<string | undefined>();
   const [hasSubordinates, setHasSubordinates] = useState(false);
   const [userTeamNames, setUserTeamNames] = useState<string[]>([]);
+  const [userEmail, setUserEmail] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export const useUserPermissions = (): {
 
       if (session?.user?.id) {
         setUserId(session.user.id);
+        setUserEmail(session.user.email);
 
         // Fetch roles, subordinates, and team memberships in parallel
         const [rolesResult, subordinatesResult, teamsResult] = await Promise.all([
@@ -49,7 +51,7 @@ export const useUserPermissions = (): {
     fetchRolesAndUser();
   }, []);
 
-  const permissions = getRolePermissions(userRoles, userId, hasSubordinates, userTeamNames);
+  const permissions = getRolePermissions(userRoles, userId, hasSubordinates, userTeamNames, userEmail);
 
   return { permissions, userRoles, isLoading };
 };
