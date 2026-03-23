@@ -38,7 +38,7 @@ export default function Projects() {
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("quarter");
+  const [dateFilter, setDateFilter] = useState<string>("year");
   const [userFilter, setUserFilter] = useState<string>("all");
   const [showBulkImport, setShowBulkImport] = useState(false);
 
