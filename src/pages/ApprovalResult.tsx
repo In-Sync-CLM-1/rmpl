@@ -19,8 +19,8 @@ const ERROR_MESSAGES: Record<string, { title: string; message: string }> = {
 function Header() {
   return (
     <CardHeader className="p-0">
-      <div className="bg-gradient-to-r from-[#1e3a5f] to-[#0d2137] py-6 px-8 text-center rounded-t-lg">
-        <img src={LOGO_URL} alt="RMPL" className="h-10 mx-auto" />
+      <div className="bg-gradient-to-r from-[#1e3a5f] to-[#0d2137] py-8 px-8 text-center rounded-t-lg">
+        <img src={LOGO_URL} alt="RMPL" className="h-12 mx-auto" />
       </div>
     </CardHeader>
   );
