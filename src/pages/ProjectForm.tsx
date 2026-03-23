@@ -348,6 +348,8 @@ export default function ProjectForm() {
       // STEP 2: Invalidate queries to refresh data
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
       await queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      await queryClient.invalidateQueries({ queryKey: ["csbd-metrics"] });
+      await queryClient.invalidateQueries({ queryKey: ["all-csbd-metrics"] });
       console.log("🔄 Queries invalidated");
       
       // STEP 3: Show ONE clear toast message
