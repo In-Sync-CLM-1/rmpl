@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pencil, Trash2, Plus, FolderKanban, Search, X, Upload } from "lucide-react";
+import { Pencil, Trash2, Plus, FolderKanban, Search, X, Upload, Download } from "lucide-react";
 import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
 import { useCrudMutation } from "@/hooks/useCrudMutation";
 import { DataTable, DataTableColumn } from "@/components/data-table/DataTable";
@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useQuery } from "@tanstack/react-query";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
+import { ProjectExportDialog } from "@/components/ProjectExportDialog";
 
 interface Project {
   id: string;
@@ -41,6 +42,7 @@ export default function Projects() {
   const [dateFilter, setDateFilter] = useState<string>("year");
   const [userFilter, setUserFilter] = useState<string>("all");
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   // Fetch all users for filter dropdown
   const { data: allUsers } = useQuery({
@@ -304,6 +306,12 @@ export default function Projects() {
             </p>
           </div>
           <div className="flex gap-2">
+            {permissions.canExportProjects && (
+              <Button variant="outline" onClick={() => setShowExport(true)}>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setShowBulkImport(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Bulk Import
@@ -453,6 +461,15 @@ export default function Projects() {
         itemName={projectToDelete?.project_name}
         isLoading={isDeleting}
       />
+
+      {permissions.canExportProjects && (
+        <ProjectExportDialog
+          open={showExport}
+          onOpenChange={setShowExport}
+          filters={{ searchQuery, statusFilter, dateFilter, userFilter }}
+          totalCount={totalCount}
+        />
+      )}
 
       <BulkImportDialog
         open={showBulkImport}

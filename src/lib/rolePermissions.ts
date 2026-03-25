@@ -39,6 +39,7 @@ export interface Permissions {
   canViewInventory: boolean;
   canViewCampaigns: boolean;
   canManageDispositions: boolean;
+  canExportProjects: boolean;
 }
 
 export const getRolePermissions = (roles: string[], userId?: string, hasSubordinates?: boolean, teamNames?: string[], userEmail?: string): Permissions => {
@@ -71,6 +72,12 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     'geeta.punjabi@redefine.in',
   ];
   const isAuthorizedProjectionUser = userEmail ? AUTHORIZED_PROJECTION_USERS.includes(userEmail) : false;
+
+  // Project export: authorized users by email
+  const AUTHORIZED_PROJECT_EXPORT_USERS = [
+    'amina@in-sync.co.in',
+  ];
+  const isAuthorizedProjectExportUser = userEmail ? AUTHORIZED_PROJECT_EXPORT_USERS.includes(userEmail) : false;
 
   return {
     canViewUsers: isAdmin,
@@ -113,6 +120,7 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     canViewInventory: true,
     canViewCampaigns: true,
     canManageDispositions: isAdmin,
+    canExportProjects: isAdmin || isAuthorizedProjectExportUser,
   };
 };
 
