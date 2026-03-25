@@ -122,7 +122,7 @@ export function ProjectExportDialog({
     let query = supabase
       .from("projects")
       .select(
-        `${EXPORT_COLUMNS.join(",")},project_owner,created_by,locations,event_dates,project_team_members(profiles:user_id(full_name),role_in_project)`,
+        `${EXPORT_COLUMNS.join(",")},project_owner,created_by,locations,event_dates,project_team_members(user_id,role_in_project)`,
         { count: "exact" }
       );
 
@@ -255,7 +255,7 @@ export function ProjectExportDialog({
               return escapeCSV(
                 members
                   .map((m: any) => {
-                    const name = m.profiles?.full_name || "Unknown";
+                    const name = userMap[m.user_id] || "Unknown";
                     const role = m.role_in_project || "";
                     return role ? `${name} (${role})` : name;
                   })
