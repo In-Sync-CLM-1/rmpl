@@ -122,7 +122,7 @@ export function ProjectExportDialog({
     let query = supabase
       .from("projects")
       .select(
-        `${EXPORT_COLUMNS.join(",")},project_owner,created_by,locations,event_dates,project_team_members(user_id,role_in_project)`,
+        `id,${EXPORT_COLUMNS.join(",")},project_owner,created_by,locations,event_dates`,
         { count: "exact" }
       );
 
@@ -224,6 +224,25 @@ export function ProjectExportDialog({
         }
       }
 
+      // Fetch team members separately (no FK to profiles in schema)
+      const projectIds = allData.map((p: any) => p.id || p.project_number).filter(Boolean);
+      const teamMembersMap: Record<string, any[]> = {};
+      if (projectIds.length > 0) {
+        // Fetch in batches of 500 to avoid query size limits
+        for (let i = 0; i < allData.length; i += 500) {
+          const batchIds = allData.slice(i, i + 500).map((p: any) => p.id).filter(Boolean);
+          if (batchIds.length === 0) continue;
+          const { data: tmData } = await supabase
+            .from("project_team_members")
+            .select("project_id, user_id, role_in_project")
+            .in("project_id", batchIds);
+          (tmData || []).forEach((m: any) => {
+            if (!teamMembersMap[m.project_id]) teamMembersMap[m.project_id] = [];
+            teamMembersMap[m.project_id].push(m);
+          });
+        }
+      }
+
       // Build CSV
       const allHeaders = [
         ...EXPORT_COLUMNS,
@@ -251,7 +270,7 @@ export function ProjectExportDialog({
               return escapeCSV(formatEventDates(row.event_dates));
             }
             if (col === "team_members") {
-              const members = row.project_team_members || [];
+              const members = teamMembersMap[row.id] || [];
               return escapeCSV(
                 members
                   .map((m: any) => {
