@@ -120,7 +120,7 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     canViewInventory: true,
     canViewCampaigns: true,
     canManageDispositions: isAdmin,
-    canExportProjects: isAdmin || isAuthorizedProjectExportUser,
+    canExportProjects: isAuthorizedProjectExportUser,
   };
 };
 
