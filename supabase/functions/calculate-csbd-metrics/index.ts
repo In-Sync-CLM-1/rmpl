@@ -201,22 +201,29 @@ async function calculateUserMetrics(
     
     let actualAmount = 0;
 
-    // Step 1: Gather "team actuals" = own actuals + subordinate actuals (raw)
-    const teamActuals = actuals?.filter((a: any) => {
+    // Step 1: Separate own actuals from subordinate actuals
+    const ownActuals = actuals?.filter((a: any) => {
       const actualMonth = new Date(a.month).toISOString().split('T')[0];
-      return actualMonth === monthStr && teamMemberSet.has(a.user_id);
+      return actualMonth === monthStr && a.user_id === userId;
     }) || [];
-    let teamTotal = teamActuals.reduce((sum: number, a: any) => sum + (a.actual_amount_inr_lacs || 0), 0);
+    const subordinateActuals = actuals?.filter((a: any) => {
+      const actualMonth = new Date(a.month).toISOString().split('T')[0];
+      return actualMonth === monthStr && a.user_id !== userId && teamMemberSet.has(a.user_id);
+    }) || [];
 
-    // Step 2: Apply self-percentage if this user has creator rules
+    let ownTotal = ownActuals.reduce((sum: number, a: any) => sum + (a.actual_amount_inr_lacs || 0), 0);
+    const subordinateTotal = subordinateActuals.reduce((sum: number, a: any) => sum + (a.actual_amount_inr_lacs || 0), 0);
+
+    // Step 2: Apply self-percentage only to OWN actuals if this user has creator rules
+    // Credit sharing should not reduce subordinates' contributions
     if (userHasCreatorRules) {
       const selfRule = userAsCreatorRules.find(r => r.credit_to_user_id === userId);
-      const selfPercentage = selfRule ? selfRule.percentage : 
+      const selfPercentage = selfRule ? selfRule.percentage :
         (100 - userAsCreatorRules.reduce((s, r) => s + r.percentage, 0));
-      teamTotal = teamTotal * (selfPercentage / 100);
+      ownTotal = ownTotal * (selfPercentage / 100);
     }
-    
-    actualAmount = teamTotal;
+
+    actualAmount = ownTotal + subordinateTotal;
 
     // Step 3: Add credit from EXTERNAL creators (not in this user's team)
     for (const rule of creditRulesForUser) {

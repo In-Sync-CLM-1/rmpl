@@ -218,6 +218,8 @@ export default function Projects() {
       po_received: "default",
       execution: "default",
       invoiced: "outline",
+      closed: "outline",
+      lost: "destructive",
     };
     const labels: Record<string, string> = {
       pitched: "Pitched",
@@ -226,6 +228,8 @@ export default function Projects() {
       po_received: "PO Received",
       execution: "Execution",
       invoiced: "Invoiced",
+      closed: "Closed",
+      lost: "Lost",
     };
     return <Badge variant={variants[status] || "outline"}>{labels[status] || status}</Badge>;
   };
@@ -350,6 +354,8 @@ export default function Projects() {
                 <SelectItem value="po_received">PO Received</SelectItem>
                 <SelectItem value="execution">Execution</SelectItem>
                 <SelectItem value="invoiced">Invoiced</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+                <SelectItem value="lost">Lost</SelectItem>
               </SelectContent>
             </Select>
 
