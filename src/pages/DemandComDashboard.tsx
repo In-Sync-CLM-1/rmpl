@@ -40,14 +40,14 @@ export default function DemandComDashboard() {
   }, [teamFilter, teamFilterData]);
 
   // Use selected date range for the dashboard
-  const { data: metrics, isLoading } = useDemandComDashboard({
+  const { data: metrics, isLoading: isMetricsLoading } = useDemandComDashboard({
     startDate,
     endDate,
     agentFilter: agentFilter === "all" ? undefined : agentFilter,
     teamMemberIds,
   });
   // Use agent calling report to derive Connected Calls (ensures KPI matches Agent Performance total)
-  const { data: agentReportData } = useAgentCallingReport({
+  const { data: agentReportData, isLoading: isAgentReportLoading } = useAgentCallingReport({
     startDate,
     endDate,
     teamMemberIds,
@@ -134,6 +134,8 @@ export default function DemandComDashboard() {
     }
     return `${format(startDate, "MMM d")} - ${format(endDate, "MMM d")}`;
   };
+
+  const isLoading = isMetricsLoading || isAgentReportLoading;
 
   if (isLoading) {
     return (
