@@ -117,9 +117,6 @@ verify_jwt = true
 [functions.deployment-webhook]
 verify_jwt = false
 
-[functions.generate-csbd-insights]
-verify_jwt = true
-
 [functions.generate-demandcom-insights]
 verify_jwt = false
 

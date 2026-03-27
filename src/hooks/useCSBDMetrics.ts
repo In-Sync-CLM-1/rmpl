@@ -24,29 +24,6 @@ export interface CSBDMetrics {
   team_metrics?: CSBDMetrics[];
 }
 
-export const useCSBDMetrics = (userId?: string, fiscalYear = 2025, includeTeam = false) => {
-  return useQuery({
-    queryKey: ['csbd-metrics', userId, fiscalYear, includeTeam],
-    queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
-      const { data, error } = await supabase.functions.invoke('calculate-csbd-metrics', {
-        body: {
-          user_id: userId,
-          fiscal_year: fiscalYear,
-          include_team: includeTeam,
-        },
-      });
-
-      if (error) throw error;
-      return data as CSBDMetrics;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 5 * 60 * 1000,
-  });
-};
-
 export interface CSBDProjectCredit {
   project_number: string;
   client_name: string;

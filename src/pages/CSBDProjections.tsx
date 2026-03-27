@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Target, TrendingUp, TrendingDown, Download, ArrowLeft, Save, AlertTriangle, Lock } from "lucide-react";
 import { useCSBDProjections, useCSBDTarget } from "@/hooks/useCSBDProjections";
-import { useCSBDMetrics } from "@/hooks/useCSBDMetrics";
+import { useAllCSBDMetrics } from "@/hooks/useCSBDMetrics";
+import { supabase } from "@/integrations/supabase/client";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +58,16 @@ const CSBDProjections = () => {
 
   const { data: target, isLoading: targetLoading } = useCSBDTarget(undefined, year);
   const { projections, isLoading: projectionsLoading, upsertProjection } = useCSBDProjections(undefined, year);
-  const { data: metrics, isLoading: metricsLoading } = useCSBDMetrics(undefined, year, false);
+  const { data: allMetrics, isLoading: metricsLoading } = useAllCSBDMetrics(year);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUserId(data.user.id);
+    });
+  }, []);
+
+  const metrics = allMetrics?.find(m => m.user_id === currentUserId) ?? null;
 
   const [editingValues, setEditingValues] = useState<Record<string, number>>({});
   const [dirtyMonths, setDirtyMonths] = useState<Set<string>>(new Set());
