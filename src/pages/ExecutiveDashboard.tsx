@@ -17,7 +17,7 @@ const ExecutiveDashboard = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const year = 2026;
-  const { data: allMetrics, isLoading } = useAllCSBDMetrics(year);
+  const { data: allMetrics, isLoading, error } = useAllCSBDMetrics(year);
   const [canManageTargets, setCanManageTargets] = useState(false);
   const [selectedMember, setSelectedMember] = useState<CSBDMetrics | null>(null);
   const [showCreditSettings, setShowCreditSettings] = useState(false);
@@ -105,6 +105,21 @@ const ExecutiveDashboard = () => {
           <Skeleton className="h-20 sm:h-24" />
         </div>
         <Skeleton className="flex-1" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center p-4 gap-3">
+        <Target className="h-10 w-10 text-destructive" />
+        <h2 className="text-lg font-semibold">Unable to load dashboard</h2>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          {error instanceof Error ? error.message : 'An error occurred while loading metrics. Please try refreshing the page.'}
+        </p>
+        <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+          Refresh Page
+        </Button>
       </div>
     );
   }

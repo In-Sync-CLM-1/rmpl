@@ -52,13 +52,14 @@ export const useAllCSBDMetrics = (fiscalYear = 2025) => {
     queryKey: ['all-csbd-metrics', fiscalYear],
     queryFn: async () => {
       // Get all CSBD team members with has_subordinates flag
-      const { data: targets } = await supabase
+      const { data: targets, error: targetsError } = await supabase
         .from('csbd_targets')
         .select('user_id, has_subordinates, profiles(full_name, email)')
         .eq('fiscal_year', fiscalYear)
         .eq('is_active', true);
 
-      if (!targets) return [];
+      if (targetsError) throw new Error(`Failed to fetch targets: ${targetsError.message}`);
+      if (!targets || targets.length === 0) return [];
 
       // Fetch metrics for each user
       const { data: { session } } = await supabase.auth.getSession();
@@ -66,13 +67,17 @@ export const useAllCSBDMetrics = (fiscalYear = 2025) => {
 
       const allMetrics = await Promise.all(
         targets.map(async (target) => {
-          const { data } = await supabase.functions.invoke('calculate-csbd-metrics', {
+          const { data, error } = await supabase.functions.invoke('calculate-csbd-metrics', {
             body: {
               user_id: target.user_id,
               fiscal_year: fiscalYear,
-              include_team: target.has_subordinates || false, // Include team for managers
+              include_team: target.has_subordinates || false,
             },
           });
+          if (error) {
+            console.error(`CSBD metrics error for ${target.user_id}:`, error);
+            return null;
+          }
           return data as CSBDMetrics;
         })
       );
@@ -81,5 +86,6 @@ export const useAllCSBDMetrics = (fiscalYear = 2025) => {
     },
     staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
+    retry: 3,
   });
 };
