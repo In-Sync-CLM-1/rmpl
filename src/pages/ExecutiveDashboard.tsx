@@ -7,10 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAllCSBDMetrics, CSBDMetrics } from "@/hooks/useCSBDMetrics";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { TrendingUp, Settings, Eye, Target, Calendar, Users, IndianRupee, ChevronRight, SlidersHorizontal } from "lucide-react";
-import { CreditAllocationSettings } from "@/components/csbd/CreditAllocationSettings";
+import { TrendingUp, Settings, Eye, Target, Calendar, Users, IndianRupee, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/ui/page-header";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const ExecutiveDashboard = () => {
@@ -20,8 +18,6 @@ const ExecutiveDashboard = () => {
   const { data: allMetrics, isLoading, error } = useAllCSBDMetrics(year);
   const [canManageTargets, setCanManageTargets] = useState(false);
   const [selectedMember, setSelectedMember] = useState<CSBDMetrics | null>(null);
-  const [showCreditSettings, setShowCreditSettings] = useState(false);
-
   const currentMonth = new Date().getMonth();
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long' });
   const currentMonthShort = new Date().toLocaleDateString('en-US', { month: 'short' });
@@ -138,16 +134,10 @@ const ExecutiveDashboard = () => {
 
         <div className="flex items-center gap-2 shrink-0">
           {canManageTargets && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setShowCreditSettings(!showCreditSettings)} className="text-xs sm:text-sm">
-                <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Credit </span>Rules
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/csbd-targets')} className="text-xs sm:text-sm">
-                <Settings className="mr-1 h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Manage </span>Targets
-              </Button>
-            </>
+            <Button variant="outline" size="sm" onClick={() => navigate('/csbd-targets')} className="text-xs sm:text-sm">
+              <Settings className="mr-1 h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Manage </span>Targets
+            </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => navigate('/csbd-projections')} className="text-xs sm:text-sm">
             <TrendingUp className="mr-1 h-3.5 w-3.5" />
@@ -224,22 +214,6 @@ const ExecutiveDashboard = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Credit Allocation Settings Panel */}
-      {showCreditSettings && canManageTargets && (
-        <div className="flex-shrink-0">
-          <PageHeader
-            title="Credit Allocation Settings"
-            subtitle="Manage how project credits are distributed"
-            icon={SlidersHorizontal}
-            showBackButton
-            onBack={() => setShowCreditSettings(false)}
-          />
-          <div className="mt-3">
-            <CreditAllocationSettings />
-          </div>
-        </div>
-      )}
 
       {/* Mobile Card View for Team Members */}
       {isMobile ? (
