@@ -3,20 +3,15 @@ export interface Permissions {
   canEditUsers: boolean;
   canDeleteUsers: boolean;
   canViewSystemSettings: boolean;
-  canViewWebhooks: boolean;
   canViewReports: boolean;
   canViewTeams: boolean;
   canViewDesignations: boolean;
-  canViewPipelineStages: boolean;
   canManageTeams: boolean;
   canManageClients: boolean;
   canManageParticipants: boolean;
-  canManageCampaigns: boolean;
   canDeleteMaster: boolean;
   canDeleteClients: boolean;
   canDeleteVendors: boolean;
-  canManageInventory: boolean;
-  canDeleteInventory: boolean;
   canManageProjects: boolean;
   canDeleteProjects: boolean;
   canRecommendLeaves: boolean;
@@ -36,8 +31,6 @@ export interface Permissions {
   canViewDemandCom: boolean;
   canViewProjects: boolean;
   canViewClients: boolean;
-  canViewInventory: boolean;
-  canViewCampaigns: boolean;
   canManageDispositions: boolean;
   canExportProjects: boolean;
 }
@@ -84,20 +77,15 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     canEditUsers: isAdmin,
     canDeleteUsers: isAdmin,
     canViewSystemSettings: hasRole('platform_admin') || hasRole('super_admin') || hasRole('admin_tech'),
-    canViewWebhooks: hasRole('platform_admin') || hasRole('super_admin') || hasRole('admin_tech'),
     canViewReports: hasRole('platform_admin') || hasRole('super_admin') || roles.some(r => r.includes('admin')) || isHRManager,
     canViewTeams: isAdmin,
     canViewDesignations: isAdmin,
-    canViewPipelineStages: isAdmin,
     canManageTeams: isAdmin,
     canManageClients: true,
     canManageParticipants: true,
-    canManageCampaigns: true,
     canDeleteMaster: isManagerOrAdmin,
     canDeleteClients: isManagerOrAdmin,
     canDeleteVendors: isManagerOrAdmin,
-    canManageInventory: true,
-    canDeleteInventory: isManagerOrAdmin,
     canManageProjects: true,
     canDeleteProjects: isAdmin,
     canRecommendLeaves: isManagerOrAdmin,
@@ -117,8 +105,6 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
     canViewDemandCom: isDemandCom || isAdmin || isLeadership,
     canViewProjects: true,
     canViewClients: true,
-    canViewInventory: true,
-    canViewCampaigns: true,
     canManageDispositions: isAdmin,
     canExportProjects: isAuthorizedProjectExportUser,
   };

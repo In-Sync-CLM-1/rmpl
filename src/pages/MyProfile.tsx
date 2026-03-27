@@ -14,7 +14,6 @@ import { User, Lock, Phone, Mail, Briefcase, Users as UsersIcon, Heart, Home, Sh
 import { getRoleDisplayName, getRoleVariant } from "@/lib/rolePermissions";
 import { DocumentUploadSection } from "@/components/profile/DocumentUploadSection";
 import { useEmployeePersonalDetails } from "@/hooks/useEmployeePersonalDetails";
-import { OutlookConnectionManager } from "@/components/OutlookConnectionManager";
 
 interface ProfileData {
   id: string;
@@ -361,20 +360,6 @@ export default function MyProfile() {
             <p className="text-xs text-muted-foreground mt-4">
               Contact an administrator to update your role, designation, team, or reporting structure
             </p>
-          </CardContent>
-        </Card>
-
-        {/* Outlook Integration Card */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Email Integration
-            </CardTitle>
-            <CardDescription>Connect your Microsoft Outlook account to send emails</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <OutlookConnectionManager />
           </CardContent>
         </Card>
 

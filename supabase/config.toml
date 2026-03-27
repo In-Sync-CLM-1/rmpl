@@ -48,23 +48,8 @@ enable_confirmations = true
 enabled = true
 inspector_port = 8083
 
-[functions.process-campaign]
-verify_jwt = true
-
-[functions.send-campaign-email]
-verify_jwt = false
-
-[functions.track-link-click]
-verify_jwt = false
-
-[functions.track-email-open]
-verify_jwt = false
-
 [functions.geocode-location]
 verify_jwt = true
-
-[functions.webhook-receiver]
-verify_jwt = false
 
 [functions.excelhire-webhook]
 verify_jwt = false
@@ -106,12 +91,6 @@ verify_jwt = true
 [functions.exotel-webhook]
 verify_jwt = false
 
-[functions.generate-announcement]
-verify_jwt = true
-
-[functions.deployment-webhook]
-verify_jwt = false
-
 [functions.parse-payment-image]
 verify_jwt = true
 
@@ -151,15 +130,6 @@ verify_jwt = false
 [functions.sync-whatsapp-templates]
 verify_jwt = false
 
-[functions.microsoft-auth-url]
-verify_jwt = true
-
-[functions.microsoft-auth-callback]
-verify_jwt = false
-
-[functions.microsoft-send-email]
-verify_jwt = true
-
 [functions.send-onboarding-otp]
 verify_jwt = false
 
@@ -173,9 +143,6 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.vapi-webhook]
-verify_jwt = false
-
-[functions.microsoft-sync-inbox]
 verify_jwt = false
 
 [functions.export-backup]

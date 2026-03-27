@@ -230,14 +230,6 @@ const fallbackNavigationSections: NavigationSection[] = [
     ],
   },
   {
-    label: "MARKETING",
-    items: [
-      { title: "Campaigns", url: "/campaigns", icon: Rocket },
-      { title: "Inbox", url: "/inbox", icon: MailOpen },
-      { title: "Templates", url: "/templates", icon: FileCode },
-    ],
-  },
-  {
     label: "TASKS",
     items: [
       { title: "All Tasks", url: "/tasks", icon: ClipboardList },
@@ -269,27 +261,9 @@ const fallbackNavigationSections: NavigationSection[] = [
     ],
   },
   {
-    label: "INVENTORY",
-    items: [
-      { title: "IT Dashboard", url: "/inventory-dashboard", icon: MonitorSmartphone },
-      { title: "IT Items", url: "/inventory", icon: Server },
-      { title: "Serial Entry", url: "/inventory-serial-entry", icon: Barcode },
-      { title: "Ops Dashboard", url: "/operations-inventory-dashboard", icon: Warehouse },
-      { title: "Ops Distribution", url: "/operations-distribution", icon: PackageSearch },
-      { title: "Vendors", url: "/vendors", icon: Store },
-    ],
-  },
-  {
     label: "LIVECOM",
     items: [
       { title: "Dashboard", url: "/livecom-dashboard", icon: Zap },
-    ],
-  },
-  {
-    label: "SYSTEM",
-    items: [
-      { title: "Webhooks", url: "/webhooks", icon: Globe, requiredPermission: 'canViewWebhooks' },
-      { title: "Announcements", url: "/announcements", icon: Bell, requiredPermission: 'canViewWebhooks' },
     ],
   },
   {
@@ -298,7 +272,7 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "Users", url: "/users", icon: UserRoundCog, requiredPermission: 'canViewUsers' },
       { title: "Teams", url: "/teams", icon: Network, requiredPermission: 'canViewTeams' },
       { title: "Designations", url: "/designations", icon: Award, requiredPermission: 'canViewDesignations' },
-      { title: "Pipeline Stages", url: "/pipeline-stages", icon: Workflow, requiredPermission: 'canViewPipelineStages' },
+      { title: "Templates", url: "/templates", icon: FileCode, requiredPermission: 'canViewUsers' },
       { title: "View Controller", url: "/view-controller", icon: ScanEye, requiredPermission: 'canViewUsers' },
     ],
   },

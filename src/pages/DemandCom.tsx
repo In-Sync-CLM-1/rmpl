@@ -17,11 +17,9 @@ import { VapiCallButton } from "@/components/VapiCallButton";
 import { CallHistory } from "@/components/CallHistory";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
 import { ClientSideExportDialog } from "@/components/ClientSideExportDialog";
-import { EmailComposeDialog } from "@/components/EmailComposeDialog";
 import { DemandComAssignmentDialog } from "@/components/DemandComAssignmentDialog";
 import { BulkSelectAssignDialog } from "@/components/BulkSelectAssignDialog";
 import { DeleteActivityDialog } from "@/components/DeleteActivityDialog";
-import { QuickCampaignDialog } from "@/components/QuickCampaignDialog";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
 import { WhatsAppHistory } from "@/components/whatsapp/WhatsAppHistory";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
@@ -120,8 +118,6 @@ export default function DemandCom() {
   const [canBulkDelete, setCanBulkDelete] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showEmailDialog, setShowEmailDialog] = useState(false);
-  const [selectedRecipient, setSelectedRecipient] = useState<DemandCom | null>(null);
   const [whatsappContact, setWhatsappContact] = useState<DemandCom | null>(null);
   const [showWhatsappSend, setShowWhatsappSend] = useState(false);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
@@ -132,7 +128,6 @@ export default function DemandCom() {
   const [showBulkAssignDialog, setShowBulkAssignDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showDeleteActivityDialog, setShowDeleteActivityDialog] = useState(false);
-  const [showQuickCampaign, setShowQuickCampaign] = useState(false);
 
   useEffect(() => {
     checkAuthAndFetchDemandCom();
@@ -573,19 +568,6 @@ export default function DemandCom() {
               </Button>
             )}
             <Button
-              onClick={() => setShowQuickCampaign(true)}
-              className="bg-green-600 hover:bg-green-700 text-white shadow-elegant gap-2"
-              title="Quick Campaign — Email or WhatsApp"
-            >
-              <Send className="h-4 w-4" />
-              <span>Campaign</span>
-              {selectedIds.size > 0 && (
-                <Badge variant="secondary" className="ml-1 text-[10px]">
-                  {selectedIds.size} selected
-                </Badge>
-              )}
-            </Button>
-            <Button 
               onClick={() => setShowExportDialog(true)}
               variant="outline"
               size="icon"
@@ -883,32 +865,6 @@ export default function DemandCom() {
                         <TableCell>{demandCom.latest_disposition || '-'}</TableCell>
                         <TableCell>{demandCom.latest_subdisposition || '-'}</TableCell>
                         <TableCell>{demandCom.assigned_to_name || '-'}</TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                const email = demandCom.personal_email_id || demandCom.generic_email_id;
-                                if (!email) {
-                                  toast.error("No email address available for this participant");
-                                  return;
-                                }
-                                setSelectedRecipient({
-                                  ...demandCom,
-                                  email: email
-                                } as any);
-                                setShowEmailDialog(true);
-                              }}
-                              disabled={!demandCom.personal_email_id && !demandCom.generic_email_id}
-                              title={!demandCom.personal_email_id && !demandCom.generic_email_id 
-                                ? "No email address available" 
-                                : "Send Email"}
-                            >
-                              <Send className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -994,51 +950,6 @@ export default function DemandCom() {
         }}
       />
 
-      {selectedRecipient && (
-        <EmailComposeDialog
-          open={showEmailDialog}
-          onOpenChange={setShowEmailDialog}
-          recipientData={{
-            id: selectedRecipient.id,
-            name: selectedRecipient.name,
-            email: (selectedRecipient as any).email || '',
-            mobile_numb: selectedRecipient.mobile_numb,
-            mobile2: selectedRecipient.mobile2,
-            official: selectedRecipient.official,
-            personal_email_id: selectedRecipient.personal_email_id,
-            generic_email_id: selectedRecipient.generic_email_id,
-            linkedin: selectedRecipient.linkedin,
-            designation: selectedRecipient.designation,
-            deppt: selectedRecipient.deppt,
-            job_level_updated: selectedRecipient.job_level_updated,
-            company_name: selectedRecipient.company_name,
-            industry_type: selectedRecipient.industry_type,
-            sub_industry: selectedRecipient.sub_industry,
-            address: selectedRecipient.address,
-            location: selectedRecipient.location,
-            city: selectedRecipient.city,
-            state: selectedRecipient.state,
-            zone: selectedRecipient.zone,
-            tier: selectedRecipient.tier,
-            pincode: selectedRecipient.pincode,
-            website: selectedRecipient.website,
-            turnover: selectedRecipient.turnover,
-            emp_size: selectedRecipient.emp_size,
-            erp_name: selectedRecipient.erp_name,
-            erp_vendor: selectedRecipient.erp_vendor,
-            activity_name: selectedRecipient.activity_name,
-            latest_disposition: selectedRecipient.latest_disposition,
-            latest_subdisposition: selectedRecipient.latest_subdisposition,
-            last_call_date: selectedRecipient.last_call_date,
-          }}
-          onEmailSent={() => {
-            toast.success("Email sent successfully");
-            setShowEmailDialog(false);
-            setSelectedRecipient(null);
-          }}
-        />
-      )}
-
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
@@ -1050,7 +961,6 @@ export default function DemandCom() {
                 <li>All AI recommendations</li>
                 <li>Pipeline history</li>
                 <li>Engagement summaries</li>
-                <li>Campaign recipients</li>
               </ul>
               <br />
               <strong className="text-destructive">This action cannot be undone.</strong>
@@ -1173,19 +1083,6 @@ export default function DemandCom() {
         />
       )}
 
-      {/* Quick Campaign Dialog */}
-      <QuickCampaignDialog
-        open={showQuickCampaign}
-        onOpenChange={setShowQuickCampaign}
-        selectedParticipants={
-          selectedIds.size > 0
-            ? filteredDemandCom.filter(dc => selectedIds.has(dc.id))
-            : []
-        }
-        appliedFilters={appliedFilters}
-        totalFilteredCount={totalCount}
-        currentPageCount={filteredDemandCom.length}
-      />
     </div>
   );
 }

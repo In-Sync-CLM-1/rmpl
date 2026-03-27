@@ -9,9 +9,7 @@ import { logError, getSupabaseErrorMessage } from "@/lib/errorLogger";
 import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { OnboardingTrigger } from "@/components/onboarding/OnboardingTrigger";
-import { FeatureAnnouncementBanner } from "@/components/onboarding/FeatureAnnouncementBanner";
 import { NotificationBell } from "@/components/NotificationBell";
-import { AnnouncementBell } from "@/components/AnnouncementBell";
 import { AttendanceGate } from "@/components/attendance/AttendanceGate";
 import { SignOutReminder } from "@/components/attendance/SignOutReminder";
  import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
@@ -122,12 +120,8 @@ export function AppLayout() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <SidebarTrigger className="md:hidden" />
-                    <div className="flex-1">
-                      <FeatureAnnouncementBanner />
-                    </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <AnnouncementBell />
                     <NotificationBell />
                     <OnboardingTrigger />
                   </div>
