@@ -2,117 +2,229 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
+export interface ScheduledCallItem {
+  id: string;
+  contactName: string;
+  companyName: string | null;
+  phone: string | null;
+  scheduledTime: string;
+}
+
+export interface WeeklyDayBreakdown {
+  date: string;
+  dayName: string;
+  calls: number;
+  registrations: number;
+  dbUpdates: number;
+  attendanceStatus: string | null;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  userName: string;
+  registrations: number;
+  calls: number;
+  rank: number;
+}
+
+export interface PendingTaskItem {
+  id: string;
+  taskName: string;
+  priority: string;
+  status: string;
+  dueDate: string;
+  projectName: string | null;
+  taskType: "general" | "project";
+  isSubtask: boolean;
+}
+
 export interface PersonalDashboardData {
-  // Projects
-  projectsCompleted: number;
-  projectsInProgress: number;
-  totalProjectsAssigned: number;
+  userName: string;
+  isDemandCom: boolean;
+  isAdmin: boolean;
+  isManager: boolean;
+
+  // Today
+  signInTime: string | null;
+  signOutTime: string | null;
+  isLate: boolean;
+  hoursWorkedToday: number;
+  callsToday: number;
+  callTargetToday: number;
+  registrationsToday: number;
+  regTargetToday: number;
+  dbUpdatesToday: number;
+  dbUpdateTargetToday: number;
+  scheduledCallsToday: number;
+  scheduledCallsList: ScheduledCallItem[];
+
+  // Yesterday
+  callsYesterday: number;
+  registrationsYesterday: number;
+  dbUpdatesYesterday: number;
+  targetAchievementYesterday: number;
+  connectedCallRateYesterday: number;
+  avgCallDurationYesterday: number;
+
+  // Week
+  weeklyBreakdown: WeeklyDayBreakdown[];
+  weeklyCallTarget: number;
+  weeklyCallsAchieved: number;
+  weeklyRegTarget: number;
+  weeklyRegsAchieved: number;
+  tasksCompletedThisWeek: number;
+
+  // Month attendance
+  attendancePresent: number;
+  attendanceHalfDay: number;
+  attendanceAbsent: number;
+  attendanceTotalDays: number;
+  lateArrivals: number;
+  prevAttendanceRate: number;
+
+  // Regularizations
+  regularizationPending: number;
+  regularizationApproved: number;
+  regularizationRejected: number;
+
+  // Leaves
+  leavesTakenThisMonth: number;
+  upcomingApprovedLeaves: number;
+  leaveBalanceCL: number;
+  leaveBalanceEL: number;
+
+  // Monthly targets
+  monthlyCallTarget: number;
+  monthlyCallsAchieved: number;
+  monthlyRegTarget: number;
+  monthlyRegsAchieved: number;
+
+  // Rank
+  leaderboardRank: number;
+  leaderboardRankChange: number;
 
   // Tasks
   tasksAssigned: number;
-  tasksPending: number;
+  tasksCompleted: number;
   tasksOverdue: number;
-  tasksCompletedThisMonth: number;
 
-  // Attendance
-  attendanceThisMonth: {
-    present: number;
-    halfDay: number;
-    absent: number;
-    totalDays: number;
-  };
-  todayAttendance: {
-    signedIn: boolean;
-    signInTime: string | null;
-    signOutTime: string | null;
-  };
+  // Projects
+  projectsCompleted: number;
+  projectsInProgress: number;
+  totalProjects: number;
 
-  // Leave
-  leaveBalance: {
-    casualLeave: number;
-    earnedLeave: number;
-    totalUsed: number;
-  };
-  leaveApplied: number;
+  // Leaderboard
+  leaderboard: LeaderboardEntry[];
 
-  // Calls
-  callsToday: number;
+  // Pending tasks
+  pendingTasks: PendingTaskItem[];
+
+  // Extra
   callsThisWeek: number;
   callsThisMonth: number;
-  dailyCallsData: Array<{ date: string; calls: number }>;
-  scheduledCallsToday: number;
-
-  // Targets
-  dailyTarget: {
-    callTarget: number;
-    callsAchieved: number;
-    registrationTarget: number;
-    registrationsAchieved: number;
-  };
-  monthlyTarget: {
-    callTarget: number;
-    callsAchieved: number;
-    registrationTarget: number;
-    registrationsAchieved: number;
-  };
-
-  // Database/Data Status
   assignedRecords: number;
   untouchedRecords: number;
   calledRecords: number;
   positiveDispositions: number;
-
-  // Leaderboard
-  leaderboard: Array<{
-    userId: string;
-    userName: string;
-    calls: number;
-    registrations: number;
-    rank: number;
-  }>;
+  dailyCallsData: Array<{ date: string; calls: number }>;
 }
 
 export function usePersonalDashboard() {
   const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-dd');
+  const todayStr = format(today, "yyyy-MM-dd");
 
   return useQuery({
-    queryKey: ["personal-dashboard", todayStr],
+    queryKey: ["personal-dashboard-v2", todayStr],
     queryFn: async (): Promise<PersonalDashboardData> => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase.rpc('get_personal_dashboard', {
-        p_user_id: user.id,
-      });
+      const { data, error } = await supabase.rpc(
+        "get_personal_dashboard_v2",
+        { p_user_id: user.id } as any
+      );
 
       if (error) throw new Error(`Dashboard RPC failed: ${error.message}`);
 
       const d = data as any;
       return {
+        userName: d.userName ?? "User",
+        isDemandCom: d.isDemandCom ?? false,
+        isAdmin: d.isAdmin ?? false,
+        isManager: d.isManager ?? false,
+
+        signInTime: d.signInTime ?? null,
+        signOutTime: d.signOutTime ?? null,
+        isLate: d.isLate ?? false,
+        hoursWorkedToday: d.hoursWorkedToday ?? 0,
+
+        callsToday: d.callsToday ?? 0,
+        callTargetToday: d.callTargetToday ?? 0,
+        registrationsToday: d.registrationsToday ?? 0,
+        regTargetToday: d.regTargetToday ?? 0,
+        dbUpdatesToday: d.dbUpdatesToday ?? 0,
+        dbUpdateTargetToday: d.dbUpdateTargetToday ?? 0,
+        scheduledCallsToday: d.scheduledCallsToday ?? 0,
+        scheduledCallsList: d.scheduledCallsList ?? [],
+
+        callsYesterday: d.callsYesterday ?? 0,
+        registrationsYesterday: d.registrationsYesterday ?? 0,
+        dbUpdatesYesterday: d.dbUpdatesYesterday ?? 0,
+        targetAchievementYesterday: d.targetAchievementYesterday ?? 0,
+        connectedCallRateYesterday: d.connectedCallRateYesterday ?? 0,
+        avgCallDurationYesterday: d.avgCallDurationYesterday ?? 0,
+
+        weeklyBreakdown: d.weeklyBreakdown ?? [],
+        weeklyCallTarget: d.weeklyCallTarget ?? 0,
+        weeklyCallsAchieved: d.weeklyCallsAchieved ?? 0,
+        weeklyRegTarget: d.weeklyRegTarget ?? 0,
+        weeklyRegsAchieved: d.weeklyRegsAchieved ?? 0,
+        tasksCompletedThisWeek: d.tasksCompletedThisWeek ?? 0,
+
+        attendancePresent: d.attendancePresent ?? 0,
+        attendanceHalfDay: d.attendanceHalfDay ?? 0,
+        attendanceAbsent: d.attendanceAbsent ?? 0,
+        attendanceTotalDays: d.attendanceTotalDays ?? 0,
+        lateArrivals: d.lateArrivals ?? 0,
+        prevAttendanceRate: d.prevAttendanceRate ?? 0,
+
+        regularizationPending: d.regularizationPending ?? 0,
+        regularizationApproved: d.regularizationApproved ?? 0,
+        regularizationRejected: d.regularizationRejected ?? 0,
+
+        leavesTakenThisMonth: d.leavesTakenThisMonth ?? 0,
+        upcomingApprovedLeaves: d.upcomingApprovedLeaves ?? 0,
+        leaveBalanceCL: d.leaveBalanceCL ?? 0,
+        leaveBalanceEL: d.leaveBalanceEL ?? 0,
+
+        monthlyCallTarget: d.monthlyCallTarget ?? 0,
+        monthlyCallsAchieved: d.monthlyCallsAchieved ?? 0,
+        monthlyRegTarget: d.monthlyRegTarget ?? 0,
+        monthlyRegsAchieved: d.monthlyRegsAchieved ?? 0,
+
+        leaderboardRank: d.leaderboardRank ?? 0,
+        leaderboardRankChange: d.leaderboardRankChange ?? 0,
+
+        tasksAssigned: d.tasksAssigned ?? 0,
+        tasksCompleted: d.tasksCompleted ?? 0,
+        tasksOverdue: d.tasksOverdue ?? 0,
+
         projectsCompleted: d.projectsCompleted ?? 0,
         projectsInProgress: d.projectsInProgress ?? 0,
-        totalProjectsAssigned: d.totalProjectsAssigned ?? 0,
-        tasksAssigned: d.tasksAssigned ?? 0,
-        tasksPending: d.tasksPending ?? 0,
-        tasksOverdue: d.tasksOverdue ?? 0,
-        tasksCompletedThisMonth: d.tasksCompletedThisMonth ?? 0,
-        attendanceThisMonth: d.attendanceThisMonth ?? { present: 0, halfDay: 0, absent: 0, totalDays: 0 },
-        todayAttendance: d.todayAttendance ?? { signedIn: false, signInTime: null, signOutTime: null },
-        leaveBalance: d.leaveBalance ?? { casualLeave: 0, earnedLeave: 0, totalUsed: 0 },
-        leaveApplied: d.leaveApplied ?? 0,
-        callsToday: d.callsToday ?? 0,
+        totalProjects: d.totalProjects ?? 0,
+
+        leaderboard: d.leaderboard ?? [],
+        pendingTasks: d.pendingTasks ?? [],
+
         callsThisWeek: d.callsThisWeek ?? 0,
         callsThisMonth: d.callsThisMonth ?? 0,
-        dailyCallsData: d.dailyCallsData ?? [],
-        scheduledCallsToday: d.scheduledCallsToday ?? 0,
-        dailyTarget: d.dailyTarget ?? { callTarget: 0, callsAchieved: 0, registrationTarget: 0, registrationsAchieved: 0 },
-        monthlyTarget: d.monthlyTarget ?? { callTarget: 0, callsAchieved: 0, registrationTarget: 0, registrationsAchieved: 0 },
         assignedRecords: d.assignedRecords ?? 0,
         untouchedRecords: d.untouchedRecords ?? 0,
         calledRecords: d.calledRecords ?? 0,
         positiveDispositions: d.positiveDispositions ?? 0,
-        leaderboard: d.leaderboard ?? [],
+        dailyCallsData: d.dailyCallsData ?? [],
       };
     },
     staleTime: 60000,
