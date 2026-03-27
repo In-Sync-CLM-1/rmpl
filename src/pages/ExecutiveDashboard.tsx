@@ -4,10 +4,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useAllCSBDMetrics, CSBDMetrics } from "@/hooks/useCSBDMetrics";
+import { useAllCSBDMetrics, useCSBDMemberProjects, CSBDMetrics } from "@/hooks/useCSBDMetrics";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { TrendingUp, Settings, Eye, Target, Calendar, Users, IndianRupee, ChevronRight } from "lucide-react";
+import { TrendingUp, Settings, Eye, Target, Calendar, Users, IndianRupee, ChevronRight, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -18,6 +18,8 @@ const ExecutiveDashboard = () => {
   const { data: allMetrics, isLoading, error } = useAllCSBDMetrics(year);
   const [canManageTargets, setCanManageTargets] = useState(false);
   const [selectedMember, setSelectedMember] = useState<CSBDMetrics | null>(null);
+  const [drilldownMember, setDrilldownMember] = useState<CSBDMetrics | null>(null);
+  const { data: memberProjects, isLoading: projectsLoading } = useCSBDMemberProjects(drilldownMember?.user_id ?? null, year);
   const currentMonth = new Date().getMonth();
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long' });
   const currentMonthShort = new Date().toLocaleDateString('en-US', { month: 'short' });
@@ -265,7 +267,7 @@ const ExecutiveDashboard = () => {
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t">
                     <div>
                       <div className="text-xs text-muted-foreground">Annual</div>
-                      <div className="text-xs">{formatCurrency(member.annual_target)} → <span className="text-emerald-600 font-medium">{formatCurrency(member.ytd_actual)}</span></div>
+                      <div className="text-xs">{formatCurrency(member.annual_target)} → <span className="text-emerald-600 font-medium underline" onClick={(e) => { e.stopPropagation(); setDrilldownMember(member); }}>{formatCurrency(member.ytd_actual)}</span></div>
                       <div className="mt-1">{getAchievementBadge(member.achievement_percentage)}</div>
                     </div>
                     <div>
@@ -339,7 +341,12 @@ const ExecutiveDashboard = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-right text-sm py-2">{formatCurrency(member.annual_target)}</TableCell>
-                    <TableCell className="text-right text-sm font-medium py-2 text-emerald-600">{formatCurrency(member.ytd_actual)}</TableCell>
+                    <TableCell
+                      className="text-right text-sm font-medium py-2 text-emerald-600 cursor-pointer hover:underline hover:text-emerald-700"
+                      onClick={() => setDrilldownMember(member)}
+                    >
+                      {formatCurrency(member.ytd_actual)}
+                    </TableCell>
                     <TableCell className="text-center py-2 border-r">{getAchievementBadge(member.achievement_percentage)}</TableCell>
                     <TableCell className="text-right text-sm py-2">{formatCurrency(monthlyTarget)}</TableCell>
                     <TableCell className="text-right text-sm font-medium py-2 text-cyan-600">
@@ -403,7 +410,7 @@ const ExecutiveDashboard = () => {
                   <TableBody>
                     {selectedMember.monthly_performance.map((month, idx) => {
                       const monthDate = new Date(month.month);
-                      const monthlyTarget = month.projection; // Use user's projection as monthly target
+                      const monthlyTarget = month.projection;
                       const achievement = monthlyTarget > 0 ? (month.actual / monthlyTarget) * 100 : 0;
 
                       return (
@@ -422,6 +429,99 @@ const ExecutiveDashboard = () => {
                   </TableBody>
                 </Table>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Project Credit Drilldown Dialog */}
+      <Dialog open={!!drilldownMember} onOpenChange={() => setDrilldownMember(null)}>
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <IndianRupee className="h-5 w-5" />
+              {drilldownMember?.full_name} - Project Credit Breakdown
+            </DialogTitle>
+          </DialogHeader>
+          {drilldownMember && (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="border rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground mb-1">Annual Target</div>
+                  <div className="text-lg font-bold">{formatCurrency(drilldownMember.annual_target)} L</div>
+                </div>
+                <div className="border rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground mb-1">YTD Actual (Credit)</div>
+                  <div className="text-lg font-bold text-emerald-600">{formatCurrency(drilldownMember.ytd_actual)} L</div>
+                </div>
+                <div className="border rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground mb-1">Achievement</div>
+                  <div className="text-lg font-bold">{drilldownMember.achievement_percentage.toFixed(1)}%</div>
+                </div>
+              </div>
+
+              {/* Project Table */}
+              {projectsLoading ? (
+                <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Loading projects...
+                </div>
+              ) : memberProjects && memberProjects.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="text-xs font-semibold">S#</TableHead>
+                        <TableHead className="text-xs font-semibold">Date</TableHead>
+                        <TableHead className="text-xs font-semibold">Project #</TableHead>
+                        <TableHead className="text-xs font-semibold">Client</TableHead>
+                        <TableHead className="text-xs font-semibold">Executed By</TableHead>
+                        <TableHead className="text-right text-xs font-semibold">Total (L)</TableHead>
+                        <TableHead className="text-center text-xs font-semibold">Credit %</TableHead>
+                        <TableHead className="text-right text-xs font-semibold">Credit (L)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {memberProjects.map((proj, idx) => (
+                        <TableRow key={idx} className="hover:bg-muted/30">
+                          <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                          <TableCell className="text-xs whitespace-nowrap">
+                            {new Date(proj.effective_date + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                          </TableCell>
+                          <TableCell className="text-xs font-medium text-primary">{proj.project_number}</TableCell>
+                          <TableCell className="text-xs max-w-[160px] truncate" title={proj.client_name}>{proj.client_name || '—'}</TableCell>
+                          <TableCell className="text-xs max-w-[120px] truncate" title={proj.executed_by}>{proj.executed_by}</TableCell>
+                          <TableCell className="text-right text-xs">{proj.amount_lacs.toFixed(2)}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant={proj.credit_pct === 100 ? "default" : "secondary"} className="text-xs">
+                              {proj.credit_pct}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-xs font-semibold text-emerald-600">{proj.credit_amount.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Totals Row */}
+                      <TableRow className="bg-muted/50 font-bold border-t-2">
+                        <TableCell colSpan={5} className="text-xs font-bold">
+                          TOTAL ({memberProjects.length} projects)
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-bold">
+                          {memberProjects.reduce((s, p) => s + p.amount_lacs, 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell />
+                        <TableCell className="text-right text-xs font-bold text-emerald-600">
+                          {memberProjects.reduce((s, p) => s + p.credit_amount, 0).toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  No projects found for this period.
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

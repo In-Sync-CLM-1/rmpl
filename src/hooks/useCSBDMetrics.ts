@@ -47,6 +47,36 @@ export const useCSBDMetrics = (userId?: string, fiscalYear = 2025, includeTeam =
   });
 };
 
+export interface CSBDProjectCredit {
+  project_number: string;
+  client_name: string;
+  executed_by: string;
+  status: string;
+  effective_date: string;
+  date_source: string;
+  amount_lacs: number;
+  credit_pct: number;
+  credit_amount: number;
+  rule_applied: string;
+}
+
+export const useCSBDMemberProjects = (userId: string | null, fiscalYear = 2026) => {
+  return useQuery({
+    queryKey: ['csbd-member-projects', userId, fiscalYear],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await supabase.rpc('get_csbd_member_projects', {
+        p_user_id: userId,
+        p_fiscal_year: fiscalYear,
+      });
+      if (error) throw new Error(`Failed to load projects: ${error.message}`);
+      return (data as CSBDProjectCredit[]) || [];
+    },
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
 export const useAllCSBDMetrics = (fiscalYear = 2025) => {
   return useQuery({
     queryKey: ['all-csbd-metrics', fiscalYear],
