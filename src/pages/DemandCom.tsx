@@ -444,16 +444,25 @@ export default function DemandCom() {
     try {
       setIsDeleting(true);
       
-      const { data, error } = await supabase.functions.invoke('bulk-delete-demandcom', {
-        body: { recordIds: Array.from(selectedIds) }
-      });
-      
-      if (error) throw error;
-      
-      toast.success(`Successfully deleted ${data.successCount} record(s)`);
-      if (data.errorCount > 0) {
-        toast.error(`Failed to delete ${data.errorCount} record(s)`);
+      const ids = Array.from(selectedIds);
+      let totalDeleted = 0;
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase.rpc('bulk_delete_demandcom_batch', {
+          p_record_ids: ids,
+          p_batch_size: 500,
+          p_offset: offset,
+        });
+        if (error) throw error;
+        const batch = data?.[0] || { deleted_count: 0, has_more: false, next_offset: 0 };
+        totalDeleted += Number(batch.deleted_count);
+        hasMore = batch.has_more;
+        offset = Number(batch.next_offset);
       }
+
+      toast.success(`Successfully deleted ${totalDeleted} record(s)`);
       
       setSelectedIds(new Set());
       setShowDeleteConfirm(false);

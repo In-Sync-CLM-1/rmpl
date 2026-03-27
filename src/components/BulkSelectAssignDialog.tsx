@@ -134,32 +134,31 @@ export function BulkSelectAssignDialog({
           break;
       }
 
-      // Call the assignment edge function with filters and range
-      // Server will handle batch processing
-      const { data, error } = await supabase.functions.invoke("assign-demandcom", {
-        body: {
-          assignedTo: selectedUserId,
-          offset,
-          limit,
-          filters: {
-            nameEmail: appliedFilters.nameEmail || undefined,
-            city: appliedFilters.city || undefined,
-            activityName: appliedFilters.activityName || undefined,
-            assignedTo: appliedFilters.assignedTo || undefined,
-            disposition: appliedFilters.disposition.length > 0 ? appliedFilters.disposition : undefined,
-            subdisposition: appliedFilters.subdisposition.length > 0 ? appliedFilters.subdisposition : undefined,
-          },
-        },
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Authentication required");
+
+      const { data, error } = await supabase.rpc("assign_demandcom_records", {
+        p_assigned_to: selectedUserId,
+        p_assigned_by: userData.user.id,
+        p_offset: offset,
+        p_limit: limit,
+        p_name_email: appliedFilters.nameEmail || null,
+        p_city: appliedFilters.city || null,
+        p_activity_name: appliedFilters.activityName || null,
+        p_assigned_filter: appliedFilters.assignedTo || null,
+        p_disposition: appliedFilters.disposition.length > 0 ? appliedFilters.disposition : null,
+        p_subdisposition: appliedFilters.subdisposition.length > 0 ? appliedFilters.subdisposition : null,
       });
 
       if (error) throw error;
 
-      if (data?.error) {
-        toast.error(data.error);
+      const result = data as any;
+      if (result?.error) {
+        toast.error(result.error);
         return;
       }
 
-      toast.success(data.message || `Successfully assigned ${data.successCount} records`);
+      toast.success(result.message || `Successfully assigned ${result.successCount} records`);
       onAssignmentComplete();
       onOpenChange(false);
     } catch (error: any) {

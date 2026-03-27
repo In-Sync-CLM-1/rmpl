@@ -60,9 +60,6 @@ verify_jwt = false
 [functions.track-email-open]
 verify_jwt = false
 
-[functions.ai-demandcom-search]
-verify_jwt = true
-
 [functions.geocode-location]
 verify_jwt = true
 
@@ -105,8 +102,6 @@ verify_jwt = true
 [functions.admin-delete-users]
 verify_jwt = true
 
-[functions.delete-demandcom-by-activity]
-verify_jwt = true
 
 [functions.exotel-webhook]
 verify_jwt = false
@@ -117,17 +112,11 @@ verify_jwt = true
 [functions.deployment-webhook]
 verify_jwt = false
 
-[functions.generate-demandcom-insights]
-verify_jwt = false
-
 [functions.parse-payment-image]
 verify_jwt = true
 
 [functions.parse-invoice-pdf]
 verify_jwt = true
-
-[functions.update-demandcom-activity-names]
-verify_jwt = false
 
 [functions.process-export-batch]
 verify_jwt = false

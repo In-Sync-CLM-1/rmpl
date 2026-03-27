@@ -178,27 +178,29 @@ export function DeleteActivityDialog({
       const trimmedActivityName = selectedActivity.trim();
       startPolling(trimmedActivityName, initialTotal);
       
-      // Invoke the delete function with trimmed activity name
-      const { data, error } = await supabase.functions.invoke(
-        "delete-demandcom-by-activity",
-        {
-          body: { activity_name: trimmedActivityName },
-        }
-      );
+      // Delete in batches via RPC
+      let totalDeleted = 0;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data, error } = await supabase.rpc("delete_demandcom_by_activity_batch", {
+          p_activity_name: trimmedActivityName,
+          p_batch_size: 500,
+        });
 
-      // If the function returns immediately (small dataset or first batch)
-      if (data?.status === 'completed') {
-        setIsCompleted(true);
-        setDeletedCount(data.successCount || initialTotal);
-        if (pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-        }
-      } else if (data?.successCount) {
-        // Update with initial batch count
-        setDeletedCount(data.successCount);
+        if (error) throw error;
+
+        const batch = data?.[0] || { deleted_count: 0, has_more: false };
+        totalDeleted += Number(batch.deleted_count);
+        hasMore = batch.has_more;
+        setDeletedCount(totalDeleted);
+      }
+
+      setIsCompleted(true);
+      setDeletedCount(totalDeleted || initialTotal);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
       }
     } catch (error: any) {
       console.error("Delete error:", error);

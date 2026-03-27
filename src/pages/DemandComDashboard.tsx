@@ -6,7 +6,6 @@ import { useTeamFilter } from "@/hooks/useTeamFilter";
 import { DemandComKPICards } from "@/components/demandcom-dashboard/DemandComKPICards";
 import { AgentCallingReport } from "@/components/demandcom-dashboard/AgentCallingReport";
 import { ActivityReportTable } from "@/components/demandcom-dashboard/ActivityReportTable";
-import { DemandComInsightsPanel } from "@/components/demandcom-dashboard/DemandComInsightsPanel";
 import { DailyTargetAchievement } from "@/components/demandcom-dashboard/DailyTargetAchievement";
 import { CompactDateRangeFilter } from "@/components/filters/CompactDateRangeFilter";
 import { format, isSameDay } from "date-fns";
@@ -224,9 +223,6 @@ export default function DemandComDashboard() {
             dateLabel={getDateRangeLabel()}
             compact
           />
-        </div>
-        <div className="w-72">
-          <DemandComInsightsPanel metrics={metrics} compact />
         </div>
       </div>
 

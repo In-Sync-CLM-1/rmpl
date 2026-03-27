@@ -61,30 +61,27 @@ export function DemandComAssignmentDialog({
     setIsAssigning(true);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-
-      if (!token) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
         toast.error("Authentication required");
         setIsAssigning(false);
         return;
       }
 
-      const response = await supabase.functions.invoke("assign-demandcom", {
-        body: {
-          assignedTo: selectedUserId,
-          recordIds: selectedIds,
-        },
+      const { data: result, error: rpcError } = await supabase.rpc("assign_demandcom_records", {
+        p_assigned_to: selectedUserId,
+        p_assigned_by: userData.user.id,
+        p_record_ids: selectedIds,
       });
 
-      if (response.error) {
-        console.error("Assignment error:", response.error);
-        toast.error(response.error.message || "Failed to assign records");
+      if (rpcError) {
+        console.error("Assignment error:", rpcError);
+        toast.error(rpcError.message || "Failed to assign records");
         setIsAssigning(false);
         return;
       }
 
-      const { successCount, message, assigneeName } = response.data;
+      const { successCount, message, assigneeName } = result as any;
 
       toast.success(message || `Successfully assigned ${successCount} records to ${assigneeName}`);
       
