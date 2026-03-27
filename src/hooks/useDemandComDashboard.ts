@@ -98,7 +98,7 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
         .eq("field_name", "disposition")
         .gte("changed_at", startDateTime.toISOString())
         .lte("changed_at", endDateTime.toISOString())
-        .not("new_value", "in", `(${nonConnectedDispositions.join(",")})`);
+        .neq("new_value", "NR ( No Response )");
       if (hasTeamFilter) {
         connectedCallsQueryBuilder = connectedCallsQueryBuilder.in("changed_by", teamMemberIds);
       }
