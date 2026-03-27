@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDemandComDashboard } from "@/hooks/useDemandComDashboard";
+import { useAgentCallingReport } from "@/hooks/useAgentCallingReport";
 import { useTeamFilter } from "@/hooks/useTeamFilter";
 import { DemandComKPICards } from "@/components/demandcom-dashboard/DemandComKPICards";
 import { AgentCallingReport } from "@/components/demandcom-dashboard/AgentCallingReport";
@@ -45,6 +46,18 @@ export default function DemandComDashboard() {
     agentFilter: agentFilter === "all" ? undefined : agentFilter,
     teamMemberIds,
   });
+  // Use agent calling report to derive Connected Calls (ensures KPI matches Agent Performance total)
+  const { data: agentReportData } = useAgentCallingReport({
+    startDate,
+    endDate,
+    teamMemberIds,
+  });
+
+  const agentReportTotalCalls = useMemo(() => {
+    if (!agentReportData) return undefined;
+    return agentReportData.reduce((sum, agent) => sum + agent.totalCalls, 0);
+  }, [agentReportData]);
+
   // Fetch agents for filter (all Demandcom-Calling team agents with 'agent' role)
   const { data: agents } = useQuery({
     queryKey: ['demandcom-agents'],
@@ -194,13 +207,16 @@ export default function DemandComDashboard() {
       {/* Top Section: KPIs + Daily Targets + AI Insights */}
       <div className="flex gap-3 flex-shrink-0">
         <div className="flex-1">
-          <DemandComKPICards metrics={metrics} dateLabel={getDateRangeLabel()} compact />
+          <DemandComKPICards metrics={{
+            ...metrics,
+            connectedCallsToday: agentReportTotalCalls ?? metrics.connectedCallsToday,
+          }} dateLabel={getDateRangeLabel()} compact />
         </div>
         <div className="w-56">
           <DailyTargetAchievement 
             targets={dailyTargets || null}
             actuals={{
-              totalCalls: metrics.connectedCallsToday,
+              totalCalls: agentReportTotalCalls ?? metrics.connectedCallsToday,
               registrations: metrics.registered,
             }}
             dateLabel={getDateRangeLabel()}
