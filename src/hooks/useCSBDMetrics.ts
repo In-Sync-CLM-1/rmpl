@@ -58,17 +58,11 @@ export const useAllCSBDMetrics = (fiscalYear = 2025) => {
         .eq('fiscal_year', fiscalYear)
         .eq('is_active', true);
 
-      console.log('[CSBD] targets query:', { count: targets?.length, error: targetsError?.message });
-
       if (targetsError) throw new Error(`Failed to fetch targets: ${targetsError.message}`);
-      if (!targets || targets.length === 0) {
-        console.warn('[CSBD] No targets found for fiscal year', fiscalYear);
-        return [];
-      }
+      if (!targets || targets.length === 0) return [];
 
       // Fetch metrics for each user
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('[CSBD] session:', session ? `user=${session.user?.email}` : 'null');
       if (!session) throw new Error('Not authenticated');
 
       const allMetrics = await Promise.all(
@@ -80,17 +74,12 @@ export const useAllCSBDMetrics = (fiscalYear = 2025) => {
               include_team: target.has_subordinates || false,
             },
           });
-          if (error) {
-            console.error(`[CSBD] metrics error for ${target.user_id}:`, error);
-            return null;
-          }
+          if (error) return null;
           return data as CSBDMetrics;
         })
       );
 
-      const filtered = allMetrics.filter(Boolean);
-      console.log('[CSBD] metrics loaded:', filtered.length, 'of', targets.length);
-      return filtered;
+      return allMetrics.filter(Boolean);
     },
     staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
