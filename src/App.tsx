@@ -31,6 +31,8 @@ import Master from "./pages/Master";
 import MasterForm from "./pages/MasterForm";
 import Clients from "./pages/Clients";
 import ClientForm from "./pages/ClientForm";
+import Contacts from "./pages/Contacts";
+import ContactForm from "./pages/ContactForm";
 import Users from "./pages/Users";
 import MyProfile from "./pages/MyProfile";
 import Teams from "./pages/Teams";
@@ -111,6 +113,9 @@ const App = () => (
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/new" element={<ClientForm />} />
             <Route path="/clients/:id" element={<ClientForm />} />
+              <Route path="/contacts" element={<Contacts />} />
+              <Route path="/contacts/new" element={<ContactForm />} />
+              <Route path="/contacts/:id" element={<ContactForm />} />
               <Route path="/users" element={<Users />} />
               <Route path="/my-profile" element={<MyProfile />} />
               <Route path="/teams" element={<Teams />} />

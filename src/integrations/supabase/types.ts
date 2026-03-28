@@ -849,60 +849,113 @@ export type Database = {
       }
       clients: {
         Row: {
-          anniversary_date: string | null
-          birthday_date: string | null
-          branch: string | null
-          company_linkedin_page: string | null
-          company_name: string
-          contact_name: string
-          contact_number: string | null
-          created_at: string
-          created_by: string | null
-          email_id: string | null
           id: string
-          linkedin_id: string | null
-          managed_by: string | null
+          company_name: string
           official_address: string | null
-          residence_address: string | null
+          company_linkedin_page: string | null
+          branch: string | null
+          managed_by: string | null
+          assigned_to: string | null
+          industry: string | null
+          gst_number: string | null
+          website: string | null
+          created_by: string | null
+          created_at: string
           updated_at: string
         }
         Insert: {
-          anniversary_date?: string | null
-          birthday_date?: string | null
-          branch?: string | null
-          company_linkedin_page?: string | null
-          company_name: string
-          contact_name: string
-          contact_number?: string | null
-          created_at?: string
-          created_by?: string | null
-          email_id?: string | null
           id?: string
-          linkedin_id?: string | null
-          managed_by?: string | null
+          company_name: string
           official_address?: string | null
-          residence_address?: string | null
+          company_linkedin_page?: string | null
+          branch?: string | null
+          managed_by?: string | null
+          assigned_to?: string | null
+          industry?: string | null
+          gst_number?: string | null
+          website?: string | null
+          created_by?: string | null
+          created_at?: string
           updated_at?: string
         }
         Update: {
-          anniversary_date?: string | null
-          birthday_date?: string | null
-          branch?: string | null
-          company_linkedin_page?: string | null
-          company_name?: string
-          contact_name?: string
-          contact_number?: string | null
-          created_at?: string
-          created_by?: string | null
-          email_id?: string | null
           id?: string
-          linkedin_id?: string | null
-          managed_by?: string | null
+          company_name?: string
           official_address?: string | null
-          residence_address?: string | null
+          company_linkedin_page?: string | null
+          branch?: string | null
+          managed_by?: string | null
+          assigned_to?: string | null
+          industry?: string | null
+          gst_number?: string | null
+          website?: string | null
+          created_by?: string | null
+          created_at?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      contacts: {
+        Row: {
+          id: string
+          client_id: string
+          contact_name: string
+          designation: string | null
+          department: string | null
+          contact_number: string | null
+          email_id: string | null
+          residence_address: string | null
+          birthday_date: string | null
+          anniversary_date: string | null
+          linkedin_id: string | null
+          is_primary: boolean | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          contact_name: string
+          designation?: string | null
+          department?: string | null
+          contact_number?: string | null
+          email_id?: string | null
+          residence_address?: string | null
+          birthday_date?: string | null
+          anniversary_date?: string | null
+          linkedin_id?: string | null
+          is_primary?: boolean | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          contact_name?: string
+          designation?: string | null
+          department?: string | null
+          contact_number?: string | null
+          email_id?: string | null
+          residence_address?: string | null
+          birthday_date?: string | null
+          anniversary_date?: string | null
+          linkedin_id?: string | null
+          is_primary?: boolean | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       company_holidays: {
         Row: {

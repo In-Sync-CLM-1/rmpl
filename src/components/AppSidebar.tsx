@@ -215,6 +215,7 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "Executive View", url: "/executive-dashboard", icon: Gauge, requiredPermission: 'canViewCSBDDashboard' },
       { title: "Projects", url: "/projects", icon: FolderKanban },
       { title: "Clients", url: "/clients", icon: Building },
+      { title: "Contacts", url: "/contacts", icon: Contact2 },
       { title: "Cashflow", url: "/cashflow-dashboard", icon: Wallet },
       { title: "Projections", url: "/csbd-projections", icon: ChartLine, requiredPermission: 'canViewCSBDProjections' },
     ],

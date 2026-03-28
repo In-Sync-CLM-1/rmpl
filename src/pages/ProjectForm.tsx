@@ -128,7 +128,7 @@ export default function ProjectForm() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("company_name")
+        .select("id, company_name")
         .order("company_name");
       if (error) {
         logError(error, {
@@ -139,20 +139,21 @@ export default function ProjectForm() {
         });
         throw error;
       }
-      // Get distinct company names
-      const uniqueCompanies = Array.from(new Set(data?.map(item => item.company_name).filter(Boolean)));
-      return uniqueCompanies.map(name => ({ company_name: name }));
+      return data;
     },
   });
 
   const { data: contacts } = useQuery({
-    queryKey: ["clients-contacts", selectedCompany],
+    queryKey: ["client-contacts", selectedCompany],
     queryFn: async () => {
       if (!selectedCompany) return [];
+      // Find the client UUID for the selected company name
+      const client = clients?.find(c => c.company_name === selectedCompany);
+      if (!client) return [];
       const { data, error } = await supabase
-        .from("clients")
-        .select("id, contact_name, contact_number, email_id, company_name")
-        .eq("company_name", selectedCompany)
+        .from("contacts")
+        .select("id, contact_name, contact_number, email_id")
+        .eq("client_id", client.id)
         .order("contact_name");
       if (error) {
         logError(error, {
@@ -165,7 +166,7 @@ export default function ProjectForm() {
       }
       return data;
     },
-    enabled: !!selectedCompany,
+    enabled: !!selectedCompany && !!clients,
   });
 
   const { data: profiles } = useQuery({
