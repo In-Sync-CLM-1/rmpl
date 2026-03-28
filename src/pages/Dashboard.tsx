@@ -29,8 +29,8 @@ import {
 import { UpcomingActivities } from "@/components/dashboard/UpcomingActivities";
 
 const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, y: 24, scale: 0.98 },
+  visible: { opacity: 1, y: 0, scale: 1 },
 };
 
 export default function Dashboard() {
@@ -110,7 +110,7 @@ export default function Dashboard() {
           variants={fadeIn}
           initial="hidden"
           animate="visible"
-          transition={{ delay: 0 }}
+          transition={{ delay: 0, duration: 0.5, ease: "easeOut" }}
         >
           {data.isDemandCom ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -118,9 +118,9 @@ export default function Dashboard() {
                 label="Calls Today"
                 value={data.callsToday}
                 target={data.callTargetToday}
-                colorClass="from-sky-500/10 to-sky-500/5"
-                borderClass="border-sky-500/20"
-                shadowClass="hover:shadow-sky-500/10"
+                colorClass="from-sky-500/15 via-blue-500/10 to-cyan-500/5"
+                borderClass="border-sky-500/30"
+                shadowClass="hover:shadow-sky-500/20"
                 icon={Phone}
                 bgIcon={Phone}
               />
@@ -128,9 +128,9 @@ export default function Dashboard() {
                 label="Registrations"
                 value={data.registrationsToday}
                 target={data.regTargetToday}
-                colorClass="from-emerald-500/10 to-emerald-500/5"
-                borderClass="border-emerald-500/20"
-                shadowClass="hover:shadow-emerald-500/10"
+                colorClass="from-emerald-500/15 via-green-500/10 to-teal-500/5"
+                borderClass="border-emerald-500/30"
+                shadowClass="hover:shadow-emerald-500/20"
                 icon={UserPlus}
                 bgIcon={UserPlus}
               />
@@ -139,9 +139,9 @@ export default function Dashboard() {
                 value={attRate}
                 suffix="%"
                 prev={data.prevAttendanceRate}
-                colorClass="from-amber-500/10 to-amber-500/5"
-                borderClass="border-amber-500/20"
-                shadowClass="hover:shadow-amber-500/10"
+                colorClass="from-amber-500/15 via-orange-500/10 to-yellow-500/5"
+                borderClass="border-amber-500/30"
+                shadowClass="hover:shadow-amber-500/20"
                 icon={Calendar}
                 bgIcon={Calendar}
                 subtitle={`${data.attendancePresent}P / ${data.attendanceHalfDay}H / ${data.attendanceAbsent}A`}
@@ -151,9 +151,9 @@ export default function Dashboard() {
                 label="Leave Balance"
                 value={totalLeave}
                 suffix=" days"
-                colorClass="from-violet-500/10 to-violet-500/5"
-                borderClass="border-violet-500/20"
-                shadowClass="hover:shadow-violet-500/10"
+                colorClass="from-violet-500/15 via-purple-500/10 to-fuchsia-500/5"
+                borderClass="border-violet-500/30"
+                shadowClass="hover:shadow-violet-500/20"
                 icon={CalendarDays}
                 bgIcon={CalendarDays}
                 subtitle={`CL: ${data.leaveBalanceCL} | EL: ${data.leaveBalanceEL}`}
@@ -165,9 +165,9 @@ export default function Dashboard() {
               <KpiCard
                 label="Projects"
                 value={data.totalProjects}
-                colorClass="from-sky-500/10 to-sky-500/5"
-                borderClass="border-sky-500/20"
-                shadowClass="hover:shadow-sky-500/10"
+                colorClass="from-sky-500/15 via-blue-500/10 to-cyan-500/5"
+                borderClass="border-sky-500/30"
+                shadowClass="hover:shadow-sky-500/20"
                 icon={FolderKanban}
                 bgIcon={FolderKanban}
                 subtitle={`${data.projectsCompleted} done, ${data.projectsInProgress} active`}
@@ -178,18 +178,18 @@ export default function Dashboard() {
                 value={data.tasksOverdue > 0 ? data.tasksOverdue : data.tasksAssigned - data.tasksCompleted}
                 colorClass={
                   data.tasksOverdue > 0
-                    ? "from-red-500/10 to-red-500/5"
-                    : "from-emerald-500/10 to-emerald-500/5"
+                    ? "from-red-500/15 via-rose-500/10 to-pink-500/5"
+                    : "from-emerald-500/15 via-green-500/10 to-teal-500/5"
                 }
                 borderClass={
                   data.tasksOverdue > 0
-                    ? "border-red-500/20"
-                    : "border-emerald-500/20"
+                    ? "border-red-500/30"
+                    : "border-emerald-500/30"
                 }
                 shadowClass={
                   data.tasksOverdue > 0
-                    ? "hover:shadow-red-500/10"
-                    : "hover:shadow-emerald-500/10"
+                    ? "hover:shadow-red-500/20"
+                    : "hover:shadow-emerald-500/20"
                 }
                 icon={ListTodo}
                 bgIcon={ListTodo}
@@ -205,9 +205,9 @@ export default function Dashboard() {
                 value={attRate}
                 suffix="%"
                 prev={data.prevAttendanceRate}
-                colorClass="from-amber-500/10 to-amber-500/5"
-                borderClass="border-amber-500/20"
-                shadowClass="hover:shadow-amber-500/10"
+                colorClass="from-amber-500/15 via-orange-500/10 to-yellow-500/5"
+                borderClass="border-amber-500/30"
+                shadowClass="hover:shadow-amber-500/20"
                 icon={Calendar}
                 bgIcon={Calendar}
                 subtitle={`${data.attendancePresent}P / ${data.attendanceHalfDay}H / ${data.attendanceAbsent}A`}
@@ -217,9 +217,9 @@ export default function Dashboard() {
                 label="Leave Balance"
                 value={totalLeave}
                 suffix=" days"
-                colorClass="from-violet-500/10 to-violet-500/5"
-                borderClass="border-violet-500/20"
-                shadowClass="hover:shadow-violet-500/10"
+                colorClass="from-violet-500/15 via-purple-500/10 to-fuchsia-500/5"
+                borderClass="border-violet-500/30"
+                shadowClass="hover:shadow-violet-500/20"
                 icon={CalendarDays}
                 bgIcon={CalendarDays}
                 subtitle={`CL: ${data.leaveBalanceCL} | EL: ${data.leaveBalanceEL}`}
@@ -234,7 +234,7 @@ export default function Dashboard() {
           variants={fadeIn}
           initial="hidden"
           animate="visible"
-          transition={{ delay: 0.05 }}
+          transition={{ delay: 0.1, duration: 0.5, ease: "easeOut" }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-4"
         >
           {data.isDemandCom ? (
@@ -256,7 +256,7 @@ export default function Dashboard() {
             variants={fadeIn}
             initial="hidden"
             animate="visible"
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
             className="grid grid-cols-1 lg:grid-cols-3 gap-4"
           >
             <div className="lg:col-span-2">
@@ -272,7 +272,7 @@ export default function Dashboard() {
             variants={fadeIn}
             initial="hidden"
             animate="visible"
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.3, duration: 0.5, ease: "easeOut" }}
             className="grid grid-cols-1 lg:grid-cols-2 gap-4"
           >
             <DatabaseStatusCard data={data} />
@@ -285,7 +285,7 @@ export default function Dashboard() {
           variants={fadeIn}
           initial="hidden"
           animate="visible"
-          transition={{ delay: data.isDemandCom ? 0.2 : 0.1 }}
+          transition={{ delay: data.isDemandCom ? 0.4 : 0.2, duration: 0.5, ease: "easeOut" }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-4"
         >
           <LeaderboardWidget data={data} />
@@ -301,7 +301,7 @@ export default function Dashboard() {
           variants={fadeIn}
           initial="hidden"
           animate="visible"
-          transition={{ delay: data.isDemandCom ? 0.25 : 0.15 }}
+          transition={{ delay: data.isDemandCom ? 0.5 : 0.3, duration: 0.5, ease: "easeOut" }}
         >
           <PendingTasksCard data={data} />
         </motion.div>

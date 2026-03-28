@@ -92,19 +92,23 @@ export function KpiCard({
   return (
     <button
       onClick={onClick}
-      className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${colorClass} border ${borderClass} p-5 text-left transition-all hover:shadow-lg ${shadowClass} hover:-translate-y-1 w-full`}
+      className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${colorClass} border ${borderClass} p-5 text-left transition-all duration-300 hover:shadow-xl ${shadowClass} hover:-translate-y-1.5 hover:scale-[1.02] w-full animate-shimmer`}
     >
+      {/* Animated top accent bar */}
+      <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${borderClass.replace('border-', 'from-').replace('/20', '')} to-transparent animate-border-flow`} style={{ backgroundSize: '200% 100%', animation: 'border-flow 3s linear infinite' }} />
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Icon className="h-3.5 w-3.5" />
+          <div className={`p-1 rounded-md bg-gradient-to-br ${colorClass} group-hover:scale-110 transition-transform duration-300`}>
+            <Icon className="h-3.5 w-3.5" />
+          </div>
           {label}
         </span>
         {delta != null && (
           <span
-            className={`flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded ${
+            className={`flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 rounded-full ${
               isUp
-                ? "text-emerald-600 bg-emerald-500/10"
-                : "text-red-500 bg-red-500/10"
+                ? "text-emerald-600 bg-emerald-500/15 ring-1 ring-emerald-500/20"
+                : "text-red-500 bg-red-500/15 ring-1 ring-red-500/20"
             }`}
           >
             {isUp ? (
@@ -118,7 +122,7 @@ export function KpiCard({
         )}
       </div>
       <div className="flex items-baseline gap-1">
-        <p className="text-3xl font-extrabold text-foreground">
+        <p className="text-3xl font-extrabold text-foreground group-hover:scale-105 transition-transform duration-300 origin-left">
           {typeof value === "number" ? value.toLocaleString() : value}
         </p>
         {suffix && (
@@ -134,19 +138,19 @@ export function KpiCard({
       </div>
       {progressPct != null && (
         <div className="mt-2">
-          <div className="h-1.5 w-full rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
+          <div className="h-2 w-full rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
+              className={`h-full rounded-full transition-all duration-700 ease-out ${
                 progressPct >= 100
-                  ? "bg-emerald-500"
+                  ? "bg-gradient-to-r from-emerald-400 to-emerald-600"
                   : progressPct >= 60
-                  ? "bg-primary"
-                  : "bg-amber-500"
+                  ? "bg-gradient-to-r from-blue-400 to-primary"
+                  : "bg-gradient-to-r from-amber-400 to-orange-500"
               }`}
               style={{ width: `${progressPct}%` }}
             />
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">
+          <p className="text-[10px] text-muted-foreground mt-1 font-medium">
             {progressPct}% achieved
           </p>
         </div>
@@ -154,8 +158,8 @@ export function KpiCard({
       {subtitle && !progressPct && (
         <p className="text-[11px] text-muted-foreground mt-1">{subtitle}</p>
       )}
-      <div className="absolute bottom-0 right-0 opacity-[0.06] group-hover:opacity-[0.10] transition-opacity">
-        <BgIcon className="h-20 w-20 -mb-3 -mr-3" />
+      <div className="absolute bottom-0 right-0 opacity-[0.08] group-hover:opacity-[0.15] transition-all duration-500 group-hover:scale-110">
+        <BgIcon className="h-24 w-24 -mb-4 -mr-4 animate-float" />
       </div>
     </button>
   );
@@ -176,22 +180,26 @@ export function SignInStatusCard({ data }: { data: PersonalDashboardData }) {
   );
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="dashboard-card group">
+      <div className="dashboard-card-accent bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-500 animate-gradient-shift" />
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-md">
+              <Clock className="h-4 w-4 text-white" />
+            </div>
             Today's Sign-in
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5 ml-10">
             Attendance status
           </p>
         </div>
         {data.signInTime && (
           <Badge
-            className={`text-[10px] border-0 ${
+            className={`text-[10px] border-0 font-bold ${
               data.isLate
-                ? "bg-red-500/10 text-red-600"
-                : "bg-emerald-500/10 text-emerald-600"
+                ? "bg-gradient-to-r from-red-500/15 to-orange-500/15 text-red-600 ring-1 ring-red-500/20"
+                : "bg-gradient-to-r from-emerald-500/15 to-green-500/15 text-emerald-600 ring-1 ring-emerald-500/20"
             }`}
           >
             {data.isLate ? "Late" : "On Time"}
@@ -201,21 +209,21 @@ export function SignInStatusCard({ data }: { data: PersonalDashboardData }) {
 
       {!data.signInTime ? (
         <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-          <Clock className="h-8 w-8 mb-2 opacity-30" />
+          <Clock className="h-8 w-8 mb-2 opacity-30 animate-pulse" />
           <p className="text-sm">Not signed in yet</p>
         </div>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/10">
               <p className="text-[11px] text-muted-foreground">Sign In</p>
-              <p className="text-xl font-bold text-foreground">
+              <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
                 {signInFormatted}
               </p>
             </div>
-            <div>
+            <div className="p-3 rounded-xl bg-gradient-to-br from-violet-500/5 to-purple-500/5 border border-violet-500/10">
               <p className="text-[11px] text-muted-foreground">Sign Out</p>
-              <p className="text-xl font-bold text-foreground">
+              <p className="text-xl font-bold text-violet-600 dark:text-violet-400">
                 {signOutFormatted || "—"}
               </p>
             </div>
@@ -227,10 +235,12 @@ export function SignInStatusCard({ data }: { data: PersonalDashboardData }) {
                 {Number(data.hoursWorkedToday).toFixed(1)}h / {hoursTarget}h
               </span>
             </div>
-            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  hoursPct >= 100 ? "bg-emerald-500" : "bg-primary"
+                className={`h-full rounded-full transition-all duration-700 ease-out ${
+                  hoursPct >= 100
+                    ? "bg-gradient-to-r from-emerald-400 to-green-500"
+                    : "bg-gradient-to-r from-blue-400 to-cyan-500"
                 }`}
                 style={{ width: `${hoursPct}%` }}
               />
@@ -297,17 +307,21 @@ export function YesterdayPerformanceCard({
   ];
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="dashboard-card group">
+      <div className="dashboard-card-accent bg-gradient-to-r from-sky-500 via-violet-500 to-emerald-500 animate-gradient-shift" />
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md">
+              <Target className="h-4 w-4 text-white" />
+            </div>
             Yesterday's Performance
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5 ml-10">
             How you did yesterday
           </p>
         </div>
-        <Badge variant="outline" className="text-[10px]">
+        <Badge className="text-[10px] bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-600 border-violet-500/20">
           Yesterday
         </Badge>
       </div>
@@ -316,28 +330,34 @@ export function YesterdayPerformanceCard({
         {metrics.map((m) => (
           <div
             key={m.label}
-            className="text-center p-3 rounded-xl bg-muted/50 border border-border/50"
+            className={`text-center p-3 rounded-xl ${m.bg} border border-border/30 hover:scale-105 transition-transform duration-200`}
           >
             <div
-              className={`h-8 w-8 rounded-lg ${m.bg} flex items-center justify-center mx-auto mb-2`}
+              className={`h-9 w-9 rounded-lg bg-gradient-to-br ${
+                m.label === "Calls"
+                  ? "from-sky-400 to-blue-600"
+                  : m.label === "Registrations"
+                  ? "from-emerald-400 to-green-600"
+                  : "from-violet-400 to-purple-600"
+              } flex items-center justify-center mx-auto mb-2 shadow-md`}
             >
-              <m.icon className={`h-4 w-4 ${m.color}`} />
+              <m.icon className="h-4 w-4 text-white" />
             </div>
             <p className="text-2xl font-extrabold text-foreground">
               {m.value}
             </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
+            <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
               {m.label}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="h-px bg-border mb-3" />
+      <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mb-3" />
 
       <div className="grid grid-cols-3 gap-3">
         {derived.map((d) => (
-          <div key={d.label} className="text-center">
+          <div key={d.label} className={`text-center p-2 rounded-lg ${d.good ? "bg-emerald-500/5" : "bg-amber-500/5"}`}>
             <p
               className={`text-lg font-bold ${
                 d.good ? "text-emerald-600" : "text-amber-600"
@@ -345,7 +365,7 @@ export function YesterdayPerformanceCard({
             >
               {d.value}
             </p>
-            <p className="text-[10px] text-muted-foreground">{d.label}</p>
+            <p className="text-[10px] text-muted-foreground font-medium">{d.label}</p>
           </div>
         ))}
       </div>
@@ -371,18 +391,22 @@ export function WeeklyPerformanceChart({
   );
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="dashboard-card group">
+      <div className="dashboard-card-accent bg-gradient-to-r from-sky-500 via-emerald-400 to-violet-500 animate-gradient-shift" />
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-md">
+              <BarChart3 className="h-4 w-4 text-white" />
+            </div>
             Weekly Performance
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5 ml-10">
             Calls: {data.weeklyCallsAchieved}/{data.weeklyCallTarget} | Regs:{" "}
             {data.weeklyRegsAchieved}/{data.weeklyRegTarget}
           </p>
         </div>
-        <Badge variant="outline" className="text-[10px]">
+        <Badge className="text-[10px] bg-gradient-to-r from-sky-500/10 to-blue-500/10 text-sky-600 border-sky-500/20">
           This Week
         </Badge>
       </div>
@@ -487,11 +511,17 @@ export function MonthlyProgressCard({
   ];
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="dashboard-card group">
+      <div className="dashboard-card-accent bg-gradient-to-r from-amber-500 via-orange-400 to-rose-500 animate-gradient-shift" />
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-bold text-foreground">This Month</h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-md">
+              <CalendarDays className="h-4 w-4 text-white" />
+            </div>
+            This Month
+          </h2>
+          <p className="text-[11px] text-muted-foreground mt-0.5 ml-10">
             {format(new Date(), "MMMM yyyy")}
           </p>
         </div>
@@ -553,11 +583,11 @@ export function MonthlyProgressCard({
         ))}
       </div>
 
-      <div className="h-px bg-border mb-3" />
+      <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mb-3" />
 
       {/* Attendance + Late arrivals */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/5 to-green-500/5 border border-emerald-500/10">
           <div>
             <p className="text-[11px] text-muted-foreground">Attendance</p>
             <p className="text-lg font-bold">
@@ -568,11 +598,11 @@ export function MonthlyProgressCard({
               </span>
             </p>
           </div>
-          <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-            <Calendar className="h-4 w-4 text-emerald-500" />
+          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center shadow-sm">
+            <Calendar className="h-4 w-4 text-white" />
           </div>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-amber-500/5 to-orange-500/5 border border-amber-500/10">
           <div>
             <p className="text-[11px] text-muted-foreground">Late Arrivals</p>
             <p className="text-lg font-bold">
@@ -582,13 +612,13 @@ export function MonthlyProgressCard({
               </span>
             </p>
           </div>
-          <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-sm">
+            <AlertTriangle className="h-4 w-4 text-white" />
           </div>
         </div>
         {(data.regularizationPending > 0 ||
           data.regularizationApproved > 0) && (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-violet-500/5 to-purple-500/5 border border-violet-500/10">
             <div>
               <p className="text-[11px] text-muted-foreground">
                 Regularizations
@@ -604,8 +634,8 @@ export function MonthlyProgressCard({
                 )}
               </p>
             </div>
-            <div className="h-9 w-9 rounded-lg bg-violet-500/10 flex items-center justify-center">
-              <Timer className="h-4 w-4 text-violet-500" />
+            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-violet-400 to-purple-600 flex items-center justify-center shadow-sm">
+              <Timer className="h-4 w-4 text-white" />
             </div>
           </div>
         )}
@@ -647,18 +677,21 @@ export function LeaderboardWidget({
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 overflow-hidden">
+    <div className="dashboard-card group">
+      <div className="dashboard-card-accent bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 animate-gradient-shift" />
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-amber-500" />
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-yellow-400 to-amber-600 flex items-center justify-center shadow-md">
+              <Trophy className="h-4 w-4 text-white" />
+            </div>
             Leaderboard
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5 ml-10">
             Top 5 performers by registrations
           </p>
         </div>
-        <Badge variant="outline" className="text-[10px]">
+        <Badge className="text-[10px] bg-gradient-to-r from-amber-500/10 to-yellow-500/10 text-amber-600 border-amber-500/20">
           This Month
         </Badge>
       </div>
@@ -719,18 +752,19 @@ export function DatabaseStatusCard({
       : 0;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="dashboard-card group">
+      <div className="dashboard-card-accent bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 animate-gradient-shift" />
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md">
+              <Database className="h-4 w-4 text-white" />
+            </div>
             Database Status
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5 ml-10">
             Assigned records overview
           </p>
-        </div>
-        <div className="h-9 w-9 rounded-lg bg-violet-500/10 flex items-center justify-center">
-          <Database className="h-4 w-4 text-violet-500" />
         </div>
       </div>
 
@@ -741,31 +775,31 @@ export function DatabaseStatusCard({
         Total assigned records
       </p>
 
-      <div className="h-2 w-full rounded-full bg-muted overflow-hidden mb-3">
+      <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden mb-3">
         <div
-          className="h-full rounded-full bg-violet-500 transition-all duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-violet-400 to-purple-600 transition-all duration-700 ease-out"
           style={{ width: `${touchedRate}%` }}
         />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="text-center p-2 rounded-lg bg-muted/50">
-          <p className="text-lg font-bold text-foreground">
+        <div className="text-center p-2.5 rounded-xl bg-gradient-to-br from-sky-500/5 to-blue-500/10 border border-sky-500/10 hover:scale-105 transition-transform duration-200">
+          <p className="text-lg font-bold text-sky-600 dark:text-sky-400">
             {data.calledRecords}
           </p>
-          <p className="text-[10px] text-muted-foreground">Called</p>
+          <p className="text-[10px] text-muted-foreground font-medium">Called</p>
         </div>
-        <div className="text-center p-2 rounded-lg bg-muted/50">
-          <p className="text-lg font-bold text-foreground">
+        <div className="text-center p-2.5 rounded-xl bg-gradient-to-br from-amber-500/5 to-orange-500/10 border border-amber-500/10 hover:scale-105 transition-transform duration-200">
+          <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
             {data.untouchedRecords}
           </p>
-          <p className="text-[10px] text-muted-foreground">Untouched</p>
+          <p className="text-[10px] text-muted-foreground font-medium">Untouched</p>
         </div>
-        <div className="text-center p-2 rounded-lg bg-muted/50">
-          <p className="text-lg font-bold text-emerald-600">
+        <div className="text-center p-2.5 rounded-xl bg-gradient-to-br from-emerald-500/5 to-green-500/10 border border-emerald-500/10 hover:scale-105 transition-transform duration-200">
+          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
             {data.positiveDispositions}
           </p>
-          <p className="text-[10px] text-muted-foreground">Positive</p>
+          <p className="text-[10px] text-muted-foreground font-medium">Positive</p>
         </div>
       </div>
     </div>
@@ -797,11 +831,17 @@ export function PendingTasksCard({
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="dashboard-card group">
+      <div className="dashboard-card-accent bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 animate-gradient-shift" />
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-bold text-foreground">My Tasks</h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-md">
+              <CheckCircle2 className="h-4 w-4 text-white" />
+            </div>
+            My Tasks
+          </h2>
+          <p className="text-[11px] text-muted-foreground mt-0.5 ml-10">
             {data.pendingTasks.length} pending tasks
           </p>
         </div>
@@ -901,18 +941,19 @@ export function ScheduledCallsCard({
   data: PersonalDashboardData;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="dashboard-card group">
+      <div className="dashboard-card-accent bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500 animate-gradient-shift" />
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md">
+              <PhoneCall className="h-4 w-4 text-white" />
+            </div>
             Scheduled Calls
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5 ml-10">
             {data.scheduledCallsToday} follow-ups today
           </p>
-        </div>
-        <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center">
-          <PhoneCall className="h-4 w-4 text-green-500" />
         </div>
       </div>
 
@@ -926,10 +967,10 @@ export function ScheduledCallsCard({
           {data.scheduledCallsList.map((call) => (
             <div
               key={call.id}
-              className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+              className="flex items-center gap-3 p-2.5 rounded-lg bg-gradient-to-r from-emerald-500/5 to-green-500/5 border border-emerald-500/10 hover:from-emerald-500/10 hover:to-green-500/10 hover:scale-[1.01] transition-all duration-200"
             >
-              <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                <Phone className="h-4 w-4 text-green-600" />
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center shrink-0 shadow-sm">
+                <Phone className="h-4 w-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
