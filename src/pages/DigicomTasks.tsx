@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ClipboardList, Search, Clock, AlertTriangle, CheckCircle2, Loader2, XCircle, FolderKanban } from "lucide-react";
+import { ClipboardList, Search, Clock, AlertTriangle, CheckCircle2, Loader2, XCircle, FolderKanban, ListTree } from "lucide-react";
 
 interface DigicomTask {
   id: string;
@@ -26,6 +26,8 @@ interface DigicomTask {
   project_name?: string | null;
   assigned_user_name?: string;
   assigned_by_name?: string;
+  parent_task_id?: string | null;
+  parent_task_name?: string | null;
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -90,16 +92,19 @@ export default function DigicomTasks() {
 
       const memberList = memberIds.join(",");
 
+      const gtSelect = "id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, parent_task_id, assigned_user:assigned_to(full_name), creator:assigned_by(full_name), parent:parent_task_id(task_name)";
+      const ptSelect = "id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, project_id, parent_task_id, assigned_user:assigned_to(full_name), creator:assigned_by(full_name), project:project_id(project_name), parent:parent_task_id(task_name)";
+
       // General tasks — assigned_to OR assigned_by is a Digicom member
       const { data: gtAssignedTo } = await supabase
         .from("general_tasks")
-        .select("id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, assigned_user:assigned_to(full_name), creator:assigned_by(full_name)")
+        .select(gtSelect)
         .in("assigned_to", memberIds)
         .gte("created_at", monthStart)
         .lte("created_at", monthEnd + "T23:59:59");
       const { data: gtAssignedBy } = await supabase
         .from("general_tasks")
-        .select("id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, assigned_user:assigned_to(full_name), creator:assigned_by(full_name)")
+        .select(gtSelect)
         .in("assigned_by", memberIds)
         .gte("created_at", monthStart)
         .lte("created_at", monthEnd + "T23:59:59");
@@ -107,13 +112,13 @@ export default function DigicomTasks() {
       // Project tasks — assigned_to OR assigned_by is a Digicom member
       const { data: ptAssignedTo } = await supabase
         .from("project_tasks")
-        .select("id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, project_id, assigned_user:assigned_to(full_name), creator:assigned_by(full_name), project:project_id(project_name)")
+        .select(ptSelect)
         .in("assigned_to", memberIds)
         .gte("created_at", monthStart)
         .lte("created_at", monthEnd + "T23:59:59");
       const { data: ptAssignedBy } = await supabase
         .from("project_tasks")
-        .select("id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, project_id, assigned_user:assigned_to(full_name), creator:assigned_by(full_name), project:project_id(project_name)")
+        .select(ptSelect)
         .in("assigned_by", memberIds)
         .gte("created_at", monthStart)
         .lte("created_at", monthEnd + "T23:59:59");
@@ -135,6 +140,7 @@ export default function DigicomTasks() {
           project_name: null,
           assigned_user_name: t.assigned_user?.full_name,
           assigned_by_name: t.creator?.full_name,
+          parent_task_name: t.parent?.task_name || null,
         })),
         ...Array.from(projectMap.values()).map((t: any) => ({
           ...t,
@@ -142,6 +148,7 @@ export default function DigicomTasks() {
           project_name: t.project?.project_name || null,
           assigned_user_name: t.assigned_user?.full_name,
           assigned_by_name: t.creator?.full_name,
+          parent_task_name: t.parent?.task_name || null,
         })),
       ];
 
@@ -293,8 +300,18 @@ export default function DigicomTasks() {
                     className={overdue ? "bg-red-50/50 dark:bg-red-950/10" : ""}
                   >
                     <TableCell>
-                      <div className="max-w-[280px]">
-                        <p className="font-medium text-sm truncate">{task.task_name}</p>
+                      <div className="max-w-[300px]">
+                        <div className="flex items-center gap-1.5">
+                          {task.parent_task_id && (
+                            <ListTree className="h-3.5 w-3.5 text-violet-500 shrink-0" />
+                          )}
+                          <p className="font-medium text-sm truncate">{task.task_name}</p>
+                        </div>
+                        {task.parent_task_name && (
+                          <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                            <span className="text-violet-500">subtask of</span> {task.parent_task_name}
+                          </p>
+                        )}
                         {task.project_name && (
                           <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
                             <FolderKanban className="h-3 w-3" />
