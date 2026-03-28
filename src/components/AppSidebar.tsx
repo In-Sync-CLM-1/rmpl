@@ -262,6 +262,13 @@ const fallbackNavigationSections: NavigationSection[] = [
     ],
   },
   {
+    label: "DIGICOM",
+    items: [
+      { title: "Dashboard", url: "/digicom-dashboard", icon: Sparkles },
+      { title: "Tasks", url: "/digicom-tasks", icon: ClipboardList },
+    ],
+  },
+  {
     label: "LIVECOM",
     items: [
       { title: "Dashboard", url: "/livecom-dashboard", icon: Zap },

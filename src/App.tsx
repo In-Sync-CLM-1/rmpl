@@ -33,6 +33,8 @@ import Clients from "./pages/Clients";
 import ClientForm from "./pages/ClientForm";
 import Contacts from "./pages/Contacts";
 import ContactForm from "./pages/ContactForm";
+import DigicomDashboard from "./pages/DigicomDashboard";
+import DigicomTasks from "./pages/DigicomTasks";
 import Users from "./pages/Users";
 import MyProfile from "./pages/MyProfile";
 import Teams from "./pages/Teams";
@@ -116,6 +118,8 @@ const App = () => (
               <Route path="/contacts" element={<Contacts />} />
               <Route path="/contacts/new" element={<ContactForm />} />
               <Route path="/contacts/:id" element={<ContactForm />} />
+              <Route path="/digicom-dashboard" element={<DigicomDashboard />} />
+              <Route path="/digicom-tasks" element={<DigicomTasks />} />
               <Route path="/users" element={<Users />} />
               <Route path="/my-profile" element={<MyProfile />} />
               <Route path="/teams" element={<Teams />} />
