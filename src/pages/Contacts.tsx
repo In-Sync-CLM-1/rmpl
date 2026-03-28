@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Contact2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Contact2, Search, Linkedin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -29,6 +29,8 @@ interface ContactRow {
   department: string | null;
   contact_number: string | null;
   email_id: string | null;
+  contact_linkedin: string | null;
+  contact_address: string | null;
   is_primary: boolean | null;
   birthday_date: string | null;
   anniversary_date: string | null;
@@ -161,8 +163,13 @@ const Contacts = () => {
                 <TableHead>Contact Name</TableHead>
                 <TableHead>Company</TableHead>
                 <TableHead>Designation</TableHead>
+                <TableHead>Department</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>LinkedIn</TableHead>
+                <TableHead>Address</TableHead>
+                <TableHead>Birthday</TableHead>
+                <TableHead>Anniversary</TableHead>
                 <TableHead>Primary</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -174,8 +181,27 @@ const Contacts = () => {
                   <TableCell className="font-medium">{contact.contact_name}</TableCell>
                   <TableCell>{contact.company_name || "-"}</TableCell>
                   <TableCell>{contact.designation || "-"}</TableCell>
+                  <TableCell>{contact.department || "-"}</TableCell>
                   <TableCell>{contact.contact_number || "-"}</TableCell>
                   <TableCell>{contact.email_id || "-"}</TableCell>
+                  <TableCell>
+                    {contact.contact_linkedin ? (
+                      <a href={contact.contact_linkedin} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">
+                        View
+                      </a>
+                    ) : "-"}
+                  </TableCell>
+                  <TableCell className="max-w-[180px] truncate">{contact.contact_address || "-"}</TableCell>
+                  <TableCell>
+                    {contact.birthday_date
+                      ? new Date(contact.birthday_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
+                      : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {contact.anniversary_date
+                      ? new Date(contact.anniversary_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
+                      : "-"}
+                  </TableCell>
                   <TableCell>
                     {contact.is_primary && (
                       <Badge className="text-[10px] bg-primary/10 text-primary border-0">Primary</Badge>

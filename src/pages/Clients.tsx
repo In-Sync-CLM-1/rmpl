@@ -197,6 +197,10 @@ const Clients = () => {
                 <TableHead>Company Name</TableHead>
                 <TableHead>Branch</TableHead>
                 <TableHead>Industry</TableHead>
+                <TableHead>Official Address</TableHead>
+                <TableHead>GST Number</TableHead>
+                <TableHead>Website</TableHead>
+                <TableHead>LinkedIn</TableHead>
                 <TableHead>Assigned To</TableHead>
                 <TableHead>Managed By</TableHead>
                 <TableHead>Created</TableHead>
@@ -229,6 +233,22 @@ const Clients = () => {
                     </TableCell>
                     <TableCell>{client.branch || "-"}</TableCell>
                     <TableCell>{client.industry || "-"}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{client.official_address || "-"}</TableCell>
+                    <TableCell>{client.gst_number || "-"}</TableCell>
+                    <TableCell>
+                      {client.website ? (
+                        <a href={client.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm truncate max-w-[150px] block">
+                          {client.website.replace(/^https?:\/\//, '')}
+                        </a>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {client.company_linkedin_page ? (
+                        <a href={client.company_linkedin_page} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">
+                          View
+                        </a>
+                      ) : "-"}
+                    </TableCell>
                     <TableCell>
                       {client.assigned_to_name ? (
                         <Badge variant="outline" className="text-xs">
@@ -266,7 +286,7 @@ const Clients = () => {
                   </TableRow>
                   {expandedRows.has(client.id) && (
                     <TableRow key={`${client.id}-contacts`}>
-                      <TableCell colSpan={8} className="bg-muted/30 p-0">
+                      <TableCell colSpan={12} className="bg-muted/30 p-0">
                         <div className="px-8 py-3">
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
