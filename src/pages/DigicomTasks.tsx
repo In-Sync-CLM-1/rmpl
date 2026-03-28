@@ -51,6 +51,7 @@ export default function DigicomTasks() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignedToFilter, setAssignedToFilter] = useState("all");
   const [assignedByFilter, setAssignedByFilter] = useState("all");
+  const [taskLevelFilter, setTaskLevelFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Get Digicom team member IDs
@@ -162,6 +163,8 @@ export default function DigicomTasks() {
     if (statusFilter !== "all" && t.status !== statusFilter) return false;
     if (assignedToFilter !== "all" && t.assigned_to !== assignedToFilter) return false;
     if (assignedByFilter !== "all" && t.assigned_by !== assignedByFilter) return false;
+    if (taskLevelFilter === "parent" && t.parent_task_id) return false;
+    if (taskLevelFilter === "subtask" && !t.parent_task_id) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       if (!t.task_name.toLowerCase().includes(q) && !(t.project_name || "").toLowerCase().includes(q)) return false;
@@ -241,6 +244,16 @@ export default function DigicomTasks() {
             {teamMembers.map((m: any) => (
               <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={taskLevelFilter} onValueChange={setTaskLevelFilter}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="All Tasks" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Tasks</SelectItem>
+            <SelectItem value="parent">Parent Tasks Only</SelectItem>
+            <SelectItem value="subtask">Subtasks Only</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
