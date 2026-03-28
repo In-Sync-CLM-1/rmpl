@@ -63,13 +63,19 @@ export default function DigicomTasks() {
       if (!team) return [];
       const { data: members } = await supabase
         .from("team_members")
-        .select("user_id, profiles:user_id(id, full_name)")
+        .select("user_id")
         .eq("team_id", team.id)
         .eq("is_active", true);
-      return (members || []).map((m: any) => ({
-        id: m.profiles?.id,
-        full_name: m.profiles?.full_name || "Unknown",
-      })).filter((m: any) => m.id);
+      if (!members || members.length === 0) return [];
+      const userIds = members.map((m: any) => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
+      return (profiles || []).map((p: any) => ({
+        id: p.id,
+        full_name: p.full_name || "Unknown",
+      }));
     },
   });
 
