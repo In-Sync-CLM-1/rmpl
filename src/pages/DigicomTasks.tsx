@@ -47,7 +47,8 @@ export default function DigicomTasks() {
   const [monthStart, setMonthStart] = useState(format(startOfMonth(now), "yyyy-MM-dd"));
   const [monthEnd, setMonthEnd] = useState(format(endOfMonth(now), "yyyy-MM-dd"));
   const [statusFilter, setStatusFilter] = useState("all");
-  const [memberFilter, setMemberFilter] = useState("all");
+  const [assignedToFilter, setAssignedToFilter] = useState("all");
+  const [assignedByFilter, setAssignedByFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Get Digicom team member IDs
@@ -81,39 +82,61 @@ export default function DigicomTasks() {
 
   const memberIds = teamMembers.map((m: any) => m.id);
 
-  // Fetch all tasks for Digicom members
+  // Fetch all tasks where assigned_to OR assigned_by is a Digicom member
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ["digicom-tasks", monthStart, monthEnd, memberIds],
     queryFn: async () => {
       if (memberIds.length === 0) return [];
 
-      // General tasks
-      const { data: generalTasks } = await supabase
+      const memberList = memberIds.join(",");
+
+      // General tasks — assigned_to OR assigned_by is a Digicom member
+      const { data: gtAssignedTo } = await supabase
         .from("general_tasks")
         .select("id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, assigned_user:assigned_to(full_name), creator:assigned_by(full_name)")
         .in("assigned_to", memberIds)
         .gte("created_at", monthStart)
-        .lte("created_at", monthEnd + "T23:59:59")
-        .order("created_at", { ascending: false });
+        .lte("created_at", monthEnd + "T23:59:59");
+      const { data: gtAssignedBy } = await supabase
+        .from("general_tasks")
+        .select("id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, assigned_user:assigned_to(full_name), creator:assigned_by(full_name)")
+        .in("assigned_by", memberIds)
+        .gte("created_at", monthStart)
+        .lte("created_at", monthEnd + "T23:59:59");
 
-      // Project tasks
-      const { data: projectTasks } = await supabase
+      // Project tasks — assigned_to OR assigned_by is a Digicom member
+      const { data: ptAssignedTo } = await supabase
         .from("project_tasks")
         .select("id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, project_id, assigned_user:assigned_to(full_name), creator:assigned_by(full_name), project:project_id(project_name)")
         .in("assigned_to", memberIds)
         .gte("created_at", monthStart)
-        .lte("created_at", monthEnd + "T23:59:59")
-        .order("created_at", { ascending: false });
+        .lte("created_at", monthEnd + "T23:59:59");
+      const { data: ptAssignedBy } = await supabase
+        .from("project_tasks")
+        .select("id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, project_id, assigned_user:assigned_to(full_name), creator:assigned_by(full_name), project:project_id(project_name)")
+        .in("assigned_by", memberIds)
+        .gte("created_at", monthStart)
+        .lte("created_at", monthEnd + "T23:59:59");
+
+      // Deduplicate by id
+      const generalMap = new Map<string, any>();
+      for (const t of [...(gtAssignedTo || []), ...(gtAssignedBy || [])]) {
+        generalMap.set(t.id, t);
+      }
+      const projectMap = new Map<string, any>();
+      for (const t of [...(ptAssignedTo || []), ...(ptAssignedBy || [])]) {
+        projectMap.set(t.id, t);
+      }
 
       const merged: DigicomTask[] = [
-        ...(generalTasks || []).map((t: any) => ({
+        ...Array.from(generalMap.values()).map((t: any) => ({
           ...t,
           task_type: "general" as const,
           project_name: null,
           assigned_user_name: t.assigned_user?.full_name,
           assigned_by_name: t.creator?.full_name,
         })),
-        ...(projectTasks || []).map((t: any) => ({
+        ...Array.from(projectMap.values()).map((t: any) => ({
           ...t,
           task_type: "project" as const,
           project_name: t.project?.project_name || null,
@@ -130,7 +153,8 @@ export default function DigicomTasks() {
 
   const filtered = tasks.filter((t) => {
     if (statusFilter !== "all" && t.status !== statusFilter) return false;
-    if (memberFilter !== "all" && t.assigned_to !== memberFilter) return false;
+    if (assignedToFilter !== "all" && t.assigned_to !== assignedToFilter) return false;
+    if (assignedByFilter !== "all" && t.assigned_by !== assignedByFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       if (!t.task_name.toLowerCase().includes(q) && !(t.project_name || "").toLowerCase().includes(q)) return false;
@@ -190,12 +214,23 @@ export default function DigicomTasks() {
             className="pl-9 w-56"
           />
         </div>
-        <Select value={memberFilter} onValueChange={setMemberFilter}>
+        <Select value={assignedToFilter} onValueChange={setAssignedToFilter}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Members" />
+            <SelectValue placeholder="Assigned To" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Members</SelectItem>
+            <SelectItem value="all">All — Assigned To</SelectItem>
+            {teamMembers.map((m: any) => (
+              <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={assignedByFilter} onValueChange={setAssignedByFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Assigned By" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All — Assigned By</SelectItem>
             {teamMembers.map((m: any) => (
               <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
             ))}
