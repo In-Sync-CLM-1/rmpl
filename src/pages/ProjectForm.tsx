@@ -128,7 +128,7 @@ export default function ProjectForm() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("id, company_name")
+        .select("id, company_name, assigned_to")
         .order("company_name");
       if (error) {
         logError(error, {
@@ -540,6 +540,11 @@ export default function ProjectForm() {
                             field.onChange(value);
                             setSelectedCompany(value);
                             form.setValue("contact_id", ""); // Reset contact when client changes
+                            // Auto-set project owner from client's assigned_to
+                            const selectedClient = clients?.find(c => c.company_name === value);
+                            if (selectedClient?.assigned_to && !isEditing) {
+                              form.setValue("project_owner", selectedClient.assigned_to);
+                            }
                           }} 
                           value={field.value}
                         >
