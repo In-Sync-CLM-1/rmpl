@@ -260,19 +260,18 @@ const ExecutiveDashboard = () => {
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0">
                       <div className="font-medium text-sm text-primary truncate">{member.full_name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{member.email}</div>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                   </div>
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t">
                     <div>
                       <div className="text-xs text-muted-foreground">Annual</div>
-                      <div className="text-xs">{formatCurrency(member.annual_target)} → <span className="text-emerald-600 font-medium underline" onClick={(e) => { e.stopPropagation(); setDrilldownMember(member); }}>{formatCurrency(member.ytd_actual)}</span></div>
+                      <div className="text-xs">{formatCurrency(member.annual_target)} → <span className="text-blue-600 font-medium underline" onClick={(e) => { e.stopPropagation(); setDrilldownMember(member); }}>{formatCurrency(member.ytd_actual)}</span></div>
                       <div className="mt-1">{getAchievementBadge(member.achievement_percentage)}</div>
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground">{currentMonthShort}</div>
-                      <div className="text-xs">{formatCurrency(monthlyTarget)} → <span className="text-cyan-600 font-medium">{formatCurrency(currentMonthData.actual)}</span></div>
+                      <div className="text-xs">{formatCurrency(monthlyTarget)} → <span className="text-blue-600 font-medium underline" onClick={(e) => { e.stopPropagation(); setDrilldownMember(member); }}>{formatCurrency(currentMonthData.actual)}</span></div>
                       <div className="mt-1">{getAchievementBadge(monthlyAchievement)}</div>
                     </div>
                   </div>
@@ -335,21 +334,23 @@ const ExecutiveDashboard = () => {
                 return (
                   <TableRow key={member.user_id} className="hover:bg-muted/50">
                     <TableCell className="py-2 border-r">
-                      <div>
-                        <div className="font-medium text-sm text-primary">{member.full_name}</div>
-                        <div className="text-xs text-muted-foreground">{member.email}</div>
-                      </div>
+                      <div className="font-medium text-sm">{member.full_name}</div>
                     </TableCell>
                     <TableCell className="text-right text-sm py-2">{formatCurrency(member.annual_target)}</TableCell>
                     <TableCell
-                      className="text-right text-sm font-medium py-2 text-emerald-600 cursor-pointer hover:underline hover:text-emerald-700"
+                      className="text-right text-sm font-medium py-2 text-blue-600 underline cursor-pointer hover:text-blue-800"
                       onClick={() => setDrilldownMember(member)}
+                      title="Click to view project breakdown"
                     >
                       {formatCurrency(member.ytd_actual)}
                     </TableCell>
                     <TableCell className="text-center py-2 border-r">{getAchievementBadge(member.achievement_percentage)}</TableCell>
                     <TableCell className="text-right text-sm py-2">{formatCurrency(monthlyTarget)}</TableCell>
-                    <TableCell className="text-right text-sm font-medium py-2 text-cyan-600">
+                    <TableCell
+                      className="text-right text-sm font-medium py-2 text-blue-600 underline cursor-pointer hover:text-blue-800"
+                      onClick={() => setDrilldownMember(member)}
+                      title="Click to view project breakdown"
+                    >
                       {formatCurrency(currentMonthData.actual)}
                     </TableCell>
                     <TableCell className="text-center py-2 border-r">{getAchievementBadge(monthlyAchievement)}</TableCell>
