@@ -50,7 +50,8 @@ interface Project {
     amount: number | null;
     paid_amount: number | null;
     status: string;
-    client_name: string | null;
+    client_id: string | null;
+    client?: { company_name: string | null };
     invoice_date: string | null;
     created_at: string;
   }>;

@@ -313,7 +313,7 @@ export default function CashflowDashboard() {
                           {payment.quotation.project.project_name}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {payment.quotation.project.client_name}
+                          {payment.quotation.client_name || "-"}
                         </p>
                       </div>
                     </TableCell>

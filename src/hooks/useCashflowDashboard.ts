@@ -26,9 +26,9 @@ export interface RecentPayment {
   reference_number: string | null;
   quotation: {
     quotation_number: string;
+    client_name: string | null;
     project: {
       project_name: string;
-      client_name: string;
     };
   };
 }
@@ -88,9 +88,9 @@ export function useCashflowDashboard() {
           reference_number,
           project_quotations!inner(
             quotation_number,
+            client:clients!project_quotations_client_id_fkey(company_name),
             projects!inner(
-              project_name,
-              client_name
+              project_name
             )
           )
         `)
@@ -107,9 +107,9 @@ export function useCashflowDashboard() {
         reference_number: p.reference_number,
         quotation: {
           quotation_number: p.project_quotations.quotation_number,
+          client_name: p.project_quotations.client?.company_name || null,
           project: {
             project_name: p.project_quotations.projects.project_name,
-            client_name: p.project_quotations.projects.client_name,
           },
         },
       })) as RecentPayment[];

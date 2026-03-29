@@ -22,7 +22,7 @@ interface ProjectInvoiceManagerProps {
 type ParseState = "idle" | "parsing" | "parsed" | "error";
 
 interface ParsedData {
-  client_name: string;
+  client_name: string; // Display-only from invoice parsing; stored as client_id FK
   invoice_amount: string;
   invoice_date: string;
   raw_amount_text: string;
@@ -77,7 +77,7 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
     queryFn: async () => {
       const { data, error } = await supabase
         .from("project_quotations")
-        .select("*")
+        .select("*, client:clients!project_quotations_client_id_fkey(company_name)")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -92,8 +92,8 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
 
   // Upload invoice mutation
   const uploadMutation = useMutation({
-    mutationFn: async ({ file, amount, clientName, invoiceDate }: { 
-      file: File; 
+    mutationFn: async ({ file, amount, clientName, invoiceDate }: {
+      file: File;
       amount: number;
       clientName: string;
       invoiceDate: string;
@@ -108,6 +108,17 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
       const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
         throw new Error("File size must be less than 10MB");
+      }
+
+      // Resolve client_id from the project's client association
+      let clientId: string | null = null;
+      const { data: proj } = await supabase
+        .from("projects")
+        .select("client_id")
+        .eq("id", projectId)
+        .single();
+      if (proj?.client_id) {
+        clientId = proj.client_id;
       }
 
       const quotationNumber = `QT-${Date.now()}`;
@@ -132,7 +143,7 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
           created_by: user.data.user.id,
           status: "draft",
           amount: amount || null,
-          client_name: clientName || null,
+          client_id: clientId,
           invoice_date: invoiceDate || null,
         })
         .select()
@@ -497,7 +508,7 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm">{quotation.client_name || "-"}</span>
+                          <span className="text-sm">{(quotation as any).client?.company_name || "-"}</span>
                         </TableCell>
                         <TableCell className="text-right">
                           {totalAmount > 0 ? (

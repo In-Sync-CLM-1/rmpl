@@ -3887,7 +3887,7 @@ export type Database = {
       operations_inventory_distribution: {
         Row: {
           awb_number: string | null
-          client_name: string | null
+          client_id: string | null
           created_at: string | null
           created_by: string | null
           damaged_lost_count: number | null
@@ -3909,7 +3909,7 @@ export type Database = {
         }
         Insert: {
           awb_number?: string | null
-          client_name?: string | null
+          client_id?: string | null
           created_at?: string | null
           created_by?: string | null
           damaged_lost_count?: number | null
@@ -3931,7 +3931,7 @@ export type Database = {
         }
         Update: {
           awb_number?: string | null
-          client_name?: string | null
+          client_id?: string | null
           created_at?: string | null
           created_by?: string | null
           damaged_lost_count?: number | null
@@ -4498,7 +4498,7 @@ export type Database = {
       project_quotations: {
         Row: {
           amount: number | null
-          client_name: string | null
+          client_id: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -4520,7 +4520,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
-          client_name?: string | null
+          client_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -4542,7 +4542,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
-          client_name?: string | null
+          client_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -4568,6 +4568,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_quotations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]

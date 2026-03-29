@@ -74,9 +74,9 @@ export function InvoiceViewDialog({
           <div className="space-y-2">
             <p className="font-medium text-sm">{quotation.file_name}</p>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {quotation.client_name && (
+              {quotation.client?.company_name && (
                 <>
-                  <span className="font-medium text-foreground">{quotation.client_name}</span>
+                  <span className="font-medium text-foreground">{quotation.client.company_name}</span>
                   <span>•</span>
                 </>
               )}
