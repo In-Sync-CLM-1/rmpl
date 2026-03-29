@@ -16,7 +16,7 @@ export interface UnifiedTask {
   completed_at: string | null;
   parent_task_id: string | null;
   task_type: "general" | "project";
-  project_id?: string;
+  project_id?: string | null;
   project_number?: string | null;
   project_name?: string;
   assigned_user?: {
@@ -59,112 +59,65 @@ export function useAllTasks(filters?: TaskFilters) {
       const { data: { user } } = await supabase.auth.getUser();
       const userId = user?.id;
 
-      // Fetch general tasks (without FK join since FK doesn't exist)
-      let generalQuery = supabase
-        .from("general_tasks")
-        .select("*", { count: "exact" });
-
-      // Filter to only show tasks assigned to or created by current user
-      if (userId) {
-        generalQuery = generalQuery.or(`assigned_to.eq.${userId},assigned_by.eq.${userId}`);
-      }
-
-      if (status && status !== "all") {
-        generalQuery = generalQuery.eq("status", status);
-      }
-
-      // Apply date filters for general tasks
-      if (filters?.createdDateFrom) {
-        generalQuery = generalQuery.gte("created_at", filters.createdDateFrom);
-      }
-      if (filters?.createdDateTo) {
-        generalQuery = generalQuery.lte("created_at", filters.createdDateTo);
-      }
-      if (filters?.dueDateFrom) {
-        generalQuery = generalQuery.gte("due_date", filters.dueDateFrom);
-      }
-      if (filters?.dueDateTo) {
-        generalQuery = generalQuery.lte("due_date", filters.dueDateTo);
-      }
-
-      generalQuery = generalQuery.order("due_date", { ascending: true });
-
-      const { data: generalTasks, error: generalError, count: generalCount } = await generalQuery;
-      if (generalError) throw generalError;
-
-      // Fetch profiles for assigned users and assigned_by users separately
-      const assignedUserIds = [...new Set((generalTasks || []).map((t: any) => t.assigned_to).filter(Boolean))];
-      const assignedByUserIds = [...new Set((generalTasks || []).map((t: any) => t.assigned_by).filter(Boolean))];
-      const allUserIds = [...new Set([...assignedUserIds, ...assignedByUserIds])];
-      let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
-      
-      if (allUserIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, email")
-          .in("id", allUserIds);
-        
-        (profiles || []).forEach((p: any) => {
-          profilesMap[p.id] = { full_name: p.full_name, email: p.email };
-        });
-      }
-
-      // Fetch project tasks with project info
-      let projectQuery = supabase
-        .from("project_tasks")
+      // Fetch all tasks from unified tasks table with FK joins
+      let query = supabase
+        .from("tasks")
         .select(`
           *,
-          assigned_user:profiles!project_tasks_assigned_to_fkey(full_name, email),
-          assigned_by_user:profiles!project_tasks_assigned_by_fkey(full_name, email),
-          project:projects!project_tasks_project_id_fkey(id, project_number, project_name)
+          assigned_user:profiles!tasks_assigned_to_fkey(full_name, email),
+          assigned_by_user:profiles!tasks_assigned_by_fkey(full_name, email),
+          project:projects!tasks_project_id_fkey(id, project_number, project_name)
         `, { count: "exact" });
 
       // Filter to only show tasks assigned to or created by current user
       if (userId) {
-        projectQuery = projectQuery.or(`assigned_to.eq.${userId},assigned_by.eq.${userId}`);
+        query = query.or(`assigned_to.eq.${userId},assigned_by.eq.${userId}`);
       }
 
       if (status && status !== "all") {
-        projectQuery = projectQuery.eq("status", status);
+        query = query.eq("status", status);
       }
 
-      // Apply date filters for project tasks
+      // Apply date filters
       if (filters?.createdDateFrom) {
-        projectQuery = projectQuery.gte("created_at", filters.createdDateFrom);
+        query = query.gte("created_at", filters.createdDateFrom);
       }
       if (filters?.createdDateTo) {
-        projectQuery = projectQuery.lte("created_at", filters.createdDateTo);
+        query = query.lte("created_at", filters.createdDateTo);
       }
       if (filters?.dueDateFrom) {
-        projectQuery = projectQuery.gte("due_date", filters.dueDateFrom);
+        query = query.gte("due_date", filters.dueDateFrom);
       }
       if (filters?.dueDateTo) {
-        projectQuery = projectQuery.lte("due_date", filters.dueDateTo);
+        query = query.lte("due_date", filters.dueDateTo);
       }
 
-      projectQuery = projectQuery.order("due_date", { ascending: true });
+      query = query.order("due_date", { ascending: true });
 
-      const { data: projectTasks, error: projectError, count: projectCount } = await projectQuery;
-      if (projectError) throw projectError;
+      const { data: allTasksRaw, error, count } = await query;
+      if (error) throw error;
 
-      // Format general tasks
-      const formattedGeneralTasks: UnifiedTask[] = (generalTasks || []).map((task: any) => ({
+      // Format tasks
+      const formattedTasks: UnifiedTask[] = (allTasksRaw || []).map((task: any) => ({
         ...task,
-        task_type: "general" as const,
+        task_type: task.project_id ? ("project" as const) : ("general" as const),
+        project_id: task.project_id,
+        project_number: task.project?.project_number,
+        project_name: task.project?.project_name,
         status: task.status as "pending" | "in_progress" | "completed" | "cancelled",
         priority: (task.priority || "medium") as "low" | "medium" | "high" | "urgent",
-        assigned_user: profilesMap[task.assigned_to] || null,
-        assigned_by_user: profilesMap[task.assigned_by] || null,
+        assigned_user: task.assigned_user || null,
+        assigned_by_user: task.assigned_by_user || null,
       }));
 
-      // Build hierarchy for general tasks
+      // Build hierarchy
       const taskMap = new Map<string, UnifiedTask>();
-      const rootGeneralTasks: UnifiedTask[] = [];
-      
-      formattedGeneralTasks.forEach(task => {
+      const rootTasks: UnifiedTask[] = [];
+
+      formattedTasks.forEach(task => {
         taskMap.set(task.id, { ...task, subtasks: [] });
       });
-      
+
       taskMap.forEach(task => {
         if (task.parent_task_id && taskMap.has(task.parent_task_id)) {
           // Parent exists in taskMap - attach as subtask
@@ -173,37 +126,21 @@ export function useAllTasks(filters?: TaskFilters) {
           parent.subtasks.push(task);
         } else if (!task.parent_task_id) {
           // Root task - add to root list
-          rootGeneralTasks.push(task);
+          rootTasks.push(task);
         } else {
           // Orphan subtask (parent not in taskMap) - treat as root task
           // This handles subtasks assigned to user when parent is assigned to someone else
-          rootGeneralTasks.push(task);
+          rootTasks.push(task);
         }
       });
 
-      const formattedProjectTasks: UnifiedTask[] = (projectTasks || []).map((task: any) => ({
-        ...task,
-        task_type: "project" as const,
-        project_id: task.project_id,
-        project_number: task.project?.project_number,
-        project_name: task.project?.project_name,
-        status: task.status as "pending" | "in_progress" | "completed" | "cancelled",
-        priority: (task.priority || "medium") as "low" | "medium" | "high" | "urgent",
-        assigned_by_user: task.assigned_by_user || null,
-      }));
-
-      // Merge and sort by due date
-      const allTasks = [...rootGeneralTasks, ...formattedProjectTasks].sort(
-        (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-      );
-
       // Apply pagination after hierarchy building
       const from = (currentPage - 1) * itemsPerPage;
-      const paginatedTasks = allTasks.slice(from, from + itemsPerPage);
+      const paginatedTasks = rootTasks.slice(from, from + itemsPerPage);
 
       return {
         tasks: paginatedTasks,
-        totalCount: (generalCount || 0) + (projectCount || 0),
+        totalCount: count || 0,
       };
     },
   });
@@ -217,12 +154,13 @@ export function useAllTasks(filters?: TaskFilters) {
       priority: "low" | "medium" | "high" | "urgent";
       status?: "pending" | "in_progress" | "completed" | "cancelled";
       parent_task_id?: string | null;
+      project_id?: string | null;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       const { data, error } = await supabase
-        .from("general_tasks")
+        .from("tasks")
         .insert({
           ...taskData,
           assigned_by: user.id,
@@ -246,15 +184,13 @@ export function useAllTasks(filters?: TaskFilters) {
   });
 
   const updateTask = useMutation({
-    mutationFn: async ({ 
-      id, 
-      task_type, 
-      ...updates 
+    mutationFn: async ({
+      id,
+      task_type,
+      ...updates
     }: Partial<UnifiedTask> & { id: string; task_type: "general" | "project" }) => {
-      const tableName = task_type === "general" ? "general_tasks" : "project_tasks";
-      
       const { data, error } = await supabase
-        .from(tableName)
+        .from("tasks")
         .update(updates)
         .eq("id", id)
         .select()
@@ -277,10 +213,8 @@ export function useAllTasks(filters?: TaskFilters) {
 
   const deleteTask = useMutation({
     mutationFn: async ({ id, task_type }: { id: string; task_type: "general" | "project" }) => {
-      const tableName = task_type === "general" ? "general_tasks" : "project_tasks";
-      
       const { error } = await supabase
-        .from(tableName)
+        .from("tasks")
         .delete()
         .eq("id", id);
 
@@ -298,18 +232,16 @@ export function useAllTasks(filters?: TaskFilters) {
   });
 
   const restartTask = useMutation({
-    mutationFn: async ({ 
-      id, 
-      task_type, 
-      restart_reason 
+    mutationFn: async ({
+      id,
+      task_type,
+      restart_reason
     }: { id: string; task_type: "general" | "project"; restart_reason: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const tableName = task_type === "general" ? "general_tasks" : "project_tasks";
-      
       const { data, error } = await supabase
-        .from(tableName)
+        .from("tasks")
         .update({
           status: "pending",
           restart_reason,
@@ -352,11 +284,11 @@ export function useAllTasks(filters?: TaskFilters) {
 
 export const getOverdueDays = (dueDate: string, status: string): number => {
   if (status === "completed" || status === "cancelled") return 0;
-  
+
   const now = new Date();
   const due = new Date(dueDate);
   const diffTime = now.getTime() - due.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   return diffDays > 0 ? diffDays : 0;
 };

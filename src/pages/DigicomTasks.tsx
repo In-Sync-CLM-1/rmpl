@@ -93,65 +93,36 @@ export default function DigicomTasks() {
 
       const memberList = memberIds.join(",");
 
-      const gtSelect = "id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, parent_task_id, assigned_user:assigned_to(full_name), creator:assigned_by(full_name), parent:parent_task_id(task_name)";
-      const ptSelect = "id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, project_id, parent_task_id, assigned_user:assigned_to(full_name), creator:assigned_by(full_name), project:project_id(project_name), parent:parent_task_id(task_name)";
+      const taskSelect = "id, task_name, assigned_to, assigned_by, due_date, status, priority, created_at, completed_at, project_id, parent_task_id, assigned_user:assigned_to(full_name), creator:assigned_by(full_name), project:project_id(project_name), parent:parent_task_id(task_name)";
 
-      // General tasks — assigned_to OR assigned_by is a Digicom member
-      const { data: gtAssignedTo } = await supabase
-        .from("general_tasks")
-        .select(gtSelect)
+      // Tasks — assigned_to OR assigned_by is a Digicom member
+      const { data: tasksAssignedTo } = await supabase
+        .from("tasks")
+        .select(taskSelect)
         .in("assigned_to", memberIds)
         .gte("created_at", monthStart)
         .lte("created_at", monthEnd + "T23:59:59");
-      const { data: gtAssignedBy } = await supabase
-        .from("general_tasks")
-        .select(gtSelect)
-        .in("assigned_by", memberIds)
-        .gte("created_at", monthStart)
-        .lte("created_at", monthEnd + "T23:59:59");
-
-      // Project tasks — assigned_to OR assigned_by is a Digicom member
-      const { data: ptAssignedTo } = await supabase
-        .from("project_tasks")
-        .select(ptSelect)
-        .in("assigned_to", memberIds)
-        .gte("created_at", monthStart)
-        .lte("created_at", monthEnd + "T23:59:59");
-      const { data: ptAssignedBy } = await supabase
-        .from("project_tasks")
-        .select(ptSelect)
+      const { data: tasksAssignedBy } = await supabase
+        .from("tasks")
+        .select(taskSelect)
         .in("assigned_by", memberIds)
         .gte("created_at", monthStart)
         .lte("created_at", monthEnd + "T23:59:59");
 
       // Deduplicate by id
-      const generalMap = new Map<string, any>();
-      for (const t of [...(gtAssignedTo || []), ...(gtAssignedBy || [])]) {
-        generalMap.set(t.id, t);
-      }
-      const projectMap = new Map<string, any>();
-      for (const t of [...(ptAssignedTo || []), ...(ptAssignedBy || [])]) {
-        projectMap.set(t.id, t);
+      const taskMap = new Map<string, any>();
+      for (const t of [...(tasksAssignedTo || []), ...(tasksAssignedBy || [])]) {
+        taskMap.set(t.id, t);
       }
 
-      const merged: DigicomTask[] = [
-        ...Array.from(generalMap.values()).map((t: any) => ({
-          ...t,
-          task_type: "general" as const,
-          project_name: null,
-          assigned_user_name: t.assigned_user?.full_name,
-          assigned_by_name: t.creator?.full_name,
-          parent_task_name: t.parent?.task_name || null,
-        })),
-        ...Array.from(projectMap.values()).map((t: any) => ({
-          ...t,
-          task_type: "project" as const,
-          project_name: t.project?.project_name || null,
-          assigned_user_name: t.assigned_user?.full_name,
-          assigned_by_name: t.creator?.full_name,
-          parent_task_name: t.parent?.task_name || null,
-        })),
-      ];
+      const merged: DigicomTask[] = Array.from(taskMap.values()).map((t: any) => ({
+        ...t,
+        task_type: t.project_id ? ("project" as const) : ("general" as const),
+        project_name: t.project?.project_name || null,
+        assigned_user_name: t.assigned_user?.full_name,
+        assigned_by_name: t.creator?.full_name,
+        parent_task_name: t.parent?.task_name || null,
+      }));
 
       merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       return merged;

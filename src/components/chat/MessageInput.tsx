@@ -149,8 +149,7 @@ export function MessageInput({ conversationId, disabled, replyTo, onCancelReply 
       await sendMessage.mutateAsync({
         content: `${prefix}Shared task: ${task.task_name}`,
         messageType: "task_share",
-        taskId: task.task_type === "general" ? task.id : undefined,
-        projectTaskId: task.task_type === "project" ? task.id : undefined,
+        taskId: task.id,
       });
       setShowTaskPicker(false);
       toast.success("Task shared");

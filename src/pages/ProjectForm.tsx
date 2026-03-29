@@ -404,9 +404,10 @@ export default function ProjectForm() {
     queryFn: async () => {
       if (!id || id === 'new') return 0;
       const { count, error } = await supabase
-        .from("project_tasks")
+        .from("tasks")
         .select("*", { count: "exact", head: true })
-        .eq("project_id", id);
+        .eq("project_id", id)
+        .not("project_id", "is", null);
       if (error) throw error;
       return count || 0;
     },

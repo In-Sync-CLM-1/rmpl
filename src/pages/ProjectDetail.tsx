@@ -181,9 +181,10 @@ export default function ProjectDetail() {
     queryKey: ["project-task-stats", id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("project_tasks")
+        .from("tasks")
         .select("id, status, parent_task_id, task_name, due_date")
-        .eq("project_id", id);
+        .eq("project_id", id)
+        .not("project_id", "is", null);
 
       if (error) throw error;
       

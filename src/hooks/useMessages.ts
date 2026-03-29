@@ -7,8 +7,7 @@ const PAGE_SIZE = 50;
 const MESSAGE_SELECT = `
   *,
   sender:profiles!chat_messages_sender_id_fkey(id, full_name, avatar_url),
-  task:general_tasks(id, task_name, description, status, due_date, priority),
-  project_task:project_tasks(id, task_name, description, status, due_date, priority, project:projects(project_name)),
+  task:tasks(id, task_name, description, status, due_date, priority, project_id, project:projects(project_name)),
   reply_to:chat_messages!reply_to_id(id, content, message_type, sender:profiles!chat_messages_sender_id_fkey(full_name))
 `;
 
@@ -19,7 +18,6 @@ export interface ChatMessage {
   content: string | null;
   message_type: "text" | "task_share" | "file";
   task_id: string | null;
-  project_task_id: string | null;
   file_url: string | null;
   file_name: string | null;
   file_size: number | null;
@@ -47,14 +45,7 @@ export interface ChatMessage {
     status: string;
     due_date: string;
     priority: string | null;
-  };
-  project_task?: {
-    id: string;
-    task_name: string;
-    description: string | null;
-    status: string;
-    due_date: string;
-    priority: string | null;
+    project_id?: string | null;
     project?: {
       project_name: string | null;
     };
@@ -220,7 +211,6 @@ export function useMessages(conversationId: string | null) {
       content,
       messageType = "text",
       taskId,
-      projectTaskId,
       fileUrl,
       fileName,
       fileSize,
@@ -229,7 +219,6 @@ export function useMessages(conversationId: string | null) {
       content?: string;
       messageType?: "text" | "task_share" | "file";
       taskId?: string;
-      projectTaskId?: string;
       fileUrl?: string;
       fileName?: string;
       fileSize?: number;
@@ -255,7 +244,6 @@ export function useMessages(conversationId: string | null) {
           content,
           message_type: messageType,
           task_id: taskId || null,
-          project_task_id: projectTaskId || null,
           file_url: fileUrl || null,
           file_name: fileName || null,
           file_size: fileSize || null,
@@ -297,7 +285,6 @@ export function useMessages(conversationId: string | null) {
         content: content || null,
         message_type: messageType,
         task_id: null,
-        project_task_id: null,
         file_url: fileUrl || null,
         file_name: fileName || null,
         file_size: fileSize || null,

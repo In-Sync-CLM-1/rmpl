@@ -30,28 +30,29 @@ export function useProjectTasks(projectId: string) {
     queryKey: ["project-tasks", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("project_tasks")
+        .from("tasks")
         .select(`
           *,
-          assigned_user:profiles!project_tasks_assigned_to_fkey (
+          assigned_user:profiles!tasks_assigned_to_fkey (
             full_name,
             email
           )
         `)
         .eq("project_id", projectId)
+        .not("project_id", "is", null)
         .order("due_date", { ascending: true });
 
       if (error) throw error;
-      
+
       // Organize tasks into hierarchy
       const taskMap = new Map<string, ProjectTask>();
       const rootTasks: ProjectTask[] = [];
-      
+
       // First pass: create map of all tasks
       (data as ProjectTask[]).forEach(task => {
         taskMap.set(task.id, { ...task, subtasks: [] });
       });
-      
+
       // Second pass: organize into hierarchy
       taskMap.forEach(task => {
         if (task.parent_task_id && taskMap.has(task.parent_task_id)) {
@@ -62,7 +63,7 @@ export function useProjectTasks(projectId: string) {
           rootTasks.push(task);
         }
       });
-      
+
       return rootTasks;
     },
     enabled: !!projectId,
@@ -73,17 +74,18 @@ export function useProjectTasks(projectId: string) {
     queryKey: ["project-tasks-flat", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("project_tasks")
+        .from("tasks")
         .select(`
           id,
           task_name,
           parent_task_id,
-          assigned_user:profiles!project_tasks_assigned_to_fkey (
+          assigned_user:profiles!tasks_assigned_to_fkey (
             full_name,
             email
           )
         `)
         .eq("project_id", projectId)
+        .not("project_id", "is", null)
         .is("parent_task_id", null) // Only top-level tasks can be parents
         .order("task_name", { ascending: true });
 
@@ -99,7 +101,7 @@ export function useProjectTasks(projectId: string) {
       if (!user) throw new Error("Not authenticated");
 
       const { data, error } = await supabase
-        .from("project_tasks")
+        .from("tasks")
         .insert({
           ...taskData,
           assigned_by: user.id,
@@ -111,11 +113,11 @@ export function useProjectTasks(projectId: string) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["project-tasks", projectId],
         exact: true
       });
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["project-tasks-flat", projectId],
         exact: true
       });
@@ -130,7 +132,7 @@ export function useProjectTasks(projectId: string) {
   const updateTask = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<ProjectTask> & { id: string }) => {
       const { data, error } = await supabase
-        .from("project_tasks")
+        .from("tasks")
         .update(updates)
         .eq("id", id)
         .select()
@@ -140,11 +142,11 @@ export function useProjectTasks(projectId: string) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["project-tasks", projectId],
         exact: true
       });
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["project-tasks-flat", projectId],
         exact: true
       });
@@ -159,18 +161,18 @@ export function useProjectTasks(projectId: string) {
   const deleteTask = useMutation({
     mutationFn: async (taskId: string) => {
       const { error } = await supabase
-        .from("project_tasks")
+        .from("tasks")
         .delete()
         .eq("id", taskId);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["project-tasks", projectId],
         exact: true
       });
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["project-tasks-flat", projectId],
         exact: true
       });

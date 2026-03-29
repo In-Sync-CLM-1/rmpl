@@ -255,14 +255,10 @@ export function MessageThread({ conversationId, currentUserId, onReply, onForwar
                       )}
 
                       {message.message_type === "task_share" && message.task && (
-                        <TaskShareCard task={message.task} isOwnMessage={isOwnMessage} />
-                      )}
-
-                      {message.message_type === "task_share" && message.project_task && (
                         <TaskShareCard
-                          task={message.project_task}
+                          task={message.task}
                           isOwnMessage={isOwnMessage}
-                          projectName={message.project_task.project?.project_name}
+                          projectName={message.task.project?.project_name}
                         />
                       )}
 

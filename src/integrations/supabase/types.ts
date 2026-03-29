@@ -729,7 +729,6 @@ export type Database = {
           id: string
           is_edited: boolean | null
           message_type: string
-          project_task_id: string | null
           reply_to_id: string | null
           sender_id: string
           task_id: string | null
@@ -745,7 +744,6 @@ export type Database = {
           id?: string
           is_edited?: boolean | null
           message_type?: string
-          project_task_id?: string | null
           reply_to_id?: string | null
           sender_id: string
           task_id?: string | null
@@ -761,7 +759,6 @@ export type Database = {
           id?: string
           is_edited?: boolean | null
           message_type?: string
-          project_task_id?: string | null
           reply_to_id?: string | null
           sender_id?: string
           task_id?: string | null
@@ -773,13 +770,6 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "chat_conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_messages_project_task_id_fkey"
-            columns: ["project_task_id"]
-            isOneToOne: false
-            referencedRelation: "project_tasks"
             referencedColumns: ["id"]
           },
           {
@@ -800,7 +790,7 @@ export type Database = {
             foreignKeyName: "chat_messages_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
-            referencedRelation: "general_tasks"
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -2587,7 +2577,7 @@ export type Database = {
         }
         Relationships: []
       }
-      general_tasks: {
+      tasks: {
         Row: {
           assigned_by: string
           assigned_to: string
@@ -2602,6 +2592,7 @@ export type Database = {
           id: string
           parent_task_id: string | null
           priority: string | null
+          project_id: string | null
           restart_reason: string | null
           restarted_at: string | null
           restarted_by: string | null
@@ -2623,6 +2614,7 @@ export type Database = {
           id?: string
           parent_task_id?: string | null
           priority?: string | null
+          project_id?: string | null
           restart_reason?: string | null
           restarted_at?: string | null
           restarted_by?: string | null
@@ -2644,6 +2636,7 @@ export type Database = {
           id?: string
           parent_task_id?: string | null
           priority?: string | null
+          project_id?: string | null
           restart_reason?: string | null
           restarted_at?: string | null
           restarted_by?: string | null
@@ -2653,14 +2646,35 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "general_tasks_parent_task_id_fkey"
-            columns: ["parent_task_id"]
+            foreignKeyName: "tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
             isOneToOne: false
-            referencedRelation: "general_tasks"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "general_tasks_restarted_by_fkey"
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_restarted_by_fkey"
             columns: ["restarted_by"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -3663,7 +3677,6 @@ export type Database = {
         Row: {
           conversation_id: string | null
           created_at: string | null
-          general_task_id: string | null
           id: string
           is_read: boolean | null
           message: string
@@ -3676,7 +3689,6 @@ export type Database = {
         Insert: {
           conversation_id?: string | null
           created_at?: string | null
-          general_task_id?: string | null
           id?: string
           is_read?: boolean | null
           message: string
@@ -3689,7 +3701,6 @@ export type Database = {
         Update: {
           conversation_id?: string | null
           created_at?: string | null
-          general_task_id?: string | null
           id?: string
           is_read?: boolean | null
           message?: string
@@ -3708,17 +3719,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "notifications_general_task_id_fkey"
-            columns: ["general_task_id"]
-            isOneToOne: false
-            referencedRelation: "general_tasks"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "notifications_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
-            referencedRelation: "project_tasks"
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -4725,111 +4729,6 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      project_tasks: {
-        Row: {
-          assigned_by: string
-          assigned_to: string
-          completed_at: string | null
-          completion_file_name: string | null
-          completion_file_path: string | null
-          completion_files: Json | null
-          completion_notes: string | null
-          created_at: string | null
-          description: string | null
-          due_date: string
-          id: string
-          parent_task_id: string | null
-          priority: string | null
-          project_id: string | null
-          restart_reason: string | null
-          restarted_at: string | null
-          restarted_by: string | null
-          status: string
-          task_name: string
-          updated_at: string | null
-        }
-        Insert: {
-          assigned_by: string
-          assigned_to: string
-          completed_at?: string | null
-          completion_file_name?: string | null
-          completion_file_path?: string | null
-          completion_files?: Json | null
-          completion_notes?: string | null
-          created_at?: string | null
-          description?: string | null
-          due_date: string
-          id?: string
-          parent_task_id?: string | null
-          priority?: string | null
-          project_id?: string | null
-          restart_reason?: string | null
-          restarted_at?: string | null
-          restarted_by?: string | null
-          status?: string
-          task_name: string
-          updated_at?: string | null
-        }
-        Update: {
-          assigned_by?: string
-          assigned_to?: string
-          completed_at?: string | null
-          completion_file_name?: string | null
-          completion_file_path?: string | null
-          completion_files?: Json | null
-          completion_notes?: string | null
-          created_at?: string | null
-          description?: string | null
-          due_date?: string
-          id?: string
-          parent_task_id?: string | null
-          priority?: string | null
-          project_id?: string | null
-          restart_reason?: string | null
-          restarted_at?: string | null
-          restarted_by?: string | null
-          status?: string
-          task_name?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_tasks_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_tasks_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_tasks_parent_task_id_fkey"
-            columns: ["parent_task_id"]
-            isOneToOne: false
-            referencedRelation: "project_tasks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_tasks_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_tasks_restarted_by_fkey"
-            columns: ["restarted_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

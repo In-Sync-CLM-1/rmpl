@@ -42,24 +42,12 @@ export function UserTasksTable() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
-      // Fetch general tasks assigned to user
-      const { data: generalTasks, error: generalError } = await supabase
-        .from("general_tasks")
-        .select("*")
-        .eq("assigned_to", user.id)
-        .neq("status", "completed")
-        .neq("status", "cancelled")
-        .order("due_date", { ascending: true })
-        .limit(10);
-
-      if (generalError) throw generalError;
-
-      // Fetch project tasks assigned to user
-      const { data: projectTasks, error: projectError } = await supabase
-        .from("project_tasks")
+      // Fetch tasks assigned to user from unified tasks table
+      const { data: allTasks, error } = await supabase
+        .from("tasks")
         .select(`
           *,
-          project:projects!project_tasks_project_id_fkey(project_name)
+          project:projects!tasks_project_id_fkey(project_name)
         `)
         .eq("assigned_to", user.id)
         .neq("status", "completed")
@@ -67,37 +55,23 @@ export function UserTasksTable() {
         .order("due_date", { ascending: true })
         .limit(10);
 
-      if (projectError) throw projectError;
+      if (error) throw error;
 
-      // Format and merge tasks
-      const formattedGeneralTasks: Task[] = (generalTasks || []).map((t) => ({
+      // Format tasks
+      const formattedTasks: Task[] = (allTasks || []).map((t: any) => ({
         id: t.id,
         task_name: t.task_name,
         description: t.description,
         due_date: t.due_date,
         status: t.status,
         priority: t.priority || "medium",
-        task_type: "general" as const,
+        task_type: t.project_id ? "project" as const : "general" as const,
+        project_name: t.project?.project_name,
         parent_task_id: t.parent_task_id,
         is_subtask: !!t.parent_task_id,
       }));
 
-      const formattedProjectTasks: Task[] = (projectTasks || []).map((t: any) => ({
-        id: t.id,
-        task_name: t.task_name,
-        description: t.description,
-        due_date: t.due_date,
-        status: t.status,
-        priority: t.priority || "medium",
-        task_type: "project" as const,
-        project_name: t.project?.project_name,
-        is_subtask: false,
-      }));
-
-      // Merge and sort by due date
-      return [...formattedGeneralTasks, ...formattedProjectTasks].sort(
-        (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-      ).slice(0, 5);
+      return formattedTasks.slice(0, 5);
     },
   });
 
@@ -170,15 +144,15 @@ export function UserTasksTable() {
               const status = statusConfig[task.status] || statusConfig.pending;
               const dueSoon = isDueSoon(task.due_date);
               const overdue = isOverdue(task.due_date);
-              
+
               return (
-                <Link 
+                <Link
                   to={`/tasks?taskId=${task.id}&type=${task.task_type}`}
-                  key={task.id} 
+                  key={task.id}
                   className={`flex items-center justify-between p-2 rounded-lg transition-colors border-l-3 cursor-pointer ${
-                    overdue 
-                      ? 'bg-red-50 dark:bg-red-950/30 border-l-red-500 ring-1 ring-red-200 dark:ring-red-800 hover:bg-red-100 dark:hover:bg-red-950/50' 
-                      : dueSoon 
+                    overdue
+                      ? 'bg-red-50 dark:bg-red-950/30 border-l-red-500 ring-1 ring-red-200 dark:ring-red-800 hover:bg-red-100 dark:hover:bg-red-950/50'
+                      : dueSoon
                         ? 'bg-amber-50 dark:bg-amber-950/30 border-l-amber-500 ring-1 ring-amber-200 dark:ring-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/50'
                         : 'bg-muted/30 hover:bg-muted/50 border-l-violet-400'
                   }`}
