@@ -228,12 +228,12 @@ const CSBDProjections = () => {
     );
   }
 
-  // Check if user has CSBD role but no saved target yet
-  const hasCSBDRole = userRoles.some(r => r === 'csbd');
+  // Check if user is a CSBD member (by role or team membership)
+  const isCSBDMember = permissions.canEditOwnCSBDProjections;
 
   if (!target) {
     // User has csbd role but hasn't saved their target yet
-    if (hasCSBDRole) {
+    if (isCSBDMember) {
       return (
         <div className="container mx-auto p-6">
           <Card>

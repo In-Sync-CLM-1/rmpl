@@ -51,17 +51,26 @@ const CSBDTargets = () => {
 
       setCurrentUserId(userData.user.id);
 
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userData.user.id);
+      // Fetch roles and team memberships in parallel
+      const [rolesResult, teamsResult] = await Promise.all([
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userData.user.id),
+        supabase
+          .from('team_members')
+          .select('teams:team_id(name)')
+          .eq('user_id', userData.user.id)
+          .eq('is_active', true)
+      ]);
 
-      const userRoles = roles?.map((r) => r.role) || [];
+      const userRoles = rolesResult.data?.map((r) => r.role) || [];
+      const teamNames = teamsResult.data?.map((tm: any) => tm.teams?.name).filter(Boolean) || [];
       const adminRoles = ['admin_administration', 'admin', 'super_admin', 'platform_admin', 'admin_tech'];
       const hasAdminPermission = userRoles.some((role) => adminRoles.includes(role));
-      const hasCSBDRole = userRoles.includes('csbd');
-      
-      // Allow access if admin OR csbd role
+      const hasCSBDRole = userRoles.includes('csbd') || teamNames.some((name: string) => name.toUpperCase().includes('CSBD'));
+
+      // Allow access if admin OR csbd role/team membership
       setHasAccess(hasAdminPermission || hasCSBDRole);
       // Track if user is CSBD-only (not admin) - they can only manage their own target
       setIsCSBDOnly(hasCSBDRole && !hasAdminPermission);
