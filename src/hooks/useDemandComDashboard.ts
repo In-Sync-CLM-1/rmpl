@@ -217,8 +217,9 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
       if (activeProjectIds.length > 0) {
         batch2Promises.push(
           /* 0 */ supabase
-            .from("project_demandcom_checklist")
+            .from("project_checklists")
             .select("description")
+            .eq("checklist_type", "demandcom")
             .eq("checklist_item", "Telecalling - Registration Target")
             .in("project_id", activeProjectIds)
         );

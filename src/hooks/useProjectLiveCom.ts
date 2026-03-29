@@ -56,17 +56,18 @@ export function useProjectLiveCom(projectId: string) {
     queryKey: ["project-livecom", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("project_livecom_checklist")
+        .from("project_checklists")
         .select(
           `
           *,
-          assigned_user:profiles!assigned_to (
+          assigned_user:profiles!project_checklists_assigned_to_fkey(
             id,
             full_name
           )
         `
         )
         .eq("project_id", projectId)
+        .eq("checklist_type", "livecom")
         .order("checklist_item");
 
       if (error) throw error;
@@ -80,12 +81,13 @@ export function useProjectLiveCom(projectId: string) {
     mutationFn: async () => {
       const itemsToInsert = PREDEFINED_CHECKLIST_ITEMS.map((item) => ({
         project_id: projectId,
+        checklist_type: "livecom" as const,
         checklist_item: item,
         status: "pending" as const,
       }));
 
       const { error } = await supabase
-        .from("project_livecom_checklist")
+        .from("project_checklists")
         .insert(itemsToInsert);
 
       if (error) throw error;
@@ -124,7 +126,7 @@ export function useProjectLiveCom(projectId: string) {
       };
     }) => {
       const { error } = await supabase
-        .from("project_livecom_checklist")
+        .from("project_checklists")
         .update(data)
         .eq("id", id);
 

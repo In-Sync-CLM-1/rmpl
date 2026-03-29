@@ -4241,10 +4241,11 @@ export type Database = {
           },
         ]
       }
-      project_demandcom_checklist: {
+      project_checklists: {
         Row: {
           assigned_to: string | null
           checklist_item: string
+          checklist_type: string
           created_at: string | null
           description: string | null
           due_date: string | null
@@ -4256,6 +4257,7 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           checklist_item: string
+          checklist_type: string
           created_at?: string | null
           description?: string | null
           due_date?: string | null
@@ -4267,6 +4269,7 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           checklist_item?: string
+          checklist_type?: string
           created_at?: string | null
           description?: string | null
           due_date?: string | null
@@ -4277,14 +4280,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "project_demandcom_checklist_assigned_to_fkey"
+            foreignKeyName: "project_checklists_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "project_demandcom_checklist_project_id_fkey"
+            foreignKeyName: "project_checklists_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -4292,57 +4295,7 @@ export type Database = {
           },
         ]
       }
-      project_digicom_checklist: {
-        Row: {
-          assigned_to: string | null
-          checklist_item: string
-          created_at: string | null
-          description: string | null
-          due_date: string | null
-          id: string
-          project_id: string
-          status: string
-          updated_at: string | null
-        }
-        Insert: {
-          assigned_to?: string | null
-          checklist_item: string
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          project_id: string
-          status?: string
-          updated_at?: string | null
-        }
-        Update: {
-          assigned_to?: string | null
-          checklist_item?: string
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          project_id?: string
-          status?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_digicom_checklist_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_digicom_checklist_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      // project_demandcom_checklist, project_digicom_checklist removed — consolidated into project_checklists (single source of truth)
       project_files: {
         Row: {
           file_name: string
@@ -4384,57 +4337,7 @@ export type Database = {
           },
         ]
       }
-      project_livecom_checklist: {
-        Row: {
-          assigned_to: string | null
-          checklist_item: string
-          created_at: string | null
-          description: string | null
-          due_date: string | null
-          id: string
-          project_id: string
-          status: string
-          updated_at: string | null
-        }
-        Insert: {
-          assigned_to?: string | null
-          checklist_item: string
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          project_id: string
-          status?: string
-          updated_at?: string | null
-        }
-        Update: {
-          assigned_to?: string | null
-          checklist_item?: string
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          project_id?: string
-          status?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_livecom_checklist_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_livecom_checklist_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      // project_livecom_checklist removed — consolidated into project_checklists (single source of truth)
       project_livecom_events: {
         Row: {
           created_at: string | null

@@ -45,15 +45,16 @@ export function useProjectDemandCom(projectId: string | undefined) {
       if (!projectId) return [];
 
       const { data, error } = await supabase
-        .from("project_demandcom_checklist")
+        .from("project_checklists")
         .select(`
           *,
-          assigned_user:profiles!project_demandcom_checklist_assigned_to_fkey(
+          assigned_user:profiles!project_checklists_assigned_to_fkey(
             id,
             full_name
           )
         `)
         .eq("project_id", projectId)
+        .eq("checklist_type", "demandcom")
         .order("checklist_item");
 
       if (error) throw error;
@@ -66,12 +67,13 @@ export function useProjectDemandCom(projectId: string | undefined) {
     mutationFn: async (projectId: string) => {
       const itemsToInsert = PREDEFINED_CHECKLIST_ITEMS.map((item) => ({
         project_id: projectId,
+        checklist_type: "demandcom" as const,
         checklist_item: item,
         status: "pending" as const,
       }));
 
       const { error } = await supabase
-        .from("project_demandcom_checklist")
+        .from("project_checklists")
         .insert(itemsToInsert);
 
       if (error) throw error;
@@ -102,7 +104,7 @@ export function useProjectDemandCom(projectId: string | undefined) {
       };
     }) => {
       const { error } = await supabase
-        .from("project_demandcom_checklist")
+        .from("project_checklists")
         .update(data)
         .eq("id", itemId);
 

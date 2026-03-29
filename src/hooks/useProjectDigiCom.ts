@@ -45,17 +45,18 @@ export function useProjectDigiCom(projectId: string) {
     queryKey: ["project-digicom", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("project_digicom_checklist")
+        .from("project_checklists")
         .select(
           `
           *,
-          assigned_user:profiles!assigned_to (
+          assigned_user:profiles!project_checklists_assigned_to_fkey(
             id,
             full_name
           )
         `
         )
         .eq("project_id", projectId)
+        .eq("checklist_type", "digicom")
         .order("checklist_item");
 
       if (error) throw error;
@@ -69,9 +70,10 @@ export function useProjectDigiCom(projectId: string) {
     mutationFn: async () => {
       // Check if any items already exist
       const { data: existing } = await supabase
-        .from("project_digicom_checklist")
+        .from("project_checklists")
         .select("id")
         .eq("project_id", projectId)
+        .eq("checklist_type", "digicom")
         .limit(1);
 
       if (existing && existing.length > 0) {
@@ -81,12 +83,13 @@ export function useProjectDigiCom(projectId: string) {
       // Insert all predefined items
       const items = PREDEFINED_CHECKLIST_ITEMS.map((item) => ({
         project_id: projectId,
+        checklist_type: "digicom" as const,
         checklist_item: item,
         status: "pending" as const,
       }));
 
       const { error } = await supabase
-        .from("project_digicom_checklist")
+        .from("project_checklists")
         .insert(items);
 
       if (error) throw error;
@@ -115,7 +118,7 @@ export function useProjectDigiCom(projectId: string) {
       };
     }) => {
       const { error } = await supabase
-        .from("project_digicom_checklist")
+        .from("project_checklists")
         .update(data)
         .eq("id", id);
 
