@@ -38,18 +38,16 @@ export function useConversations() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Get all conversations the user participates in
-      const { data: participantData, error: participantError } = await supabase
-        .from("chat_participants")
-        .select("conversation_id")
-        .eq("user_id", user.id);
+      // Single RPC call gets last_message + unread_count for all conversations
+      const { data: meta, error: metaError } = await supabase
+        .rpc("get_conversation_meta", { p_user_id: user.id });
 
-      if (participantError) throw participantError;
+      if (metaError) throw metaError;
+      if (!meta || meta.length === 0) return [];
 
-      const conversationIds = participantData?.map(p => p.conversation_id) || [];
-      if (conversationIds.length === 0) return [];
+      const conversationIds = meta.map((m: any) => m.conversation_id);
 
-      // Fetch conversations with participants
+      // Fetch conversations with participants (single query)
       const { data: conversationsData, error: convError } = await supabase
         .from("chat_conversations")
         .select(`
@@ -66,40 +64,26 @@ export function useConversations() {
 
       if (convError) throw convError;
 
-      // Get last message and unread count for each conversation
-      const conversationsWithMeta = await Promise.all(
-        (conversationsData || []).map(async (conv) => {
-          // Get last message
-          const { data: lastMsgData } = await supabase
-            .from("chat_messages")
-            .select("content, message_type, sender_id, created_at")
-            .eq("conversation_id", conv.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
-
-          // Get unread count
-          const userParticipant = conv.participants?.find(
-            (p: any) => p.user_id === user.id
-          );
-          const lastReadAt = userParticipant?.last_read_at || conv.created_at;
-
-          const { count } = await supabase
-            .from("chat_messages")
-            .select("*", { count: "exact", head: true })
-            .eq("conversation_id", conv.id)
-            .gt("created_at", lastReadAt)
-            .neq("sender_id", user.id);
-
-          return {
-            ...conv,
-            last_message: lastMsgData || undefined,
-            unread_count: count || 0,
-          };
-        })
+      // Merge metadata from RPC
+      const metaMap = new Map(
+        meta.map((m: any) => [m.conversation_id, m])
       );
 
-      return conversationsWithMeta as Conversation[];
+      return (conversationsData || []).map((conv) => {
+        const m = metaMap.get(conv.id) as any;
+        return {
+          ...conv,
+          last_message: m?.last_msg_created_at
+            ? {
+                content: m.last_msg_content,
+                message_type: m.last_msg_type || "text",
+                sender_id: m.last_msg_sender_id || "",
+                created_at: m.last_msg_created_at,
+              }
+            : undefined,
+          unread_count: Number(m?.unread_count) || 0,
+        };
+      }) as Conversation[];
     },
     staleTime: 30 * 1000,
   });
@@ -153,7 +137,7 @@ export function useConversations() {
       // For direct conversations, check if one already exists
       if (type === "direct" && participantIds.length === 1) {
         const otherUserId = participantIds[0];
-        
+
         // Find existing direct conversation
         const { data: existingConvs } = await supabase
           .from("chat_participants")

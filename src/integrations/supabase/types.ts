@@ -6710,6 +6710,17 @@ export type Database = {
           total_pending: number
         }[]
       }
+      get_conversation_meta: {
+        Args: { p_user_id: string }
+        Returns: {
+          conversation_id: string
+          last_msg_content: string | null
+          last_msg_type: string | null
+          last_msg_sender_id: string | null
+          last_msg_created_at: string | null
+          unread_count: number
+        }[]
+      }
       get_user_conversation_ids: {
         Args: { checking_user_id: string }
         Returns: string[]

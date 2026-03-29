@@ -1,6 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
+
+const PAGE_SIZE = 50;
+
+const MESSAGE_SELECT = `
+  *,
+  sender:profiles!chat_messages_sender_id_fkey(id, full_name, avatar_url),
+  task:general_tasks(id, task_name, description, status, due_date, priority),
+  project_task:project_tasks(id, task_name, description, status, due_date, priority, project:projects(project_name)),
+  reply_to:chat_messages!reply_to_id(id, content, message_type, sender:profiles!chat_messages_sender_id_fkey(full_name))
+`;
 
 export interface ChatMessage {
   id: string;
@@ -53,6 +63,17 @@ export interface ChatMessage {
 
 export function useMessages(conversationId: string | null) {
   const queryClient = useQueryClient();
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const prevConversationId = useRef(conversationId);
+
+  // Reset hasMore when conversation changes
+  useEffect(() => {
+    if (prevConversationId.current !== conversationId) {
+      setHasMore(true);
+      prevConversationId.current = conversationId;
+    }
+  }, [conversationId]);
 
   const { data: messages = [], isLoading, error } = useQuery({
     queryKey: ["chat-messages", conversationId],
@@ -61,23 +82,54 @@ export function useMessages(conversationId: string | null) {
 
       const { data, error } = await supabase
         .from("chat_messages")
-        .select(`
-          *,
-          sender:profiles!chat_messages_sender_id_fkey(id, full_name, avatar_url),
-          task:general_tasks(id, task_name, description, status, due_date, priority),
-          project_task:project_tasks(id, task_name, description, status, due_date, priority, project:projects(project_name)),
-          reply_to:chat_messages!reply_to_id(id, content, message_type, sender:profiles!chat_messages_sender_id_fkey(full_name))
-        `)
+        .select(MESSAGE_SELECT)
         .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE);
 
       if (error) throw error;
-      return data as ChatMessage[];
+      setHasMore(data.length === PAGE_SIZE);
+      return (data as ChatMessage[]).reverse();
     },
     enabled: !!conversationId,
     staleTime: 5 * 1000,
     refetchOnWindowFocus: true,
   });
+
+  // Fetch older messages (prepend to cache)
+  const fetchOlderMessages = useCallback(async () => {
+    if (!conversationId || !hasMore || isFetchingMore) return;
+
+    const currentMessages = queryClient.getQueryData<ChatMessage[]>(["chat-messages", conversationId]);
+    if (!currentMessages || currentMessages.length === 0) return;
+
+    const oldestMessage = currentMessages[0];
+    setIsFetchingMore(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select(MESSAGE_SELECT)
+        .eq("conversation_id", conversationId)
+        .lt("created_at", oldestMessage.created_at)
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE);
+
+      if (error) throw error;
+
+      setHasMore(data.length === PAGE_SIZE);
+
+      if (data.length > 0) {
+        const olderMessages = (data as ChatMessage[]).reverse();
+        queryClient.setQueryData<ChatMessage[]>(
+          ["chat-messages", conversationId],
+          (old) => [...olderMessages, ...(old || [])]
+        );
+      }
+    } finally {
+      setIsFetchingMore(false);
+    }
+  }, [conversationId, hasMore, isFetchingMore, queryClient]);
 
   // Subscribe to real-time messages
   useEffect(() => {
@@ -97,23 +149,16 @@ export function useMessages(conversationId: string | null) {
         },
         async (payload) => {
           console.log("[Chat] Received realtime INSERT event:", payload);
-          
+
           // Fetch the full message with relations
           const { data: newMessage, error } = await supabase
             .from("chat_messages")
-            .select(`
-              *,
-              sender:profiles!chat_messages_sender_id_fkey(id, full_name, avatar_url),
-              task:general_tasks(id, task_name, description, status, due_date, priority),
-              project_task:project_tasks(id, task_name, description, status, due_date, priority, project:projects(project_name)),
-              reply_to:chat_messages!reply_to_id(id, content, message_type, sender:profiles!chat_messages_sender_id_fkey(full_name))
-            `)
+            .select(MESSAGE_SELECT)
             .eq("id", (payload.new as any).id)
             .single();
 
           if (error) {
             console.error("[Chat] Error fetching new message:", error);
-            // Fall back to invalidating the query
             queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
             return;
           }
@@ -141,7 +186,6 @@ export function useMessages(conversationId: string | null) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         () => {
-          // Refetch on update (for edits)
           queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
         }
       )
@@ -221,7 +265,7 @@ export function useMessages(conversationId: string | null) {
         .single();
 
       if (error) throw error;
-      
+
       // Return message with sender info for cache update
       return {
         ...data,
@@ -278,7 +322,7 @@ export function useMessages(conversationId: string | null) {
         ["chat-messages", conversationId],
         (old) => {
           if (!old) return [data as ChatMessage];
-          return old.map(msg => 
+          return old.map(msg =>
             msg.id === context?.optimisticId ? (data as ChatMessage) : msg
           );
         }
@@ -314,5 +358,8 @@ export function useMessages(conversationId: string | null) {
     error,
     sendMessage,
     markAsRead,
+    fetchOlderMessages,
+    hasMore,
+    isFetchingMore,
   };
 }

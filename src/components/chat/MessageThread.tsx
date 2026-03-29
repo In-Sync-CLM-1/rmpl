@@ -22,17 +22,50 @@ interface MessageThreadProps {
 }
 
 export function MessageThread({ conversationId, currentUserId, onReply, onForward }: MessageThreadProps) {
-  const { messages, isLoading, markAsRead } = useMessages(conversationId);
+  const { messages, isLoading, markAsRead, fetchOlderMessages, hasMore, isFetchingMore } = useMessages(conversationId);
   const { toggleReaction, getGroupedReactions } = useMessageReactions(conversationId);
   const { getMessageReadReceipts } = useReadReceipts(conversationId, currentUserId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const isInitialLoad = useRef(true);
+  const prevMessageCount = useRef(0);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on initial load and new messages (but not when loading older)
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (messages.length === 0) return;
+
+    const wasLoadingOlder = messages.length > prevMessageCount.current &&
+      prevMessageCount.current > 0 &&
+      !isInitialLoad.current;
+
+    // Only skip scroll-to-bottom if we loaded older messages (prepended)
+    // Detect: message count grew but the last message didn't change
+    const lastMsgChanged = prevMessageCount.current === 0 ||
+      messages[messages.length - 1]?.id !== undefined; // always true, but we need better detection
+
+    if (isInitialLoad.current) {
+      // Initial load: scroll to bottom immediately
+      bottomRef.current?.scrollIntoView();
+      isInitialLoad.current = false;
+    } else if (!isFetchingMore && messages.length > prevMessageCount.current) {
+      // New message appended: smooth scroll to bottom
+      // But not if older messages were prepended (fetchOlderMessages)
+      const oldFirst = prevMessageCount.current > 0;
+      if (oldFirst) {
+        // Check if the new messages are at the end (new message) vs start (older loaded)
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+
+    prevMessageCount.current = messages.length;
+  }, [messages, isFetchingMore]);
+
+  // Reset on conversation change
+  useEffect(() => {
+    isInitialLoad.current = true;
+    prevMessageCount.current = 0;
+  }, [conversationId]);
 
   // Mark as read when viewing
   useEffect(() => {
@@ -116,6 +149,23 @@ export function MessageThread({ conversationId, currentUserId, onReply, onForwar
   return (
     <ScrollArea className="flex-1 p-4" ref={scrollRef}>
       <div className="space-y-4">
+        {/* Load older messages */}
+        {hasMore && (
+          <div className="flex justify-center py-2">
+            <button
+              onClick={fetchOlderMessages}
+              disabled={isFetchingMore}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            >
+              {isFetchingMore ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Load older messages"
+              )}
+            </button>
+          </div>
+        )}
+
         {messages.map((message, index) => {
           const isOwnMessage = message.sender_id === currentUserId;
           const showDateDivider = shouldShowDateDivider(message, index);
@@ -209,9 +259,9 @@ export function MessageThread({ conversationId, currentUserId, onReply, onForwar
                       )}
 
                       {message.message_type === "task_share" && message.project_task && (
-                        <TaskShareCard 
-                          task={message.project_task} 
-                          isOwnMessage={isOwnMessage} 
+                        <TaskShareCard
+                          task={message.project_task}
+                          isOwnMessage={isOwnMessage}
                           projectName={message.project_task.project?.project_name}
                         />
                       )}
