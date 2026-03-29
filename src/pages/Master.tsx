@@ -1,13 +1,12 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, ArrowLeft, Database, Download, RefreshCw, Upload, Filter, X, Eye, EyeOff, MapPin, Briefcase, Building2, Factory, TrendingUp, Users } from "lucide-react";
+import { Pencil, Trash2, ArrowLeft, Database, Download, Upload, Filter, X, Eye, EyeOff, MapPin, Briefcase, Building2, Factory, TrendingUp, Users } from "lucide-react";
 import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
 import { useCrudMutation } from "@/hooks/useCrudMutation";
 import { DataTable, DataTableColumn } from "@/components/data-table/DataTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
-import { SyncProgressDialog } from "@/components/SyncProgressDialog";
 import { ClientSideExportDialog } from "@/components/ClientSideExportDialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, AreaChart, Area, RadialBarChart, RadialBar } from "recharts";
 
 interface MasterRecord {
+  id: string;
   mobile_numb: string;
   name: string;
   designation: string | null;
@@ -478,9 +478,6 @@ export default function Master() {
   const [recordToDelete, setRecordToDelete] = useState<MasterRecord | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showExportOptions, setShowExportOptions] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [showSyncProgress, setShowSyncProgress] = useState(false);
-  const [activeSyncId, setActiveSyncId] = useState<string | null>(null);
   const [filters, setFilters] = useState<MasterFilters>(emptyFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [showRecords, setShowRecords] = useState(false);
@@ -584,7 +581,7 @@ export default function Master() {
     queryKey: ["master", JSON.stringify(filters)],
     queryFn: async (from, to) => {
       let query = supabase
-        .from("master")
+        .from("demandcom" as any)
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
 
@@ -628,7 +625,7 @@ export default function Master() {
     createFn: async () => null as any,
     updateFn: async () => null as any,
     deleteFn: async (id) => {
-      const { error } = await supabase.from("master").delete().eq("mobile_numb", id);
+      const { error } = await supabase.from("demandcom" as any).delete().eq("id", id);
       if (error) throw error;
     },
     successMessages: {
@@ -642,54 +639,6 @@ export default function Master() {
 
   const handleExportData = () => {
     setShowExportOptions(true);
-  };
-
-  const handleSyncNow = async () => {
-    setIsSyncing(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("You must be logged in to sync");
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke(
-        'sync-demandcom-to-master',
-        {
-          body: { 
-            trigger: 'manual',
-            triggered_by_user_id: session.user.id 
-          },
-        }
-      );
-
-      if (error) {
-        if (error.message?.includes('already in progress')) {
-          toast.error("A sync is already in progress");
-        } else {
-          toast.error(`Sync failed: ${error.message}`);
-        }
-        return;
-      }
-
-      // Set the sync ID and show progress dialog
-      setActiveSyncId(data.syncId);
-      setShowSyncProgress(true);
-      toast.success(`Sync started! Processing ${data.totalRecords} records in ${data.totalBatches} batches`);
-      
-    } catch (error: any) {
-      console.error('Sync error:', error);
-      toast.error(`Sync failed: ${error.message}`);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleSyncComplete = async () => {
-    setActiveSyncId(null);
-    // Refresh materialized view caches after sync
-    await supabase.rpc('refresh_master_caches').catch(() => {});
-    window.location.reload();
   };
 
   const handleDelete = async () => {
@@ -754,17 +703,6 @@ export default function Master() {
                 </Badge>
               )}
             </Button>
-            {isAdmin && (
-              <Button 
-                onClick={handleSyncNow} 
-                variant="ghost"
-                size="icon"
-                disabled={isSyncing}
-                title="Sync Now"
-              >
-                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              </Button>
-            )}
             {isAdmin && (
               <Button 
                 onClick={() => setShowBulkImport(true)} 
@@ -919,7 +857,7 @@ export default function Master() {
             data={masterRecords}
             columns={columns}
             isLoading={isLoading}
-            getRowKey={(record) => record.mobile_numb}
+            getRowKey={(record) => record.id}
             emptyState={{
               icon: Database,
             title: "No records found",
@@ -940,7 +878,7 @@ export default function Master() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => navigate(`/master/${record.mobile_numb}`)}
+                onClick={() => navigate(`/master/${record.id}`)}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -949,7 +887,7 @@ export default function Master() {
                   variant="ghost"
                   size="icon"
                   onClick={() => {
-                    setDeleteId(record.mobile_numb);
+                    setDeleteId(record.id);
                     setRecordToDelete(record);
                   }}
                 >
@@ -978,7 +916,7 @@ export default function Master() {
       <BulkImportDialog
         open={showBulkImport}
         onOpenChange={setShowBulkImport}
-        tableName="master"
+        tableName="demandcom"
         tableLabel="Master"
         requiredColumns={['name', 'mobile_numb']}
         templateColumns={[
@@ -1032,17 +970,10 @@ export default function Master() {
         }}
       />
 
-      <SyncProgressDialog
-        open={showSyncProgress}
-        onOpenChange={setShowSyncProgress}
-        syncId={activeSyncId}
-        onComplete={handleSyncComplete}
-      />
-
         <ClientSideExportDialog
           open={showExportOptions}
           onOpenChange={setShowExportOptions}
-          tableName="master"
+          tableName="demandcom"
           filenamePrefix="master-export"
           filters={filters}
           filteredCount={totalCount}

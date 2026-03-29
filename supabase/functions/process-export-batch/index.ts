@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
     // Use cursor-based pagination
     let query = supabase
-      .from('master')
+      .from('demandcom')
       .select(columns.join(','))
       .order('id', { ascending: true })
       .limit(batchSize);

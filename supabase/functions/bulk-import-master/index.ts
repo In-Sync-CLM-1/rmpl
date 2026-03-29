@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
         try {
           // Check if record exists by mobile_numb
           const { data: existingRecord, error: checkError } = await supabase
-            .from('master')
+            .from('demandcom')
             .select('mobile_numb')
             .eq('mobile_numb', record.mobile_numb)
             .maybeSingle();
@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
             }
 
             const { error: updateError } = await supabase
-              .from('master')
+              .from('demandcom')
               .update(updateData)
               .eq('mobile_numb', record.mobile_numb);
 
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
             };
 
             const { error: insertError } = await supabase
-              .from('master')
+              .from('demandcom')
               .insert(insertData);
 
             if (insertError) {

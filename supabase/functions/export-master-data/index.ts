@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
     // Get total count
     const { count: totalRecords, error: countError } = await supabase
-      .from('master')
+      .from('demandcom')
       .select('*', { count: 'exact', head: true });
 
     if (countError) {

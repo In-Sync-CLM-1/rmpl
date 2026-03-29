@@ -48,9 +48,9 @@ type ClientFormData = {
 
 export default function MasterForm() {
   const navigate = useNavigate();
-  const { mobile_numb } = useParams();
+  const { id } = useParams();
   const queryClient = useQueryClient();
-  const isEditing = !!mobile_numb;
+  const isEditing = !!id;
 
   const form = useForm<ClientFormData>({
     defaultValues: {
@@ -83,13 +83,13 @@ export default function MasterForm() {
   });
 
   const { data: client } = useQuery({
-    queryKey: ["master", mobile_numb],
+    queryKey: ["master", id],
     queryFn: async () => {
-      if (!mobile_numb) return null;
+      if (!id) return null;
       const { data, error } = await supabase
-        .from("master")
+        .from("demandcom" as any)
         .select("*")
-        .eq("mobile_numb", mobile_numb)
+        .eq("id", id)
         .maybeSingle();
 
       if (error) throw error;
@@ -110,13 +110,13 @@ export default function MasterForm() {
       
       if (isEditing) {
         const { error } = await supabase
-          .from("master")
+          .from("demandcom" as any)
           .update({ ...data, created_by: userId })
-          .eq("mobile_numb", mobile_numb);
+          .eq("id", id);
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from("master")
+          .from("demandcom" as any)
           .insert([{ ...data, created_by: userId }]);
         if (error) throw error;
       }
