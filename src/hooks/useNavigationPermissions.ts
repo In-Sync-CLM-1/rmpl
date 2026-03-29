@@ -94,21 +94,21 @@ export const useNavigationPermissions = () => {
     // Check if item requires only authentication (no special permissions)
     if (item.requires_auth_only) return true;
 
-    // Check user-specific view permission
+    // Check user-specific view permission (explicit grant/deny takes priority)
     const userPerm = userPermissions.find(p => p.navigation_item_id === item.id);
     if (userPerm !== undefined) {
       return userPerm.can_view;
     }
 
-    // If user has view permissions configured, deny anything not explicitly granted
-    if (hasViewPermissions) {
-      return false;
-    }
-
-    // Legacy fallback only for users with no view permission entries at all
+    // Always check role/team-based permissions (e.g., CSBD team members see projections)
     if (item.legacy_permission) {
       const permKey = item.legacy_permission as keyof typeof rolePermissions;
-      return rolePermissions[permKey] === true;
+      if (rolePermissions[permKey] === true) return true;
+    }
+
+    // If user has view permissions configured, deny anything not covered above
+    if (hasViewPermissions) {
+      return false;
     }
 
     return false;
