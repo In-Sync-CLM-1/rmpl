@@ -30,7 +30,7 @@ export interface DemandComFilters {
 interface ClientSideExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  tableName: "master" | "demandcom";
+  tableName: "demandcom";
   filenamePrefix: string;
   columns?: string[];
   filters?: MasterFilters | DemandComFilters;
@@ -148,11 +148,11 @@ export function ClientSideExportDialog({
     // Use standardized columns for consistent export format matching import template
     const exportColumns = columns || STANDARD_EXPORT_COLUMNS;
     let query = supabase
-      .from(tableName as "master" | "demandcom")
+      .from("demandcom" as any)
       .select(exportColumns.join(","), { count: "exact" })
       .order("mobile_numb");
 
-    if (tableName === "master" && filters && isMasterFilters(filters)) {
+    if (filters && isMasterFilters(filters)) {
       if (filters.activity_name.length > 0) {
         query = query.in("activity_name", filters.activity_name);
       }
@@ -180,7 +180,7 @@ export function ClientSideExportDialog({
       if (filters.deppt.length > 0) {
         query = query.in("deppt", filters.deppt);
       }
-    } else if (tableName === "demandcom" && filters && isDemandComFilters(filters)) {
+    } else if (filters && isDemandComFilters(filters)) {
       // Check if any filters are applied
       const hasFilters = filters.nameEmail || filters.city || filters.activityName || 
                          filters.assignedTo || filters.disposition.length > 0 ||
