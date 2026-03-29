@@ -6419,6 +6419,14 @@ export type Database = {
       }
     }
     Functions: {
+      approve_onboarding_and_sync: {
+        Args: {
+          p_submission_id: string
+          p_user_id: string
+          p_reviewer_id: string
+        }
+        Returns: undefined
+      }
       award_points: {
         Args: {
           p_activity_type: string

@@ -13,7 +13,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { DocumentAIReview } from "@/components/onboarding/DocumentAIReview";
-import { Plus, Copy, ExternalLink, Eye, Brain, Loader2, CheckCircle, XCircle, ToggleLeft, ToggleRight, FileDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Copy, ExternalLink, Eye, Brain, Loader2, CheckCircle, XCircle, ToggleLeft, ToggleRight, FileDown, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 
 export default function HROnboardingAdmin() {
@@ -25,6 +26,7 @@ export default function HROnboardingAdmin() {
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
 
   // Fetch forms
   const { data: forms, isLoading: formsLoading } = useQuery({
@@ -67,6 +69,20 @@ export default function HROnboardingAdmin() {
     enabled: !!selectedSubmission,
   });
 
+  // Fetch employee profiles for linking
+  const { data: employeeProfiles } = useQuery({
+    queryKey: ["profiles-for-onboarding"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("is_active", true)
+        .order("full_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const createForm = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -98,11 +114,32 @@ export default function HROnboardingAdmin() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["onboarding-forms"] }),
   });
 
-  const updateSubmissionStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+  // Approve: calls RPC that syncs data to employee tables
+  const approveSubmission = useMutation({
+    mutationFn: async ({ submissionId, userId }: { submissionId: string; userId: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { error } = await supabase.rpc("approve_onboarding_and_sync", {
+        p_submission_id: submissionId,
+        p_user_id: userId,
+        p_reviewer_id: user.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["onboarding-submissions"] });
+      setSelectedUserId("");
+      toast({ title: "Approved", description: "Submission approved and employee data synced automatically" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  // Reject: simple status update
+  const rejectSubmission = useMutation({
+    mutationFn: async (id: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from("onboarding_submissions").update({
-        status,
+        status: "rejected",
         reviewed_by: user?.id,
         reviewed_at: new Date().toISOString(),
       }).eq("id", id);
@@ -110,7 +147,7 @@ export default function HROnboardingAdmin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["onboarding-submissions"] });
-      toast({ title: "Updated", description: "Submission status updated" });
+      toast({ title: "Rejected", description: "Submission has been rejected" });
     },
   });
 
@@ -287,16 +324,48 @@ export default function HROnboardingAdmin() {
           </SheetHeader>
           {selectedSubmission && (
             <div className="space-y-6 mt-6">
-              <div className="flex items-center justify-between">
-                {getStatusBadge(selectedSubmission.status)}
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => updateSubmissionStatus.mutate({ id: selectedSubmission.id, status: "approved" })}>
-                    <CheckCircle className="h-4 w-4 mr-1" />Approve
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => updateSubmissionStatus.mutate({ id: selectedSubmission.id, status: "rejected" })}>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  {getStatusBadge(selectedSubmission.status)}
+                  <Button size="sm" variant="destructive" onClick={() => rejectSubmission.mutate(selectedSubmission.id)} disabled={rejectSubmission.isPending}>
                     <XCircle className="h-4 w-4 mr-1" />Reject
                   </Button>
                 </div>
+
+                {selectedSubmission.status !== "approved" && (
+                  <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20">
+                    <CardContent className="pt-4 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <UserPlus className="h-4 w-4" />
+                        Link to Employee Profile & Approve
+                      </div>
+                      <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select employee profile..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employeeProfiles?.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.full_name || p.email || "Unnamed"} — {p.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        This will sync personal details, bank info, PAN & UAN to the employee's profile automatically.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={!selectedUserId || approveSubmission.isPending}
+                        onClick={() => approveSubmission.mutate({ submissionId: selectedSubmission.id, userId: selectedUserId })}
+                      >
+                        {approveSubmission.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+                        Approve & Sync Data
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               {/* Personal Info */}
