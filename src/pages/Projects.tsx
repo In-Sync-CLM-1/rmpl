@@ -21,6 +21,7 @@ interface Project {
   project_name: string;
   status: string;
   client_id: string | null;
+  client_name?: string | null;
   locations: any[];
   event_dates: any[];
   project_team_members?: { id: string }[];
@@ -177,10 +178,32 @@ export default function Projects() {
         });
       }
 
+      // Resolve client_id UUIDs to company names
+      const clientIds = Array.from(
+        new Set(
+          baseProjects
+            .map((p) => p.client_id)
+            .filter((id): id is string => !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+        )
+      );
+
+      let clientMap: Record<string, string> = {};
+      if (clientIds.length > 0) {
+        const { data: clientsData } = await supabase
+          .from("clients")
+          .select("id, company_name")
+          .in("id", clientIds);
+
+        (clientsData || []).forEach((c: any) => {
+          if (c.id) clientMap[c.id] = c.company_name;
+        });
+      }
+
       const enrichedProjects: Project[] = baseProjects.map((p) => ({
         ...p,
         creator_full_name: p.created_by ? userMap[p.created_by] || null : null,
         owner_full_name: p.project_owner ? userMap[p.project_owner] || null : null,
+        client_name: p.client_id ? clientMap[p.client_id] || p.client_id : null,
       }));
 
       return { data: enrichedProjects, count, error: null };
@@ -261,7 +284,7 @@ export default function Projects() {
     },
     {
       header: "Client",
-      cell: (project) => project.client_id || "N/A",
+      cell: (project) => project.client_name || "N/A",
     },
     {
       header: "Created Date",
