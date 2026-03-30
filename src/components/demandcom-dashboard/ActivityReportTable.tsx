@@ -54,7 +54,7 @@ const getStatusBadge = (
 export function ActivityReportTable({ data, compact = false }: ActivityReportTableProps) {
   return (
     <TooltipProvider>
-      <Card className={cn("border-none shadow-sm h-full flex flex-col", compact && "overflow-hidden")}>
+      <Card className={cn("border-none shadow-sm flex flex-col", compact && "overflow-hidden")}>
         <CardHeader className={cn(compact ? "py-2 px-3" : "")}>
           <CardTitle className={cn("flex items-center gap-1.5", compact ? "text-sm" : "text-lg font-semibold")}>
             Activity/Project Report

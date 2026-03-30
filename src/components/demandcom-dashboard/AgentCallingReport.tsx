@@ -115,7 +115,7 @@ export function AgentCallingReport({ startDate, endDate, compact = false, teamMe
 
   return (
     <TooltipProvider>
-      <Card className={cn("border-none shadow-sm h-full flex flex-col", compact && "overflow-hidden")}>
+      <Card className={cn("border-none shadow-sm flex flex-col", compact && "overflow-hidden")}>
         <CardHeader className={cn(
           "flex flex-row items-center justify-between space-y-0",
           compact ? "py-2 px-3 pb-2" : "pb-4"

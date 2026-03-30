@@ -7,6 +7,7 @@ import { DemandComKPICards } from "@/components/demandcom-dashboard/DemandComKPI
 import { AgentCallingReport } from "@/components/demandcom-dashboard/AgentCallingReport";
 import { ActivityReportTable } from "@/components/demandcom-dashboard/ActivityReportTable";
 import { DailyTargetAchievement } from "@/components/demandcom-dashboard/DailyTargetAchievement";
+import { DemandComInsights } from "@/components/demandcom-dashboard/DemandComInsights";
 import { CompactDateRangeFilter } from "@/components/filters/CompactDateRangeFilter";
 import { format, isSameDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -226,17 +227,31 @@ export default function DemandComDashboard() {
         </div>
       </div>
 
-      {/* Main Section: Activity on Left, Tabs on Right */}
-      <div className="flex-1 flex gap-3 min-h-0">
-        {/* Activity Section - Left (constant across tabs) */}
-        <div className="w-[35%] overflow-hidden flex flex-col">
-          <ActivityReportTable data={metrics.activityStats} compact />
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-auto min-h-0 space-y-3">
+        {/* Main Section: Activity on Left, Agent Performance on Right */}
+        <div className="flex gap-3 items-start">
+          {/* Activity Section - Left (auto-height, no stretch) */}
+          <div className="w-[35%] shrink-0">
+            <ActivityReportTable data={metrics.activityStats} compact />
+          </div>
+
+          {/* Agent Performance - Right */}
+          <div className="flex-1 min-w-0">
+            <AgentCallingReport startDate={startDate} endDate={endDate} teamMemberIds={teamMemberIds} compact />
+          </div>
         </div>
 
-        {/* Agent Performance - Right */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <AgentCallingReport startDate={startDate} endDate={endDate} teamMemberIds={teamMemberIds} compact />
-        </div>
+        {/* AI Insights */}
+        <DemandComInsights
+          metrics={{
+            ...metrics,
+            connectedCallsToday: agentReportTotalCalls ?? metrics.connectedCallsToday,
+          }}
+          agentReport={agentReportData}
+          dailyTargets={dailyTargets || null}
+          dateLabel={getDateRangeLabel()}
+        />
       </div>
     </div>
   );
