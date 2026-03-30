@@ -25,6 +25,7 @@ export interface CSBDMetrics {
 }
 
 export interface CSBDProjectCredit {
+  project_id: string;
   project_number: string;
   project_name: string;
   client_name: string;

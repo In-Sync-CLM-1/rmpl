@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAllCSBDMetrics, useCSBDMemberProjects, CSBDMetrics } from "@/hooks/useCSBDMetrics";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { TrendingUp, Settings, Eye, Target, Calendar, Users, IndianRupee, ChevronRight, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -534,7 +534,7 @@ const ExecutiveDashboard = () => {
                           <TableCell className="text-xs whitespace-nowrap">
                             {new Date(proj.effective_date + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
                           </TableCell>
-                          <TableCell className="text-xs font-medium text-primary">{proj.project_number}</TableCell>
+                          <TableCell className="text-xs font-medium"><Link to={`/projects/view/${proj.project_id}`} className="text-primary hover:underline">{proj.project_number}</Link></TableCell>
                           <TableCell className="text-xs max-w-[200px] truncate" title={proj.project_name}>{proj.project_name || '—'}</TableCell>
                           <TableCell className="text-xs max-w-[160px] truncate" title={proj.client_name}>{proj.client_name || '—'}</TableCell>
                           <TableCell className="text-xs max-w-[120px] truncate" title={proj.executed_by}>{proj.executed_by}</TableCell>
