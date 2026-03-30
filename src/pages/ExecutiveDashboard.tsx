@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { TrendingUp, Settings, Eye, Target, Calendar, Users, IndianRupee, ChevronRight, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CSBDInsights } from "@/components/csbd/CSBDInsights";
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -217,157 +218,172 @@ const ExecutiveDashboard = () => {
         </Card>
       </div>
 
-      {/* Mobile Card View for Team Members */}
-      {isMobile ? (
-        <div className="flex-1 overflow-auto space-y-2">
-          {/* Totals Card */}
-          <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="h-4 w-4 text-primary" />
-                <span className="font-bold text-sm">TEAM TOTAL ({sortedMetrics.length})</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="text-xs text-muted-foreground">Annual</div>
-                  <div className="text-sm font-medium">{formatCurrency(totals.annual_target)} target</div>
-                  <div className="text-sm font-bold text-emerald-600">{formatCurrency(totals.ytd_actual)} actual</div>
-                  <div className="mt-1">{getAchievementBadge(totalAnnualAchievement)}</div>
+      {/* Main Content - scrollable area with table + insights */}
+      <div className="flex-1 overflow-auto min-h-0 space-y-3">
+        {/* Mobile Card View for Team Members */}
+        {isMobile ? (
+          <div className="space-y-2">
+            {/* Totals Card */}
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="h-4 w-4 text-primary" />
+                  <span className="font-bold text-sm">TEAM TOTAL ({sortedMetrics.length})</span>
                 </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">{currentMonthShort}</div>
-                  <div className="text-sm font-medium">{formatCurrency(currentMonthTargetTotal)} target</div>
-                  <div className="text-sm font-bold text-cyan-600">{formatCurrency(currentMonthTotal)} actual</div>
-                  <div className="mt-1">{getAchievementBadge(totalMonthlyAchievement)}</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Annual</div>
+                    <div className="text-sm font-medium">{formatCurrency(totals.annual_target)} target</div>
+                    <div className="text-sm font-bold text-emerald-600">{formatCurrency(totals.ytd_actual)} actual</div>
+                    <div className="mt-1">{getAchievementBadge(totalAnnualAchievement)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">{currentMonthShort}</div>
+                    <div className="text-sm font-medium">{formatCurrency(currentMonthTargetTotal)} target</div>
+                    <div className="text-sm font-bold text-cyan-600">{formatCurrency(currentMonthTotal)} actual</div>
+                    <div className="mt-1">{getAchievementBadge(totalMonthlyAchievement)}</div>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Team Member Cards */}
-          {sortedMetrics.map((member) => {
-            const currentMonthData = getCurrentMonthData(member);
-            const monthlyTarget = currentMonthData.projection;
-            const monthlyAchievement = monthlyTarget > 0 ? (currentMonthData.actual / monthlyTarget) * 100 : 0;
+            {/* Team Member Cards */}
+            {sortedMetrics.map((member) => {
+              const currentMonthData = getCurrentMonthData(member);
+              const monthlyTarget = currentMonthData.projection;
+              const monthlyAchievement = monthlyTarget > 0 ? (currentMonthData.actual / monthlyTarget) * 100 : 0;
 
-            return (
-              <Card 
-                key={member.user_id} 
-                className="cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors"
-                onClick={() => setSelectedMember(member)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm text-primary truncate">{member.full_name}</div>
+              return (
+                <Card
+                  key={member.user_id}
+                  className="cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors"
+                  onClick={() => setSelectedMember(member)}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm text-primary truncate">{member.full_name}</div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-                    <div>
-                      <div className="text-xs text-muted-foreground">Annual</div>
-                      <div className="text-xs">{formatCurrency(member.annual_target)} → <span className="text-blue-600 font-medium underline" onClick={(e) => { e.stopPropagation(); setDrilldownMember(member); }}>{formatCurrency(member.ytd_actual)}</span></div>
-                      <div className="mt-1">{getAchievementBadge(member.achievement_percentage)}</div>
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Annual</div>
+                        <div className="text-xs">{formatCurrency(member.annual_target)} → <span className="text-blue-600 font-medium underline" onClick={(e) => { e.stopPropagation(); setDrilldownMember(member); }}>{formatCurrency(member.ytd_actual)}</span></div>
+                        <div className="mt-1">{getAchievementBadge(member.achievement_percentage)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">{currentMonthShort}</div>
+                        <div className="text-xs">{formatCurrency(monthlyTarget)} → <span className="text-blue-600 font-medium underline" onClick={(e) => { e.stopPropagation(); setDrilldownMember(member); }}>{formatCurrency(currentMonthData.actual)}</span></div>
+                        <div className="mt-1">{getAchievementBadge(monthlyAchievement)}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">{currentMonthShort}</div>
-                      <div className="text-xs">{formatCurrency(monthlyTarget)} → <span className="text-blue-600 font-medium underline" onClick={(e) => { e.stopPropagation(); setDrilldownMember(member); }}>{formatCurrency(currentMonthData.actual)}</span></div>
-                      <div className="mt-1">{getAchievementBadge(monthlyAchievement)}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        /* Desktop Table View */
-        <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <CardContent className="p-0 flex-1 overflow-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background z-10">
-                <TableRow className="bg-muted/50">
-                  <TableHead rowSpan={2} className="text-xs font-semibold border-r align-middle">Member</TableHead>
-                  <TableHead colSpan={3} className="text-center text-xs font-semibold bg-blue-50 dark:bg-blue-950/30 border-r">
-                    Annual (FY {year})
-                  </TableHead>
-                  <TableHead colSpan={3} className="text-center text-xs font-semibold bg-orange-50 dark:bg-orange-950/30 border-r">
-                    {currentMonthName}
-                  </TableHead>
-                  <TableHead rowSpan={2} className="text-center text-xs font-semibold align-middle">Actions</TableHead>
-                </TableRow>
-                <TableRow className="bg-muted/30">
-                  <TableHead className="text-right text-xs bg-blue-50/50 dark:bg-blue-950/20">Target</TableHead>
-                  <TableHead className="text-right text-xs bg-blue-50/50 dark:bg-blue-950/20">Actual</TableHead>
-                  <TableHead className="text-center text-xs bg-blue-50/50 dark:bg-blue-950/20 border-r">Ach %</TableHead>
-                  <TableHead className="text-right text-xs bg-orange-50/50 dark:bg-orange-950/20">Projections</TableHead>
-                  <TableHead className="text-right text-xs bg-orange-50/50 dark:bg-orange-950/20">Actual</TableHead>
-                  <TableHead className="text-center text-xs bg-orange-50/50 dark:bg-orange-950/20 border-r">Ach %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* Totals Row */}
-                <TableRow className="bg-primary/10 hover:bg-primary/15 font-bold border-b-2 border-primary/20">
-                  <TableCell className="font-bold text-sm py-2 border-r">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      TOTAL ({sortedMetrics.length})
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-bold text-sm py-2">{formatCurrency(totals.annual_target)}</TableCell>
-                  <TableCell className="text-right font-bold text-sm py-2 text-emerald-600">{formatCurrency(totals.ytd_actual)}</TableCell>
-                  <TableCell className="text-center py-2 border-r">{getAchievementBadge(totalAnnualAchievement)}</TableCell>
-                  <TableCell className="text-right font-bold text-sm py-2">{formatCurrency(currentMonthTargetTotal)}</TableCell>
-                  <TableCell className="text-right font-bold text-sm py-2 text-cyan-600">{formatCurrency(currentMonthTotal)}</TableCell>
-                  <TableCell className="text-center py-2 border-r">{getAchievementBadge(totalMonthlyAchievement)}</TableCell>
-                  <TableCell className="text-center py-2">
-                    <span className="text-xs text-muted-foreground">—</span>
-                  </TableCell>
-                </TableRow>
-
-                {/* Team Members */}
-              {sortedMetrics.map((member) => {
-                const currentMonthData = getCurrentMonthData(member);
-                const monthlyTarget = currentMonthData.projection; // Use user's projection as monthly target
-                const monthlyAchievement = monthlyTarget > 0 ? (currentMonthData.actual / monthlyTarget) * 100 : 0;
-
-                return (
-                  <TableRow key={member.user_id} className="hover:bg-muted/50">
-                    <TableCell className="py-2 border-r">
-                      <div className="font-medium text-sm">{member.full_name}</div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          /* Desktop Table View */
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow className="bg-muted/50">
+                    <TableHead rowSpan={2} className="text-xs font-semibold border-r align-middle">Member</TableHead>
+                    <TableHead colSpan={3} className="text-center text-xs font-semibold bg-blue-50 dark:bg-blue-950/30 border-r">
+                      Annual (FY {year})
+                    </TableHead>
+                    <TableHead colSpan={3} className="text-center text-xs font-semibold bg-orange-50 dark:bg-orange-950/30 border-r">
+                      {currentMonthName}
+                    </TableHead>
+                    <TableHead rowSpan={2} className="text-center text-xs font-semibold align-middle">Actions</TableHead>
+                  </TableRow>
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="text-right text-xs bg-blue-50/50 dark:bg-blue-950/20">Target</TableHead>
+                    <TableHead className="text-right text-xs bg-blue-50/50 dark:bg-blue-950/20">Actual</TableHead>
+                    <TableHead className="text-center text-xs bg-blue-50/50 dark:bg-blue-950/20 border-r">Ach %</TableHead>
+                    <TableHead className="text-right text-xs bg-orange-50/50 dark:bg-orange-950/20">Projections</TableHead>
+                    <TableHead className="text-right text-xs bg-orange-50/50 dark:bg-orange-950/20">Actual</TableHead>
+                    <TableHead className="text-center text-xs bg-orange-50/50 dark:bg-orange-950/20 border-r">Ach %</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Totals Row */}
+                  <TableRow className="bg-primary/10 hover:bg-primary/15 font-bold border-b-2 border-primary/20">
+                    <TableCell className="font-bold text-sm py-2 border-r">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        TOTAL ({sortedMetrics.length})
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right text-sm py-2">{formatCurrency(member.annual_target)}</TableCell>
-                    <TableCell
-                      className="text-right text-sm font-medium py-2 text-blue-600 underline cursor-pointer hover:text-blue-800"
-                      onClick={() => setDrilldownMember(member)}
-                      title="Click to view project breakdown"
-                    >
-                      {formatCurrency(member.ytd_actual)}
-                    </TableCell>
-                    <TableCell className="text-center py-2 border-r">{getAchievementBadge(member.achievement_percentage)}</TableCell>
-                    <TableCell className="text-right text-sm py-2">{formatCurrency(monthlyTarget)}</TableCell>
-                    <TableCell
-                      className="text-right text-sm font-medium py-2 text-blue-600 underline cursor-pointer hover:text-blue-800"
-                      onClick={() => setDrilldownMember(member)}
-                      title="Click to view project breakdown"
-                    >
-                      {formatCurrency(currentMonthData.actual)}
-                    </TableCell>
-                    <TableCell className="text-center py-2 border-r">{getAchievementBadge(monthlyAchievement)}</TableCell>
+                    <TableCell className="text-right font-bold text-sm py-2">{formatCurrency(totals.annual_target)}</TableCell>
+                    <TableCell className="text-right font-bold text-sm py-2 text-emerald-600">{formatCurrency(totals.ytd_actual)}</TableCell>
+                    <TableCell className="text-center py-2 border-r">{getAchievementBadge(totalAnnualAchievement)}</TableCell>
+                    <TableCell className="text-right font-bold text-sm py-2">{formatCurrency(currentMonthTargetTotal)}</TableCell>
+                    <TableCell className="text-right font-bold text-sm py-2 text-cyan-600">{formatCurrency(currentMonthTotal)}</TableCell>
+                    <TableCell className="text-center py-2 border-r">{getAchievementBadge(totalMonthlyAchievement)}</TableCell>
                     <TableCell className="text-center py-2">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedMember(member)}>
-                        <Eye className="h-3.5 w-3.5 mr-1" />
-                        Details
-                      </Button>
+                      <span className="text-xs text-muted-foreground">—</span>
                     </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      )}
+
+                  {/* Team Members */}
+                  {sortedMetrics.map((member) => {
+                    const currentMonthData = getCurrentMonthData(member);
+                    const monthlyTarget = currentMonthData.projection;
+                    const monthlyAchievement = monthlyTarget > 0 ? (currentMonthData.actual / monthlyTarget) * 100 : 0;
+
+                    return (
+                      <TableRow key={member.user_id} className="hover:bg-muted/50">
+                        <TableCell className="py-2 border-r">
+                          <div className="font-medium text-sm">{member.full_name}</div>
+                        </TableCell>
+                        <TableCell className="text-right text-sm py-2">{formatCurrency(member.annual_target)}</TableCell>
+                        <TableCell
+                          className="text-right text-sm font-medium py-2 text-blue-600 underline cursor-pointer hover:text-blue-800"
+                          onClick={() => setDrilldownMember(member)}
+                          title="Click to view project breakdown"
+                        >
+                          {formatCurrency(member.ytd_actual)}
+                        </TableCell>
+                        <TableCell className="text-center py-2 border-r">{getAchievementBadge(member.achievement_percentage)}</TableCell>
+                        <TableCell className="text-right text-sm py-2">{formatCurrency(monthlyTarget)}</TableCell>
+                        <TableCell
+                          className="text-right text-sm font-medium py-2 text-blue-600 underline cursor-pointer hover:text-blue-800"
+                          onClick={() => setDrilldownMember(member)}
+                          title="Click to view project breakdown"
+                        >
+                          {formatCurrency(currentMonthData.actual)}
+                        </TableCell>
+                        <TableCell className="text-center py-2 border-r">{getAchievementBadge(monthlyAchievement)}</TableCell>
+                        <TableCell className="text-center py-2">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedMember(member)}>
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            Details
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* AI Insights Section */}
+        {sortedMetrics.length > 0 && (
+          <CSBDInsights
+            metrics={sortedMetrics}
+            totals={totals}
+            currentMonthTotal={currentMonthTotal}
+            currentMonthTargetTotal={currentMonthTargetTotal}
+            year={year}
+            getCurrentMonthData={getCurrentMonthData}
+          />
+        )}
+      </div>
 
       {/* Member Detail Dialog */}
       <Dialog open={!!selectedMember} onOpenChange={() => setSelectedMember(null)}>
