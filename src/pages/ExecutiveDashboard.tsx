@@ -519,6 +519,7 @@ const ExecutiveDashboard = () => {
                         <TableHead className="text-xs font-semibold">S#</TableHead>
                         <TableHead className="text-xs font-semibold">Date</TableHead>
                         <TableHead className="text-xs font-semibold">Project #</TableHead>
+                        <TableHead className="text-xs font-semibold">Project Name</TableHead>
                         <TableHead className="text-xs font-semibold">Client</TableHead>
                         <TableHead className="text-xs font-semibold">Executed By</TableHead>
                         <TableHead className="text-right text-xs font-semibold">Total (L)</TableHead>
@@ -534,6 +535,7 @@ const ExecutiveDashboard = () => {
                             {new Date(proj.effective_date + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
                           </TableCell>
                           <TableCell className="text-xs font-medium text-primary">{proj.project_number}</TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate" title={proj.project_name}>{proj.project_name || '—'}</TableCell>
                           <TableCell className="text-xs max-w-[160px] truncate" title={proj.client_name}>{proj.client_name || '—'}</TableCell>
                           <TableCell className="text-xs max-w-[120px] truncate" title={proj.executed_by}>{proj.executed_by}</TableCell>
                           <TableCell className="text-right text-xs">{proj.amount_lacs.toFixed(2)}</TableCell>
@@ -547,7 +549,7 @@ const ExecutiveDashboard = () => {
                       ))}
                       {/* Totals Row */}
                       <TableRow className="bg-muted/50 font-bold border-t-2">
-                        <TableCell colSpan={5} className="text-xs font-bold">
+                        <TableCell colSpan={6} className="text-xs font-bold">
                           TOTAL ({memberProjects.length} projects)
                         </TableCell>
                         <TableCell className="text-right text-xs font-bold">
