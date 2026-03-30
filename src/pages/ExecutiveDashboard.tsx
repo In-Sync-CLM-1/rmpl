@@ -124,11 +124,13 @@ const ExecutiveDashboard = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden p-3 sm:p-4 gap-3">
+    <div className="h-screen flex flex-col overflow-hidden p-3 sm:p-4 gap-3 bg-gradient-to-br from-primary/5 via-accent-purple/5 to-success-green/5">
       {/* Header - Mobile Responsive */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Target className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 text-white shadow-md">
+            <Target className="h-5 w-5 sm:h-5 sm:w-5" />
+          </div>
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold leading-tight truncate">CSBD Executive Dashboard</h1>
             <p className="text-xs text-muted-foreground truncate">CY {year} • All figures in ₹ Lacs</p>
@@ -137,12 +139,12 @@ const ExecutiveDashboard = () => {
 
         <div className="flex items-center gap-2 shrink-0">
           {canManageTargets && (
-            <Button variant="outline" size="sm" onClick={() => navigate('/csbd-targets')} className="text-xs sm:text-sm">
+            <Button variant="outline" size="sm" onClick={() => navigate('/csbd-targets')} className="text-xs sm:text-sm glass-card border-border/50">
               <Settings className="mr-1 h-3.5 w-3.5" />
               <span className="hidden sm:inline">Manage </span>Targets
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => navigate('/csbd-projections')} className="text-xs sm:text-sm">
+          <Button variant="outline" size="sm" onClick={() => navigate('/csbd-projections')} className="text-xs sm:text-sm glass-card border-border/50">
             <TrendingUp className="mr-1 h-3.5 w-3.5" />
             <span className="hidden sm:inline">My </span>Projections
           </Button>
@@ -152,30 +154,36 @@ const ExecutiveDashboard = () => {
       {/* Summary Cards - Responsive Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 flex-shrink-0">
         {/* Annual Section */}
-        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-200">
+        <Card className="glass-card hover-lift bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-200/50">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <div className="p-1 rounded-md bg-blue-500/10">
+                <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600" />
+              </div>
               <span className="truncate">Annual Target</span>
             </div>
             <div className="text-base sm:text-xl font-bold">{formatCurrency(totals.annual_target)}</div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-200">
+
+        <Card className="glass-card hover-lift bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-200/50">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <IndianRupee className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <div className="p-1 rounded-md bg-emerald-500/10">
+                <IndianRupee className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-600" />
+              </div>
               <span className="truncate">YTD Actual</span>
             </div>
             <div className="text-base sm:text-xl font-bold text-emerald-600">{formatCurrency(totals.ytd_actual)}</div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-200">
+
+        <Card className="glass-card hover-lift bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-200/50">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <div className="p-1 rounded-md bg-violet-500/10">
+                <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-violet-600" />
+              </div>
               <span className="truncate">Annual Ach.</span>
             </div>
             <div className="flex items-center">
@@ -185,30 +193,36 @@ const ExecutiveDashboard = () => {
         </Card>
 
         {/* Monthly Section */}
-        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-200">
+        <Card className="glass-card hover-lift bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-200/50">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <div className="p-1 rounded-md bg-orange-500/10">
+                <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-orange-600" />
+              </div>
               <span className="truncate">{currentMonthShort} Target</span>
             </div>
             <div className="text-base sm:text-xl font-bold">{formatCurrency(currentMonthTargetTotal)}</div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border-cyan-200">
+
+        <Card className="glass-card hover-lift bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border-cyan-200/50">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <IndianRupee className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <div className="p-1 rounded-md bg-cyan-500/10">
+                <IndianRupee className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-cyan-600" />
+              </div>
               <span className="truncate">{currentMonthShort} Actual</span>
             </div>
             <div className="text-base sm:text-xl font-bold text-cyan-600">{formatCurrency(currentMonthTotal)}</div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-gradient-to-br from-pink-500/10 to-pink-600/5 border-pink-200">
+
+        <Card className="glass-card hover-lift bg-gradient-to-br from-pink-500/10 to-pink-600/5 border-pink-200/50">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <div className="p-1 rounded-md bg-pink-500/10">
+                <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-pink-600" />
+              </div>
               <span className="truncate">{currentMonthShort} Ach.</span>
             </div>
             <div className="flex items-center">
@@ -224,7 +238,7 @@ const ExecutiveDashboard = () => {
         {isMobile ? (
           <div className="space-y-2">
             {/* Totals Card */}
-            <Card className="bg-primary/5 border-primary/20">
+            <Card className="glass-card bg-primary/5 border-primary/20">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="h-4 w-4 text-primary" />
@@ -256,7 +270,7 @@ const ExecutiveDashboard = () => {
               return (
                 <Card
                   key={member.user_id}
-                  className="cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors"
+                  className="glass-card cursor-pointer hover:-translate-y-1 active:bg-muted transition-all duration-300"
                   onClick={() => setSelectedMember(member)}
                 >
                   <CardContent className="p-3">
@@ -285,7 +299,7 @@ const ExecutiveDashboard = () => {
           </div>
         ) : (
           /* Desktop Table View */
-          <Card>
+          <Card className="glass-card overflow-hidden">
             <CardContent className="p-0">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">

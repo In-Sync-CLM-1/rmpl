@@ -32,11 +32,11 @@ interface CSBDInsightsProps {
 }
 
 const typeStyles: Record<string, string> = {
-  success: "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30",
-  warning: "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30",
-  danger: "border-rose-200 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/30",
-  info: "border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30",
-  neutral: "border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-950/30",
+  success: "border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30 hover:shadow-md hover:-translate-y-0.5",
+  warning: "border-amber-200/60 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30 hover:shadow-md hover:-translate-y-0.5",
+  danger: "border-rose-200/60 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/30 hover:shadow-md hover:-translate-y-0.5",
+  info: "border-blue-200/60 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30 hover:shadow-md hover:-translate-y-0.5",
+  neutral: "border-slate-200/60 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-950/30 hover:shadow-md hover:-translate-y-0.5",
 };
 
 const iconStyles: Record<string, string> = {
@@ -246,7 +246,7 @@ export function CSBDInsights({
     <Card className="border-0 shadow-none bg-transparent">
       <CardContent className="p-0">
         <div className="flex items-center gap-2 mb-3">
-          <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+          <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md animate-pulse-glow">
             <Sparkles className="h-4 w-4" />
           </div>
           <h2 className="text-sm sm:text-base font-semibold">AI Insights</h2>
@@ -258,7 +258,7 @@ export function CSBDInsights({
           {insights.map((insight, idx) => (
             <div
               key={idx}
-              className={`rounded-lg border p-3 sm:p-4 ${typeStyles[insight.type]} transition-colors`}
+              className={`rounded-xl border p-3 sm:p-4 backdrop-blur-sm ${typeStyles[insight.type]} transition-all duration-300`}
             >
               <div className="flex items-start gap-2.5">
                 <div className={`mt-0.5 shrink-0 ${iconStyles[insight.type]}`}>

@@ -43,11 +43,13 @@ export function DailyTargetAchievement({ targets, actuals, dateLabel, compact = 
 
   if (compact) {
     return (
-      <Card className="border-none shadow-sm">
+      <Card className="glass-card hover-lift bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-200/50">
         <CardHeader className="py-2 px-3">
           <CardTitle className="text-sm flex items-center justify-between">
             <span className="flex items-center gap-1.5">
-              <Target className="h-4 w-4 text-primary" />
+              <div className="p-1 rounded-md bg-violet-500/10">
+                <Target className="h-3.5 w-3.5 text-violet-600" />
+              </div>
               Targets
             </span>
             {dateLabel && (
@@ -105,11 +107,13 @@ export function DailyTargetAchievement({ targets, actuals, dateLabel, compact = 
   }
 
   return (
-    <Card className="border-none shadow-sm">
+    <Card className="glass-card hover-lift bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-200/50">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
+            <div className="p-1.5 rounded-lg bg-violet-500/10">
+              <Target className="h-4 w-4 text-violet-600" />
+            </div>
             Target Achievement
           </span>
           {dateLabel && (

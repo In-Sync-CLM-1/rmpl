@@ -152,11 +152,13 @@ export default function DemandComDashboard() {
   if (!metrics) return null;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden p-4 gap-3">
+    <div className="h-screen flex flex-col overflow-hidden p-4 gap-3 bg-gradient-to-br from-primary/5 via-accent-purple/5 to-success-green/5">
       {/* Compact Header with Filters */}
       <div className="flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-6 w-6 text-primary" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 text-white shadow-md">
+            <BarChart3 className="h-5 w-5" />
+          </div>
           <div>
             <h1 className="text-xl font-bold leading-tight">DemandCom Dashboard</h1>
           </div>
