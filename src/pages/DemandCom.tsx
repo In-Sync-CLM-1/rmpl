@@ -144,7 +144,7 @@ export default function DemandCom() {
       if (dispositionsData) {
         setDispositionData(dispositionsData);
         const dispositions = dispositionsData.map(d => d.disposition);
-        setAvailableDispositions(dispositions);
+        setAvailableDispositions(["No Disposition", ...dispositions]);
       }
 
       const { data: usersData } = await supabase
@@ -318,8 +318,18 @@ export default function DemandCom() {
       }
 
       if (filters?.disposition && filters.disposition.length > 0) {
-        dataQuery = dataQuery.in("latest_disposition", filters.disposition);
-        countQuery = countQuery.in("latest_disposition", filters.disposition);
+        const hasNoDisposition = filters.disposition.includes("No Disposition");
+        const realDispositions = filters.disposition.filter(d => d !== "No Disposition");
+        if (hasNoDisposition && realDispositions.length > 0) {
+          dataQuery = dataQuery.or(`latest_disposition.is.null,latest_disposition.in.(${realDispositions.join(",")})`);
+          countQuery = countQuery.or(`latest_disposition.is.null,latest_disposition.in.(${realDispositions.join(",")})`);
+        } else if (hasNoDisposition) {
+          dataQuery = dataQuery.is("latest_disposition", null);
+          countQuery = countQuery.is("latest_disposition", null);
+        } else {
+          dataQuery = dataQuery.in("latest_disposition", realDispositions);
+          countQuery = countQuery.in("latest_disposition", realDispositions);
+        }
       }
 
       if (filters?.subdisposition && filters.subdisposition.length > 0) {
