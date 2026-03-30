@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Download, Users, Calendar, Clock, TrendingUp, Search, Table2, Grid3X3 } from "lucide-react";
-import { format, parseISO, eachDayOfInterval, startOfMonth, endOfMonth, getDay } from "date-fns";
+import { format, parseISO, eachDayOfInterval, startOfMonth, getDay } from "date-fns";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useCompanyHolidays } from "@/hooks/useCompanyHolidays";
 import { AdminDateWiseGrid } from "@/components/attendance/AdminDateWiseGrid";
@@ -27,7 +27,8 @@ interface UserProfile {
 
 export default function AttendanceReports() {
   const { permissions } = useUserPermissions();
-  const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
+  const [fromDate, setFromDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
+  const [toDate, setToDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   const [selectedDesignation, setSelectedDesignation] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -201,12 +202,12 @@ export default function AttendanceReports() {
   const userIds = useMemo(() => users?.map(u => u.id) || [], [users]);
 
   const { data: attendanceReport, isLoading: attendanceLoading, error: attendanceError } = useQuery({
-    queryKey: ["attendance-report", month, userIds],
+    queryKey: ["attendance-report", fromDate, toDate, userIds],
     queryFn: async () => {
       if (userIds.length === 0) return [];
 
-      const startDate = `${month}-01`;
-      const endDate = format(new Date(parseInt(month.split("-")[0]), parseInt(month.split("-")[1]), 0), "yyyy-MM-dd");
+      const startDate = fromDate;
+      const endDate = toDate;
       
       // Fetch in batches of 30 user IDs to stay well within row limits
       const batchSize = 30;
@@ -233,12 +234,12 @@ export default function AttendanceReports() {
   });
 
   const { data: leaveReport, isLoading: leaveLoading, error: leaveError } = useQuery({
-    queryKey: ["leave-report", month, userIds],
+    queryKey: ["leave-report", fromDate, toDate, userIds],
     queryFn: async () => {
       if (userIds.length === 0) return [];
 
-      const startDate = `${month}-01`;
-      const endDate = format(new Date(parseInt(month.split("-")[0]), parseInt(month.split("-")[1]), 0), "yyyy-MM-dd");
+      const startDate = fromDate;
+      const endDate = toDate;
       
       // Fetch in batches of 30 user IDs
       const batchSize = 30;
@@ -263,14 +264,13 @@ export default function AttendanceReports() {
     enabled: userIds.length > 0,
   });
 
-  // Calculate days in month for working days calculation
+  // Calculate days in selected range for working days calculation
   const monthDays = useMemo(() => {
-    const monthDate = parseISO(`${month}-01`);
     return eachDayOfInterval({
-      start: startOfMonth(monthDate),
-      end: endOfMonth(monthDate),
+      start: parseISO(fromDate),
+      end: parseISO(toDate),
     });
-  }, [month]);
+  }, [fromDate, toDate]);
 
   // Check if a date is a week-off (Sunday or 2nd/4th Saturday)
   const isWeekOff = (date: Date): boolean => {
@@ -453,7 +453,7 @@ export default function AttendanceReports() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `attendance-report-${month}.csv`;
+    a.download = `attendance-report-${fromDate}-to-${toDate}.csv`;
     a.click();
   };
 
@@ -479,7 +479,7 @@ export default function AttendanceReports() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Attendance Reports</h1>
-          <p className="text-muted-foreground">View and export monthly attendance data</p>
+          <p className="text-muted-foreground">View and export attendance data for any date range</p>
         </div>
         <Button onClick={exportToCSV} disabled={isLoading}>
           <Download className="mr-2 h-4 w-4" />
@@ -581,13 +581,21 @@ export default function AttendanceReports() {
                     </TabsList>
                   </Tabs>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                   <div className="space-y-2">
-                    <Label>Month</Label>
-                    <Input 
-                      type="month" 
-                      value={month}
-                      onChange={(e) => setMonth(e.target.value)}
+                    <Label>From Date</Label>
+                    <Input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>To Date</Label>
+                    <Input
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => setToDate(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -715,7 +723,8 @@ export default function AttendanceReports() {
                 </div>
               ) : (
                 <AdminDateWiseGrid
-                  month={month}
+                  fromDate={fromDate}
+                  toDate={toDate}
                   users={filteredUsers || []}
                   attendanceRecords={attendanceReport || []}
                   leaveApplications={leaveReport || []}

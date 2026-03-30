@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { format, parseISO, eachDayOfInterval, startOfMonth, endOfMonth, getDay } from "date-fns";
+import { format, parseISO, eachDayOfInterval, getDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,8 @@ interface CompanyHoliday {
 }
 
 interface AdminDateWiseGridProps {
-  month: string;
+  fromDate: string;
+  toDate: string;
   users: UserProfile[];
   attendanceRecords: AttendanceRecord[];
   leaveApplications: LeaveApplication[];
@@ -73,19 +74,19 @@ const statusLabels: Record<DayStatus, string> = {
 };
 
 export function AdminDateWiseGrid({
-  month,
+  fromDate,
+  toDate,
   users,
   attendanceRecords,
   leaveApplications,
   holidays,
 }: AdminDateWiseGridProps) {
   const daysInMonth = useMemo(() => {
-    const monthDate = parseISO(`${month}-01`);
     return eachDayOfInterval({
-      start: startOfMonth(monthDate),
-      end: endOfMonth(monthDate),
+      start: parseISO(fromDate),
+      end: parseISO(toDate),
     });
-  }, [month]);
+  }, [fromDate, toDate]);
 
   // Check if a date is a week-off (Sunday or 2nd/4th Saturday)
   const isWeekOff = (date: Date): boolean => {
