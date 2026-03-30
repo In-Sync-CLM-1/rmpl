@@ -111,6 +111,7 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
       }
 
       // Resolve client_id from the project's client association
+      // projects.client_id is TEXT and may contain a UUID or a company name
       let clientId: string | null = null;
       const { data: proj } = await supabase
         .from("projects")
@@ -118,7 +119,21 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
         .eq("id", projectId)
         .single();
       if (proj?.client_id) {
-        clientId = proj.client_id;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(proj.client_id)) {
+          clientId = proj.client_id;
+        } else {
+          // client_id is a name, not a UUID — look up in clients table
+          const { data: client } = await supabase
+            .from("clients")
+            .select("id")
+            .ilike("company_name", proj.client_id.trim())
+            .limit(1)
+            .single();
+          if (client) {
+            clientId = client.id;
+          }
+        }
       }
 
       const quotationNumber = `QT-${Date.now()}`;
