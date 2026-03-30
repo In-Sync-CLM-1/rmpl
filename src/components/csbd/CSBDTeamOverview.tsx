@@ -64,7 +64,7 @@ export const CSBDTeamOverview = ({ fiscalYear }: CSBDTeamOverviewProps) => {
     return (
       <Card>
         <CardContent className="p-6">
-          <p className="text-muted-foreground">No CSBD team members found for FY {fiscalYear}.</p>
+          <p className="text-muted-foreground">No CSBD team members found for {fiscalYear}.</p>
         </CardContent>
       </Card>
     );
@@ -90,7 +90,7 @@ export const CSBDTeamOverview = ({ fiscalYear }: CSBDTeamOverviewProps) => {
       <Card>
         <CardHeader>
           <CardTitle>CSBD Team Projections Overview</CardTitle>
-          <CardDescription>View all CSBD team members' projections and performance for FY {fiscalYear}</CardDescription>
+          <CardDescription>View all CSBD team members' projections and performance for {fiscalYear}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

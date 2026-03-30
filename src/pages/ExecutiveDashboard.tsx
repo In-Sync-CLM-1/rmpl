@@ -131,7 +131,7 @@ const ExecutiveDashboard = () => {
           <Target className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold leading-tight truncate">CSBD Executive Dashboard</h1>
-            <p className="text-xs text-muted-foreground truncate">FY {year} • All figures in ₹ Lacs</p>
+            <p className="text-xs text-muted-foreground truncate">CY {year} • All figures in ₹ Lacs</p>
           </div>
         </div>
 
@@ -292,7 +292,7 @@ const ExecutiveDashboard = () => {
                   <TableRow className="bg-muted/50">
                     <TableHead rowSpan={2} className="text-xs font-semibold border-r align-middle">Member</TableHead>
                     <TableHead colSpan={3} className="text-center text-xs font-semibold bg-blue-50 dark:bg-blue-950/30 border-r">
-                      Annual (FY {year})
+                      Annual ({year})
                     </TableHead>
                     <TableHead colSpan={3} className="text-center text-xs font-semibold bg-orange-50 dark:bg-orange-950/30 border-r">
                       {currentMonthName}

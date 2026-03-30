@@ -60,30 +60,26 @@ export function CSBDInsights({
 
     const result: Insight[] = [];
     const now = new Date();
-    const fiscalStartMonth = 3; // April = month 3 (0-indexed)
-    const currentMonth = now.getMonth();
-    const monthsElapsed =
-      currentMonth >= fiscalStartMonth
-        ? currentMonth - fiscalStartMonth + 1
-        : currentMonth + 12 - fiscalStartMonth + 1;
-    const totalFiscalMonths = 12;
-    const yearProgressPct = (monthsElapsed / totalFiscalMonths) * 100;
+    const currentMonth = now.getMonth(); // 0-indexed, Jan=0
+    const monthsElapsed = currentMonth + 1; // Jan=1, Feb=2, etc.
+    const totalYearMonths = 12;
+    const yearProgressPct = (monthsElapsed / totalYearMonths) * 100;
     const annualAchPct = totals.annual_target > 0 ? (totals.ytd_actual / totals.annual_target) * 100 : 0;
     const monthlyAchPct = currentMonthTargetTotal > 0 ? (currentMonthTotal / currentMonthTargetTotal) * 100 : 0;
 
     // ─── 1. Year-End Forecast ───
     if (monthsElapsed > 0 && totals.annual_target > 0) {
       const monthlyRunRate = totals.ytd_actual / monthsElapsed;
-      const projectedYearEnd = monthlyRunRate * totalFiscalMonths;
+      const projectedYearEnd = monthlyRunRate * totalYearMonths;
       const forecastPct = (projectedYearEnd / totals.annual_target) * 100;
       const gap = totals.annual_target - projectedYearEnd;
-      const remainingMonths = totalFiscalMonths - monthsElapsed;
+      const remainingMonths = totalYearMonths - monthsElapsed;
 
       if (forecastPct >= 100) {
         result.push({
           icon: <TrendingUp className="h-4 w-4" />,
           title: "On Track to Exceed Annual Target",
-          description: `At the current run rate of ${monthlyRunRate.toFixed(1)}L/month, the team is projected to close FY${year} at ${projectedYearEnd.toFixed(1)}L (${forecastPct.toFixed(0)}% of target). Strong momentum — keep it going.`,
+          description: `At the current run rate of ${monthlyRunRate.toFixed(1)}L/month, the team is projected to close ${year} at ${projectedYearEnd.toFixed(1)}L (${forecastPct.toFixed(0)}% of target). Strong momentum — keep it going.`,
           type: "success",
         });
       } else if (forecastPct >= 80) {
@@ -112,14 +108,14 @@ export function CSBDInsights({
         result.push({
           icon: <ArrowUpRight className="h-4 w-4" />,
           title: "Ahead of Pace",
-          description: `The team has achieved ${annualAchPct.toFixed(1)}% of the annual target with ${yearProgressPct.toFixed(0)}% of the fiscal year elapsed. The team is performing ${((paceIndex - 1) * 100).toFixed(0)}% above the expected pace.`,
+          description: `The team has achieved ${annualAchPct.toFixed(1)}% of the annual target with ${yearProgressPct.toFixed(0)}% of the year elapsed. The team is performing ${((paceIndex - 1) * 100).toFixed(0)}% above the expected pace.`,
           type: "success",
         });
       } else if (paceIndex < 0.8) {
         result.push({
           icon: <ArrowDownRight className="h-4 w-4" />,
           title: "Behind Expected Pace",
-          description: `With ${yearProgressPct.toFixed(0)}% of the year gone, achievement stands at ${annualAchPct.toFixed(1)}%. The team is tracking ${((1 - paceIndex) * 100).toFixed(0)}% below the expected pace for this point in the fiscal year.`,
+          description: `With ${yearProgressPct.toFixed(0)}% of the year gone, achievement stands at ${annualAchPct.toFixed(1)}%. The team is tracking ${((1 - paceIndex) * 100).toFixed(0)}% below the expected pace for this point in the year.`,
           type: "danger",
         });
       }

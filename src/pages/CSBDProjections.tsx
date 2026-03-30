@@ -219,7 +219,7 @@ const CSBDProjections = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2026">FY 2026</SelectItem>
+              <SelectItem value="2026">CY 2026</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -279,7 +279,7 @@ const CSBDProjections = () => {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="2026">FY 2026</SelectItem>
+            <SelectItem value="2026">CY 2026</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="sm">
