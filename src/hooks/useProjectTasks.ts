@@ -16,6 +16,13 @@ export interface ProjectTask {
   updated_at: string;
   completed_at: string | null;
   parent_task_id: string | null;
+  completion_notes?: string | null;
+  completion_file_path?: string | null;
+  completion_file_name?: string | null;
+  completion_files?: any;
+  restart_reason?: string | null;
+  restarted_at?: string | null;
+  restarted_by?: string | null;
   assigned_user?: {
     full_name: string | null;
     email: string | null;

@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useProjectTasks, ProjectTask } from "@/hooks/useProjectTasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProjectTaskDialog } from "./ProjectTaskDialog";
-import { Plus, Pencil, Trash2, Flag, ChevronRight, ChevronDown, ListTree, AlertCircle } from "lucide-react";
+import { CompleteTaskDialog } from "./CompleteTaskDialog";
+import { RestartTaskDialog } from "./RestartTaskDialog";
+import { Plus, Pencil, Trash2, Flag, ChevronRight, ChevronDown, ListTree, AlertCircle, Play, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { DeleteConfirmDialog } from "./ui/delete-confirm-dialog";
 import { Card, CardContent } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   Collapsible,
   CollapsibleContent,
@@ -27,6 +31,19 @@ export function ProjectTaskManager({ projectId }: ProjectTaskManagerProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [taskToComplete, setTaskToComplete] = useState<ProjectTask | null>(null);
+  const [restartDialogOpen, setRestartDialogOpen] = useState(false);
+  const [taskToRestart, setTaskToRestart] = useState<ProjectTask | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    fetchUser();
+  }, []);
 
   const handleCreateTask = async (data: any) => {
     await createTask(data);
@@ -44,6 +61,72 @@ export function ProjectTaskManager({ projectId }: ProjectTaskManagerProps) {
       setDeleteDialogOpen(false);
       setTaskToDelete(null);
     }
+  };
+
+  const handleStartTask = async (task: ProjectTask) => {
+    await updateTask({ id: task.id, status: "in_progress" });
+  };
+
+  const handleOpenCompleteDialog = (task: ProjectTask) => {
+    setTaskToComplete(task);
+    setCompleteDialogOpen(true);
+  };
+
+  const handleCompleteTask = async (notes: string, files: File[]) => {
+    if (!taskToComplete) return;
+
+    const uploadedFiles: { path: string; name: string; size: number }[] = [];
+    for (const file of files) {
+      const filePath = `project/${taskToComplete.id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("task-completion-files")
+        .upload(filePath, file);
+      if (uploadError) {
+        toast.error(`Failed to upload ${file.name}`);
+      } else {
+        uploadedFiles.push({ path: filePath, name: file.name, size: file.size });
+      }
+    }
+
+    await updateTask({
+      id: taskToComplete.id,
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      completion_notes: notes,
+      completion_file_path: uploadedFiles[0]?.path || null,
+      completion_file_name: uploadedFiles[0]?.name || null,
+      completion_files: uploadedFiles,
+    } as any);
+
+    if (uploadedFiles.length > 0) {
+      toast.success(`${uploadedFiles.length} file${uploadedFiles.length !== 1 ? "s" : ""} uploaded successfully`);
+    }
+    setTaskToComplete(null);
+  };
+
+  const handleCancelTask = async (task: ProjectTask) => {
+    await updateTask({ id: task.id, status: "cancelled" });
+  };
+
+  const handleOpenRestartDialog = (task: ProjectTask) => {
+    setTaskToRestart(task);
+    setRestartDialogOpen(true);
+  };
+
+  const handleRestartTask = async (reason: string) => {
+    if (!taskToRestart) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await updateTask({
+      id: taskToRestart.id,
+      status: "pending",
+      restart_reason: reason,
+      restarted_at: new Date().toISOString(),
+      restarted_by: user.id,
+      completed_at: null,
+    } as any);
+    setTaskToRestart(null);
   };
 
   const openCreateDialog = (parentId?: string) => {
@@ -168,7 +251,51 @@ export function ProjectTaskManager({ projectId }: ProjectTaskManagerProps) {
 
               {/* Actions */}
               <div className="flex items-center gap-1 flex-shrink-0">
-                {!isSubtask && (
+                {task.status === "pending" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleStartTask(task)}
+                    title="Start Task"
+                    className="h-7 w-7 p-0 text-green-600 hover:text-green-700"
+                  >
+                    <Play className="h-3 w-3" />
+                  </Button>
+                )}
+                {task.status === "in_progress" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleOpenCompleteDialog(task)}
+                    title="Complete Task"
+                    className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700"
+                  >
+                    <CheckCircle2 className="h-3 w-3" />
+                  </Button>
+                )}
+                {(task.status === "pending" || task.status === "in_progress") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCancelTask(task)}
+                    title="Cancel Task"
+                    className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                  >
+                    <XCircle className="h-3 w-3" />
+                  </Button>
+                )}
+                {(task.status === "completed" || task.status === "cancelled") && currentUserId === task.assigned_by && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleOpenRestartDialog(task)}
+                    title="Restart Task"
+                    className="h-7 w-7 p-0"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                )}
+                {!isSubtask && task.status !== "completed" && task.status !== "cancelled" && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -286,6 +413,20 @@ export function ProjectTaskManager({ projectId }: ProjectTaskManagerProps) {
         onConfirm={handleDeleteTask}
         title="Delete Task"
         description="Are you sure you want to delete this task? All subtasks will also be deleted. This action cannot be undone."
+      />
+
+      <CompleteTaskDialog
+        open={completeDialogOpen}
+        onOpenChange={setCompleteDialogOpen}
+        onConfirm={handleCompleteTask}
+        taskName={taskToComplete?.task_name || ""}
+      />
+
+      <RestartTaskDialog
+        open={restartDialogOpen}
+        onOpenChange={setRestartDialogOpen}
+        onConfirm={handleRestartTask}
+        taskName={taskToRestart?.task_name || ""}
       />
     </div>
   );
