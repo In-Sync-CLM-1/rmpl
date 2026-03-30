@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Building2, Search, Users, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Search, Users, ChevronDown, ChevronRight, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -20,6 +20,9 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Badge } from "@/components/ui/badge";
+import { ClientAssignmentDialog } from "@/components/ClientAssignmentDialog";
+import { ClientBulkAssignDialog } from "@/components/ClientBulkAssignDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Client {
   id: string;
@@ -55,6 +58,9 @@ const Clients = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [contactsCache, setContactsCache] = useState<Record<string, Contact[]>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [showBulkAssignDialog, setShowBulkAssignDialog] = useState(false);
 
   const {
     data: clients,
@@ -63,6 +69,7 @@ const Clients = () => {
     currentPage,
     itemsPerPage,
     isLoading,
+    refetch,
     handlePageChange,
     handleItemsPerPageChange,
   } = usePaginatedQuery<Client>({
@@ -153,11 +160,60 @@ const Clients = () => {
     }
   };
 
+  const handleSelectAll = () => {
+    if (selectedIds.size === clients.length && clients.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(clients.map((c) => c.id)));
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Clients</h1>
         <div className="flex gap-2">
+          {selectedIds.size > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setShowAssignmentDialog(true)}
+                    variant="secondary"
+                    size="icon"
+                    className="relative"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                      {selectedIds.size}
+                    </Badge>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Assign selected clients</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {totalCount > 0 && (
+            <Button
+              onClick={() => setShowBulkAssignDialog(true)}
+              variant="outline"
+              className="gap-2"
+              title="Bulk Select & Assign"
+            >
+              <Users className="h-4 w-4" />
+              Bulk Assign
+            </Button>
+          )}
           <Button onClick={() => navigate("/clients/new")}>
             <Plus className="mr-2 h-4 w-4" />
             Add Client
@@ -193,6 +249,15 @@ const Clients = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === clients.length && clients.length > 0}
+                    onChange={handleSelectAll}
+                    className="cursor-pointer h-4 w-4"
+                    aria-label="Select all clients"
+                  />
+                </TableHead>
                 <TableHead className="w-10"></TableHead>
                 <TableHead>Company Name</TableHead>
                 <TableHead>Branch</TableHead>
@@ -210,7 +275,16 @@ const Clients = () => {
             <TableBody>
               {clients.map((client) => (
                 <>
-                  <TableRow key={client.id}>
+                  <TableRow key={client.id} className={selectedIds.has(client.id) ? "bg-primary/5" : ""}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(client.id)}
+                        onChange={() => handleSelectOne(client.id)}
+                        className="cursor-pointer h-4 w-4"
+                        aria-label={`Select ${client.company_name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -286,7 +360,7 @@ const Clients = () => {
                   </TableRow>
                   {expandedRows.has(client.id) && (
                     <TableRow key={`${client.id}-contacts`}>
-                      <TableCell colSpan={12} className="bg-muted/30 p-0">
+                      <TableCell colSpan={13} className="bg-muted/30 p-0">
                         <div className="px-8 py-3">
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
@@ -372,6 +446,28 @@ const Clients = () => {
         onConfirm={handleDelete}
         itemName={clientToDelete?.company_name}
         isLoading={isDeleting}
+      />
+
+      <ClientAssignmentDialog
+        open={showAssignmentDialog}
+        onOpenChange={setShowAssignmentDialog}
+        selectedIds={Array.from(selectedIds)}
+        onAssignmentComplete={() => {
+          setSelectedIds(new Set());
+          refetch();
+        }}
+      />
+
+      <ClientBulkAssignDialog
+        open={showBulkAssignDialog}
+        onOpenChange={setShowBulkAssignDialog}
+        totalCount={totalCount}
+        itemsPerPage={itemsPerPage}
+        searchQuery={searchQuery}
+        onAssignmentComplete={() => {
+          setSelectedIds(new Set());
+          refetch();
+        }}
       />
     </div>
   );
