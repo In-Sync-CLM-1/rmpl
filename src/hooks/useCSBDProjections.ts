@@ -29,6 +29,13 @@ export const useCSBDProjections = (userId?: string, fiscalYear = 2025) => {
   const projectionsQuery = useQuery({
     queryKey: ['csbd-projections', userId, fiscalYear],
     queryFn: async () => {
+      // If no userId provided, default to current user to avoid mixing projections
+      let filterUserId = userId;
+      if (!filterUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        filterUserId = user?.id;
+      }
+
       const query = supabase
         .from('csbd_projections')
         .select('*')
@@ -36,8 +43,8 @@ export const useCSBDProjections = (userId?: string, fiscalYear = 2025) => {
         .lte('month', formatDateLocal(yearEnd))
         .order('month', { ascending: true });
 
-      if (userId) {
-        query.eq('user_id', userId);
+      if (filterUserId) {
+        query.eq('user_id', filterUserId);
       }
 
       const { data, error } = await query;
