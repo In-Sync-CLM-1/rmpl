@@ -31,11 +31,11 @@ interface DemandComInsightsProps {
 }
 
 const typeStyles: Record<string, string> = {
-  success: "border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30 hover:shadow-md hover:-translate-y-0.5",
-  warning: "border-amber-200/60 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30 hover:shadow-md hover:-translate-y-0.5",
-  danger: "border-rose-200/60 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/30 hover:shadow-md hover:-translate-y-0.5",
-  info: "border-blue-200/60 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30 hover:shadow-md hover:-translate-y-0.5",
-  neutral: "border-slate-200/60 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-950/30 hover:shadow-md hover:-translate-y-0.5",
+  success: "border-l-4 border-l-emerald-500 border-t-0 border-r-0 border-b-0 bg-emerald-50/70 dark:bg-emerald-950/30 shadow-sm hover:shadow-md hover:-translate-y-0.5",
+  warning: "border-l-4 border-l-amber-500 border-t-0 border-r-0 border-b-0 bg-amber-50/70 dark:bg-amber-950/30 shadow-sm hover:shadow-md hover:-translate-y-0.5",
+  danger: "border-l-4 border-l-rose-500 border-t-0 border-r-0 border-b-0 bg-rose-50/70 dark:bg-rose-950/30 shadow-sm hover:shadow-md hover:-translate-y-0.5",
+  info: "border-l-4 border-l-blue-500 border-t-0 border-r-0 border-b-0 bg-blue-50/70 dark:bg-blue-950/30 shadow-sm hover:shadow-md hover:-translate-y-0.5",
+  neutral: "border-l-4 border-l-slate-400 border-t-0 border-r-0 border-b-0 bg-slate-50/70 dark:bg-slate-950/30 shadow-sm hover:shadow-md hover:-translate-y-0.5",
 };
 
 const iconStyles: Record<string, string> = {

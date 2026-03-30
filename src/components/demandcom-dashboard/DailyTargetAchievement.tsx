@@ -43,12 +43,14 @@ export function DailyTargetAchievement({ targets, actuals, dateLabel, compact = 
 
   if (compact) {
     return (
-      <Card className="glass-card hover-lift bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-200/50">
-        <CardHeader className="py-2 px-3">
+      <Card className="border-0 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 opacity-[0.07]" />
+        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-500 to-purple-600 rounded-l-xl" />
+        <CardHeader className="py-2 px-3 relative">
           <CardTitle className="text-sm flex items-center justify-between">
             <span className="flex items-center gap-1.5">
-              <div className="p-1 rounded-md bg-violet-500/10">
-                <Target className="h-3.5 w-3.5 text-violet-600" />
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-sm">
+                <Target className="h-3 w-3" />
               </div>
               Targets
             </span>
@@ -59,7 +61,7 @@ export function DailyTargetAchievement({ targets, actuals, dateLabel, compact = 
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="px-3 pb-3 pt-0">
+        <CardContent className="px-3 pb-3 pt-0 relative">
           <div className="grid grid-cols-2 gap-3">
             {/* Calls */}
             <div className="space-y-1">
@@ -107,12 +109,14 @@ export function DailyTargetAchievement({ targets, actuals, dateLabel, compact = 
   }
 
   return (
-    <Card className="glass-card hover-lift bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-200/50">
-      <CardHeader className="pb-3">
+    <Card className="border-0 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative">
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 opacity-[0.07]" />
+      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-500 to-purple-600 rounded-l-xl" />
+      <CardHeader className="pb-3 relative">
         <CardTitle className="text-lg flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-violet-500/10">
-              <Target className="h-4 w-4 text-violet-600" />
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-sm">
+              <Target className="h-4 w-4" />
             </div>
             Target Achievement
           </span>

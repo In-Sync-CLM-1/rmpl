@@ -15,39 +15,31 @@ export function DemandComKPICards({ metrics, dateLabel, compact = false }: Deman
       label: "Connected Calls",
       value: metrics.connectedCallsToday.toLocaleString(),
       icon: Phone,
-      color: "text-blue-600",
-      bgColor: "bg-gradient-to-br from-blue-500/20 to-blue-600/10",
-      cardGradient: "from-blue-500/10 to-blue-600/5",
-      borderColor: "border-blue-200/50",
+      gradient: "from-blue-500 to-blue-600",
+      lightBg: "from-blue-500 to-blue-600",
     },
     {
       label: "Data Updated",
       value: metrics.totalDataUpdated.toLocaleString(),
       icon: Database,
-      color: "text-green-600",
-      bgColor: "bg-gradient-to-br from-green-500/20 to-green-600/10",
-      cardGradient: "from-green-500/10 to-green-600/5",
-      borderColor: "border-green-200/50",
+      gradient: "from-emerald-500 to-emerald-600",
+      lightBg: "from-emerald-500 to-emerald-600",
     },
     {
       label: "Shortage",
       value: `${metrics.shortagePercentage}%`,
       subtitle: `${metrics.registered.toLocaleString()}/${metrics.totalRequirement.toLocaleString()}`,
       icon: TrendingDown,
-      color: "text-orange-600",
-      bgColor: "bg-gradient-to-br from-orange-500/20 to-orange-600/10",
-      cardGradient: "from-orange-500/10 to-orange-600/5",
-      borderColor: "border-orange-200/50",
+      gradient: "from-orange-500 to-orange-600",
+      lightBg: "from-orange-500 to-orange-600",
     },
     {
       label: "Assigned",
       value: `${metrics.assignedPercentage}%`,
       subtitle: `${metrics.assignedCount.toLocaleString()}/${metrics.totalCount.toLocaleString()}`,
       icon: Users,
-      color: "text-teal-600",
-      bgColor: "bg-gradient-to-br from-teal-500/20 to-teal-600/10",
-      cardGradient: "from-teal-500/10 to-teal-600/5",
-      borderColor: "border-teal-200/50",
+      gradient: "from-teal-500 to-teal-600",
+      lightBg: "from-teal-500 to-teal-600",
     },
   ];
 
@@ -57,8 +49,10 @@ export function DemandComKPICards({ metrics, dateLabel, compact = false }: Deman
       compact ? "grid-cols-4" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
     )}>
       {kpis.map((kpi) => (
-        <Card key={kpi.label} className={cn("glass-card hover-lift", `bg-gradient-to-br ${kpi.cardGradient}`, kpi.borderColor)}>
-          <CardContent className={cn(compact ? "p-3" : "p-4")}>
+        <Card key={kpi.label} className="border-0 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative">
+          <div className={cn("absolute inset-0 bg-gradient-to-br opacity-[0.07]", kpi.lightBg)} />
+          <div className={cn("absolute top-0 left-0 w-1 h-full bg-gradient-to-b rounded-l-xl", kpi.gradient)} />
+          <CardContent className={cn("relative", compact ? "p-3" : "p-4")}>
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -81,12 +75,11 @@ export function DemandComKPICards({ metrics, dateLabel, compact = false }: Deman
                 )}
               </div>
               <div className={cn(
-                "rounded-xl flex-shrink-0 shadow-sm",
-                kpi.bgColor,
+                "rounded-xl flex-shrink-0 shadow-md bg-gradient-to-br text-white",
+                kpi.gradient,
                 compact ? "p-2" : "p-3"
               )}>
                 <kpi.icon className={cn(
-                  kpi.color,
                   compact ? "h-4 w-4" : "h-5 w-5"
                 )} />
               </div>

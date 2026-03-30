@@ -154,11 +154,13 @@ const ExecutiveDashboard = () => {
       {/* Summary Cards - Responsive Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 flex-shrink-0">
         {/* Annual Section */}
-        <Card className="glass-card hover-lift bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-200/50">
-          <CardContent className="p-2.5 sm:p-3">
+        <Card className="border-0 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-[0.08]" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-blue-600 rounded-l-xl" />
+          <CardContent className="p-2.5 sm:p-3 relative">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <div className="p-1 rounded-md bg-blue-500/10">
-                <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600" />
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm">
+                <Target className="h-3 w-3" />
               </div>
               <span className="truncate">Annual Target</span>
             </div>
@@ -166,11 +168,13 @@ const ExecutiveDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="glass-card hover-lift bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-200/50">
-          <CardContent className="p-2.5 sm:p-3">
+        <Card className="border-0 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-[0.08]" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-emerald-500 to-emerald-600 rounded-l-xl" />
+          <CardContent className="p-2.5 sm:p-3 relative">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <div className="p-1 rounded-md bg-emerald-500/10">
-                <IndianRupee className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-600" />
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm">
+                <IndianRupee className="h-3 w-3" />
               </div>
               <span className="truncate">YTD Actual</span>
             </div>
@@ -178,11 +182,13 @@ const ExecutiveDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="glass-card hover-lift bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-200/50">
-          <CardContent className="p-2.5 sm:p-3">
+        <Card className="border-0 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-violet-600 opacity-[0.08]" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-500 to-violet-600 rounded-l-xl" />
+          <CardContent className="p-2.5 sm:p-3 relative">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <div className="p-1 rounded-md bg-violet-500/10">
-                <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-violet-600" />
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 text-white shadow-sm">
+                <TrendingUp className="h-3 w-3" />
               </div>
               <span className="truncate">Annual Ach.</span>
             </div>
@@ -193,11 +199,13 @@ const ExecutiveDashboard = () => {
         </Card>
 
         {/* Monthly Section */}
-        <Card className="glass-card hover-lift bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-200/50">
-          <CardContent className="p-2.5 sm:p-3">
+        <Card className="border-0 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-orange-600 opacity-[0.08]" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-orange-500 to-orange-600 rounded-l-xl" />
+          <CardContent className="p-2.5 sm:p-3 relative">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <div className="p-1 rounded-md bg-orange-500/10">
-                <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-orange-600" />
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-sm">
+                <Calendar className="h-3 w-3" />
               </div>
               <span className="truncate">{currentMonthShort} Target</span>
             </div>
@@ -205,11 +213,13 @@ const ExecutiveDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="glass-card hover-lift bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border-cyan-200/50">
-          <CardContent className="p-2.5 sm:p-3">
+        <Card className="border-0 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-cyan-600 opacity-[0.08]" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-cyan-500 to-cyan-600 rounded-l-xl" />
+          <CardContent className="p-2.5 sm:p-3 relative">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <div className="p-1 rounded-md bg-cyan-500/10">
-                <IndianRupee className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-cyan-600" />
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 text-white shadow-sm">
+                <IndianRupee className="h-3 w-3" />
               </div>
               <span className="truncate">{currentMonthShort} Actual</span>
             </div>
@@ -217,11 +227,13 @@ const ExecutiveDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="glass-card hover-lift bg-gradient-to-br from-pink-500/10 to-pink-600/5 border-pink-200/50">
-          <CardContent className="p-2.5 sm:p-3">
+        <Card className="border-0 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-pink-600 opacity-[0.08]" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-pink-500 to-pink-600 rounded-l-xl" />
+          <CardContent className="p-2.5 sm:p-3 relative">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <div className="p-1 rounded-md bg-pink-500/10">
-                <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-pink-600" />
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-pink-500 to-pink-600 text-white shadow-sm">
+                <TrendingUp className="h-3 w-3" />
               </div>
               <span className="truncate">{currentMonthShort} Ach.</span>
             </div>
@@ -238,7 +250,8 @@ const ExecutiveDashboard = () => {
         {isMobile ? (
           <div className="space-y-2">
             {/* Totals Card */}
-            <Card className="glass-card bg-primary/5 border-primary/20">
+            <Card className="border-0 rounded-xl shadow-lg bg-gradient-to-r from-primary/10 to-primary/5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-primary/70 rounded-l-xl" />
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="h-4 w-4 text-primary" />
@@ -270,7 +283,7 @@ const ExecutiveDashboard = () => {
               return (
                 <Card
                   key={member.user_id}
-                  className="glass-card cursor-pointer hover:-translate-y-1 active:bg-muted transition-all duration-300"
+                  className="border-0 rounded-xl shadow-md cursor-pointer hover:-translate-y-1 hover:shadow-lg active:bg-muted/50 transition-all duration-300"
                   onClick={() => setSelectedMember(member)}
                 >
                   <CardContent className="p-3">
@@ -299,16 +312,16 @@ const ExecutiveDashboard = () => {
           </div>
         ) : (
           /* Desktop Table View */
-          <Card className="glass-card overflow-hidden">
+          <Card className="border-0 rounded-xl shadow-lg overflow-hidden">
             <CardContent className="p-0">
               <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow className="bg-muted/50">
+                <TableHeader className="sticky top-0 z-10">
+                  <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
                     <TableHead rowSpan={2} className="text-xs font-semibold border-r align-middle">Member</TableHead>
-                    <TableHead colSpan={3} className="text-center text-xs font-semibold bg-blue-50 dark:bg-blue-950/30 border-r">
+                    <TableHead colSpan={3} className="text-center text-xs font-semibold bg-blue-50/80 dark:bg-blue-950/30 border-r">
                       Annual ({year})
                     </TableHead>
-                    <TableHead colSpan={3} className="text-center text-xs font-semibold bg-orange-50 dark:bg-orange-950/30 border-r">
+                    <TableHead colSpan={3} className="text-center text-xs font-semibold bg-orange-50/80 dark:bg-orange-950/30 border-r">
                       {currentMonthName}
                     </TableHead>
                     <TableHead rowSpan={2} className="text-center text-xs font-semibold align-middle">Actions</TableHead>
