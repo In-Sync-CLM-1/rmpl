@@ -13,10 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-
-    if (!ELEVENLABS_API_KEY) throw new Error("ELEVENLABS_API_KEY not configured");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -50,55 +47,20 @@ serve(async (req) => {
       throw new Error(`Failed to download recording: ${audioResponse.status}`);
     }
 
-    const audioBlob = await audioResponse.blob();
-    console.log(`Downloaded audio: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
-
-    // Step 2: Transcribe with ElevenLabs Scribe API
-    const sttFormData = new FormData();
-    const audioFile = new File([audioBlob], "recording.mp3", {
-      type: audioBlob.type || "audio/mpeg",
-    });
-    sttFormData.append("file", audioFile);
-    sttFormData.append("model_id", "scribe_v1");
-
-    console.log("Sending to ElevenLabs for transcription...");
-
-    const sttResponse = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
-      method: "POST",
-      headers: { "xi-api-key": ELEVENLABS_API_KEY },
-      body: sttFormData,
-    });
-
-    if (!sttResponse.ok) {
-      const errText = await sttResponse.text();
-      throw new Error(`Transcription failed: ${sttResponse.status} - ${errText}`);
+    const audioBuffer = await audioResponse.arrayBuffer();
+    const uint8Array = new Uint8Array(audioBuffer);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
     }
+    const audioBase64 = btoa(binary);
 
-    const sttResult = await sttResponse.json();
-    const transcript = sttResult.text;
+    const contentType = audioResponse.headers.get("content-type") || "audio/mpeg";
+    console.log(`Downloaded audio: ${audioBuffer.byteLength} bytes, type: ${contentType}`);
 
-    if (!transcript || transcript.trim().length < 5) {
-      // Save empty result
-      await supabase
-        .from("call_logs")
-        .update({
-          transcript: transcript || "",
-          call_analysis: {
-            status: "completed",
-            error: "Transcript too short or empty - audio may be silent or inaudible",
-          },
-        })
-        .eq("id", callLogId);
-
-      return new Response(
-        JSON.stringify({ success: true, transcript: "", analysis: null, message: "Transcript too short for analysis" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Transcription complete: ${transcript.length} chars`);
-
-    // Step 3: Analyze with Claude
+    // Step 2: Send audio directly to Claude for transcription + analysis
     const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -107,16 +69,20 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 2048,
-        system: `You are a call quality analyst for a B2B sales and marketing company. Analyze the call transcript and provide a comprehensive quality assessment. Be specific, actionable, and constructive in your feedback. Consider the Indian business context.`,
+        model: "claude-sonnet-4-5-20241022",
+        max_tokens: 4096,
+        system: `You are a call quality analyst for a B2B sales and marketing company. You will receive a call recording audio. First transcribe the conversation, then analyze the call quality. Be specific, actionable, and constructive. Consider the Indian business context. The call may be in Hindi, English, or a mix of both.`,
         tools: [
           {
             name: "call_quality_analysis",
-            description: "Return structured call quality analysis",
+            description: "Return structured call quality analysis with transcription",
             input_schema: {
               type: "object",
               properties: {
+                transcript: {
+                  type: "string",
+                  description: "Full transcription of the call conversation",
+                },
                 overall_score: {
                   type: "number",
                   description: "Overall call quality score from 1-10",
@@ -156,6 +122,7 @@ serve(async (req) => {
                 },
               },
               required: [
+                "transcript",
                 "overall_score",
                 "sentiment",
                 "call_summary",
@@ -172,16 +139,26 @@ serve(async (req) => {
         messages: [
           {
             role: "user",
-            content: `Analyze this sales/business call transcript for quality, providing scores, strengths, improvement areas, and next steps.
+            content: [
+              {
+                type: "text",
+                text: `Listen to this sales/business call recording and provide a comprehensive quality analysis. First transcribe the conversation, then analyze it for quality, providing scores, strengths, improvement areas, and next steps.
 
 Call details:
 - Duration: ${callLog.conversation_duration || "unknown"} seconds
 - Status: ${callLog.status}
 ${callLog.disposition ? `- Disposition: ${callLog.disposition}` : ""}
-${callLog.notes ? `- Agent notes: ${callLog.notes}` : ""}
-
-Transcript:
-${transcript}`,
+${callLog.notes ? `- Agent notes: ${callLog.notes}` : ""}`,
+              },
+              {
+                type: "document",
+                source: {
+                  type: "base64",
+                  media_type: contentType,
+                  data: audioBase64,
+                },
+              },
+            ],
           },
         ],
       }),
@@ -189,19 +166,18 @@ ${transcript}`,
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error("Claude API error:", errText);
-      // Save transcript even if analysis fails
+      console.error("Claude API error:", aiResponse.status, errText);
+
       await supabase
         .from("call_logs")
         .update({
-          transcript,
-          call_analysis: { status: "completed", error: "AI analysis failed" },
+          call_analysis: { status: "completed", error: "AI analysis failed: " + aiResponse.status },
         })
         .eq("id", callLogId);
 
       return new Response(
-        JSON.stringify({ success: true, transcript, analysis: null, message: "Transcript saved but AI analysis failed" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "AI analysis failed" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -212,13 +188,14 @@ ${transcript}`,
       throw new Error("No analysis returned from AI");
     }
 
+    const { transcript, ...analysisData } = toolUse.input;
     const analysis = {
-      ...toolUse.input,
+      ...analysisData,
       status: "completed",
       analyzed_at: new Date().toISOString(),
     };
 
-    // Step 4: Save results
+    // Save results
     await supabase
       .from("call_logs")
       .update({ transcript, call_analysis: analysis })

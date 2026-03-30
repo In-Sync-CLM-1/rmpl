@@ -35,11 +35,41 @@ Deno.serve(async (req) => {
       RecordingUrl,
       StartTime,
       EndTime,
+      Legs,
     } = payload;
 
     const callSid = CallSid || Sid;
     const status = (Status || CallStatus || "unknown").toLowerCase();
-    const duration = parseInt(ConversationDuration || Duration || "0", 10);
+
+    // Exotel JSON callbacks may nest duration in Legs array
+    let rawDuration = ConversationDuration || Duration || "0";
+    let rawRecording = RecordingUrl;
+    let rawEndTime = EndTime;
+    let rawStartTime = StartTime;
+
+    if (Array.isArray(Legs) && Legs.length > 0) {
+      const leg = Legs[0];
+      if (!parseInt(rawDuration, 10) && (leg.OnCallDuration || leg.Duration)) {
+        rawDuration = leg.OnCallDuration || leg.Duration;
+      }
+      if (!rawRecording && leg.RecordingUrl) {
+        rawRecording = leg.RecordingUrl;
+      }
+    }
+
+    // Also handle nested Call object (Exotel passthrough API format)
+    if (payload.Call) {
+      const c = payload.Call;
+      if (!callSid && c.Sid) Object.assign(payload, { CallSid: c.Sid });
+      if (!parseInt(rawDuration, 10) && (c.ConversationDuration || c.Duration)) {
+        rawDuration = c.ConversationDuration || c.Duration;
+      }
+      if (!rawRecording && c.RecordingUrl) rawRecording = c.RecordingUrl;
+      if (!rawEndTime && c.EndTime) rawEndTime = c.EndTime;
+      if (!rawStartTime && c.StartTime) rawStartTime = c.StartTime;
+    }
+
+    const duration = parseInt(String(rawDuration), 10) || 0;
 
     if (!callSid) {
       return new Response(
@@ -61,9 +91,10 @@ Deno.serve(async (req) => {
     };
 
     if (duration > 0) updateData.conversation_duration = duration;
-    if (RecordingUrl) updateData.recording_url = RecordingUrl;
-    if (EndTime) updateData.end_time = EndTime;
-    if (StartTime) updateData.start_time = StartTime;
+    if (rawRecording) updateData.recording_url = rawRecording;
+    if (rawEndTime) updateData.end_time = rawEndTime;
+    if (rawStartTime) updateData.start_time = rawStartTime;
+    updateData.exotel_response = payload;
 
     const { data, error } = await supabase
       .from("call_logs")
