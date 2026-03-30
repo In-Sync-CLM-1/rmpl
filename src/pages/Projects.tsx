@@ -131,9 +131,21 @@ export default function Projects() {
         }
       }
 
-      // Apply user filter
+      // Apply user filter — match created_by, project_owner, OR team membership
       if (userFilter && userFilter !== "all") {
-        query = query.or(`created_by.eq.${userFilter},project_owner.eq.${userFilter}`);
+        // First get project IDs where this user is a team member
+        const { data: memberProjects } = await supabase
+          .from("project_team_members")
+          .select("project_id")
+          .eq("user_id", userFilter);
+
+        const memberProjectIds = (memberProjects || []).map(m => m.project_id);
+
+        if (memberProjectIds.length > 0) {
+          query = query.or(`created_by.eq.${userFilter},project_owner.eq.${userFilter},id.in.(${memberProjectIds.join(",")})`);
+        } else {
+          query = query.or(`created_by.eq.${userFilter},project_owner.eq.${userFilter}`);
+        }
       }
 
       const { data, error, count } = await query
