@@ -1,13 +1,14 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, ArrowLeft, Database, Download, Upload, Filter, X, Eye, EyeOff, MapPin, Briefcase, Building2, Factory, TrendingUp, Users } from "lucide-react";
+import { Pencil, Trash2, ArrowLeft, Database, Download, RefreshCw, Upload, Filter, X, Eye, EyeOff, MapPin, Briefcase, Building2, Factory, TrendingUp, Users } from "lucide-react";
 import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
 import { useCrudMutation } from "@/hooks/useCrudMutation";
 import { DataTable, DataTableColumn } from "@/components/data-table/DataTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
 import { ClientSideExportDialog } from "@/components/ClientSideExportDialog";
+import { SyncProgressDialog } from "@/components/SyncProgressDialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -481,8 +482,11 @@ export default function Master() {
   const [filters, setFilters] = useState<MasterFilters>(emptyFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [showRecords, setShowRecords] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showSyncProgress, setShowSyncProgress] = useState(false);
+  const [activeSyncId, setActiveSyncId] = useState<string | null>(null);
 
-  const isAdmin = userRoles.some(role => 
+  const isAdmin = userRoles.some(role =>
     ['admin', 'super_admin', 'platform_admin'].includes(role)
   );
 
@@ -637,6 +641,43 @@ export default function Master() {
   });
 
 
+  const handleSyncNow = async () => {
+    setIsSyncing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("You must be logged in to sync");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke(
+        'sync-demandcom-to-master',
+        { body: { trigger: 'manual', triggered_by_user_id: session.user.id } }
+      );
+      if (error) {
+        if (error.message?.includes('already in progress')) {
+          toast.error("A sync is already in progress");
+        } else {
+          toast.error(`Sync failed: ${error.message}`);
+        }
+        return;
+      }
+      setActiveSyncId(data.syncId);
+      setShowSyncProgress(true);
+      toast.success(`Sync started! Processing ${data.totalRecords} records in ${data.totalBatches} batches`);
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      toast.error(`Sync failed: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSyncComplete = async () => {
+    setActiveSyncId(null);
+    await supabase.rpc('refresh_master_caches').catch(() => {});
+    window.location.reload();
+  };
+
   const handleExportData = () => {
     setShowExportOptions(true);
   };
@@ -704,9 +745,20 @@ export default function Master() {
               )}
             </Button>
             {isAdmin && (
-              <Button 
-                onClick={() => setShowBulkImport(true)} 
-                variant="ghost" 
+              <Button
+                onClick={handleSyncNow}
+                variant="ghost"
+                size="icon"
+                disabled={isSyncing}
+                title="Sync DemandCom to Master"
+              >
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                onClick={() => setShowBulkImport(true)}
+                variant="ghost"
                 size="icon"
                 title="Import Data"
               >
@@ -977,6 +1029,13 @@ export default function Master() {
           filenamePrefix="master-export"
           filters={filters}
           filteredCount={totalCount}
+        />
+
+        <SyncProgressDialog
+          open={showSyncProgress}
+          onOpenChange={setShowSyncProgress}
+          syncId={activeSyncId}
+          onComplete={handleSyncComplete}
         />
     </div>
   );
