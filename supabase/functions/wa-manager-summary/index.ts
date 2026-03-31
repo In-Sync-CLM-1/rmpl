@@ -396,36 +396,38 @@ Deno.serve(async (req) => {
     const sourceNumber = settings.whatsapp_source_number;
 
     // Get recipients: managers + admins + super_admins with phone numbers
-    const { data: recipients } = await supabase
+    const { data: roleUsers } = await supabase
       .from('user_roles')
-      .select('user_id, role, profiles:user_id(full_name, phone)')
+      .select('user_id, role')
       .in('role', ['super_admin', 'admin', 'manager']);
+
+    const roleUserIds = [...new Set((roleUsers || []).map((r: any) => r.user_id))];
 
     // Also include s.ray@redefine.in explicitly
     const { data: superAdmin } = await supabase
       .from('profiles').select('id, full_name, phone')
       .eq('email', 's.ray@redefine.in').single();
 
+    if (superAdmin?.id && !roleUserIds.includes(superAdmin.id)) {
+      roleUserIds.push(superAdmin.id);
+    }
+
+    // Fetch phone numbers for all recipient user IDs
+    const { data: recipientProfiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .in('id', roleUserIds);
+
     const phoneSet = new Set<string>();
     const recipientPhones: string[] = [];
 
-    // Add role-based recipients
-    for (const r of (recipients || [])) {
-      const phone = (r as any).profiles?.phone;
-      if (phone) {
-        const normalized = normalizePhoneNumber(phone);
+    for (const profile of (recipientProfiles || [])) {
+      if (profile.phone) {
+        const normalized = normalizePhoneNumber(profile.phone);
         if (!phoneSet.has(normalized)) {
           phoneSet.add(normalized);
-          recipientPhones.push(phone);
+          recipientPhones.push(profile.phone);
         }
-      }
-    }
-
-    // Ensure super admin is included
-    if (superAdmin?.phone) {
-      const normalized = normalizePhoneNumber(superAdmin.phone);
-      if (!phoneSet.has(normalized)) {
-        recipientPhones.push(superAdmin.phone);
       }
     }
 
