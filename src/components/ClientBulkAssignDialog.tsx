@@ -76,10 +76,12 @@ export function ClientBulkAssignDialog({
   const users = assignField === "managed_by" ? csbdMembers : allUsers;
   const usersLoading = assignField === "managed_by" ? loadingCsbd : loadingUsers;
 
+  const [confirmText, setConfirmText] = useState("");
+
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
-      setSelectionType("all");
+      setSelectionType("first_n");
       setFirstN(100);
       setRangeFrom(1);
       setRangeTo(Math.min(100, totalCount));
@@ -87,6 +89,7 @@ export function ClientBulkAssignDialog({
       setPageTo(Math.min(10, totalPages));
       setSelectedUserId("");
       setAssignField("assigned_to");
+      setConfirmText("");
     }
   }, [open, totalCount, totalPages]);
 
@@ -367,6 +370,24 @@ export function ClientBulkAssignDialog({
             <span className="font-medium">Clients to assign:</span>{" "}
             <span className="text-primary font-bold text-lg">{selectedCount.toLocaleString()}</span>
           </div>
+
+          {/* Safety confirmation for large assignments */}
+          {selectedCount > 50 && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 space-y-2">
+              <p className="text-sm text-destructive font-medium">
+                You are about to assign {selectedCount.toLocaleString()} clients. This will overwrite existing assignments.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Type <strong>CONFIRM</strong> below to proceed:
+              </p>
+              <Input
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="Type CONFIRM"
+                className="h-8 text-sm"
+              />
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -375,7 +396,7 @@ export function ClientBulkAssignDialog({
           </Button>
           <Button
             onClick={handleAssign}
-            disabled={!selectedUserId || selectedCount === 0 || isAssigning || usersLoading}
+            disabled={!selectedUserId || selectedCount === 0 || isAssigning || usersLoading || (selectedCount > 50 && confirmText !== "CONFIRM")}
           >
             {isAssigning ? (
               <>

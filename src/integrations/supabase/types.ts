@@ -885,6 +885,47 @@ export type Database = {
         }
         Relationships: []
       }
+      client_branches: {
+        Row: {
+          id: string
+          client_id: string
+          branch_name: string
+          branch_address: string | null
+          gst_number: string | null
+          is_primary: boolean | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          branch_name: string
+          branch_address?: string | null
+          gst_number?: string | null
+          is_primary?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          branch_name?: string
+          branch_address?: string | null
+          gst_number?: string | null
+          is_primary?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_branches_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           id: string

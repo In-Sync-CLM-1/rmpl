@@ -39,6 +39,15 @@ interface Client {
   website: string | null;
   created_at: string;
   contact_count?: number;
+  branches?: ClientBranch[];
+}
+
+interface ClientBranch {
+  id: string;
+  branch_name: string;
+  branch_address: string | null;
+  gst_number: string | null;
+  is_primary: boolean | null;
 }
 
 interface Contact {
@@ -77,7 +86,7 @@ const Clients = () => {
     queryFn: async (from, to) => {
       let query = supabase
         .from("clients")
-        .select("*, managed_by_profile:managed_by(full_name), assigned_to_profile:assigned_to(full_name)", { count: "exact" });
+        .select("*, managed_by_profile:managed_by(full_name), assigned_to_profile:assigned_to(full_name), client_branches(id, branch_name, branch_address, gst_number, is_primary)", { count: "exact" });
 
       if (searchQuery.trim()) {
         const term = `%${searchQuery.trim()}%`;
@@ -94,6 +103,7 @@ const Clients = () => {
         ...c,
         managed_by_name: c.managed_by_profile?.full_name || null,
         assigned_to_name: c.assigned_to_profile?.full_name || null,
+        branches: c.client_branches || [],
       })) || null;
 
       return { data: mapped, count, error };
@@ -260,12 +270,9 @@ const Clients = () => {
                 </TableHead>
                 <TableHead className="w-10"></TableHead>
                 <TableHead>Company Name</TableHead>
-                <TableHead>Branch</TableHead>
+                <TableHead>Branches</TableHead>
                 <TableHead>Industry</TableHead>
-                <TableHead>Official Address</TableHead>
-                <TableHead>GST Number</TableHead>
                 <TableHead>Website</TableHead>
-                <TableHead>LinkedIn</TableHead>
                 <TableHead>Assigned To</TableHead>
                 <TableHead>Managed By</TableHead>
                 <TableHead>Created</TableHead>
@@ -305,21 +312,33 @@ const Clients = () => {
                         {client.company_name}
                       </div>
                     </TableCell>
-                    <TableCell>{client.branch || "-"}</TableCell>
+                    <TableCell>
+                      {client.branches && client.branches.length > 0 ? (
+                        <div className="space-y-0.5">
+                          {client.branches.slice(0, 2).map((b) => (
+                            <div key={b.id} className="flex items-center gap-1.5">
+                              <span className="text-xs">{b.branch_name}</span>
+                              {b.gst_number && (
+                                <span className="text-[10px] text-muted-foreground">({b.gst_number})</span>
+                              )}
+                              {b.is_primary && (
+                                <Badge variant="outline" className="text-[9px] h-4 px-1">Primary</Badge>
+                              )}
+                            </div>
+                          ))}
+                          {client.branches.length > 2 && (
+                            <span className="text-[10px] text-muted-foreground">+{client.branches.length - 2} more</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>{client.industry || "-"}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{client.official_address || "-"}</TableCell>
-                    <TableCell>{client.gst_number || "-"}</TableCell>
                     <TableCell>
                       {client.website ? (
                         <a href={client.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm truncate max-w-[150px] block">
                           {client.website.replace(/^https?:\/\//, '')}
-                        </a>
-                      ) : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {client.company_linkedin_page ? (
-                        <a href={client.company_linkedin_page} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">
-                          View
                         </a>
                       ) : "-"}
                     </TableCell>
@@ -360,7 +379,7 @@ const Clients = () => {
                   </TableRow>
                   {expandedRows.has(client.id) && (
                     <TableRow key={`${client.id}-contacts`}>
-                      <TableCell colSpan={13} className="bg-muted/30 p-0">
+                      <TableCell colSpan={10} className="bg-muted/30 p-0">
                         <div className="px-8 py-3">
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
