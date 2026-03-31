@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Pencil, Users, Calendar, MapPin, FileText, CheckCircle2, Clock, AlertCircle, Download, Target, Building2, Phone, UserCheck, Paperclip, Receipt, IndianRupee } from "lucide-react";
-import { ProjectTaskManager } from "@/components/ProjectTaskManager";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { toast } from "sonner";
@@ -178,34 +177,6 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
-  const { data: taskStats } = useQuery({
-    queryKey: ["project-task-stats", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, status, parent_task_id, task_name, due_date")
-        .eq("project_id", id)
-        .not("project_id", "is", null);
-
-      if (error) throw error;
-      
-      const parentTasks = data.filter(t => !t.parent_task_id);
-      const subtasks = data.filter(t => t.parent_task_id);
-      const pendingTasks = data.filter(t => t.status === "pending" || t.status === "in_progress");
-      
-      return {
-        totalParent: parentTasks.length,
-        totalSubtasks: subtasks.length,
-        total: data.length,
-        pending: data.filter(t => t.status === "pending").length,
-        inProgress: data.filter(t => t.status === "in_progress").length,
-        completed: data.filter(t => t.status === "completed").length,
-        pendingTasks: pendingTasks.slice(0, 5), // Top 5 pending/in-progress tasks
-      };
-    },
-    enabled: !!id,
-  });
-
   const { data: registrationStats } = useQuery({
     queryKey: ["project-registration-stats", id, project?.project_name],
     queryFn: async () => {
@@ -313,10 +284,6 @@ export default function ProjectDetail() {
   const locations = Array.isArray(project.locations) ? project.locations : [];
   const eventDates = Array.isArray(project.event_dates) ? project.event_dates : [];
   const statusConfig = getStatusConfig(project.status);
-  const taskCompletionPercentage = taskStats && taskStats.total > 0 
-    ? Math.round((taskStats.completed / taskStats.total) * 100) 
-    : 0;
-  
   const totalInvoiceAmount = project.project_quotations?.reduce((sum, q) => sum + (q.amount || 0), 0) || 0;
   const totalPaidAmount = project.project_quotations?.reduce((sum, q) => sum + (q.paid_amount || 0), 0) || 0;
   const paymentPercentage = totalInvoiceAmount > 0 ? Math.round((totalPaidAmount / totalInvoiceAmount) * 100) : 0;
@@ -358,7 +325,6 @@ export default function ProjectDetail() {
           <div className="flex-none px-6 pt-3">
             <TabsList className="h-9">
               <TabsTrigger value="summary" className="text-xs">Summary</TabsTrigger>
-              <TabsTrigger value="tasks" className="text-xs">Tasks</TabsTrigger>
               <TabsTrigger value="files" className="text-xs">Files & Invoices</TabsTrigger>
             </TabsList>
           </div>
@@ -382,23 +348,6 @@ export default function ProjectDetail() {
                     </CircularProgress>
                     <p className="text-xs font-semibold mt-2 text-blue-700 dark:text-blue-400">Registrations</p>
                     <span className="text-[10px] text-muted-foreground">{registrationStats?.actual || 0}/{registrationStats?.target || 0}</span>
-                  </div>
-                </Card>
-
-                {/* Task Progress */}
-                <Card className="p-3 bg-gradient-to-br from-purple-500/10 via-card to-card border-purple-200/50 dark:border-purple-800/50 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex flex-col items-center text-center">
-                    <CircularProgress 
-                      value={taskCompletionPercentage}
-                      size={72} 
-                      strokeWidth={8}
-                      color={taskCompletionPercentage >= 100 ? "hsl(142 76% 36%)" : "hsl(280 85% 65%)"}
-                      bgColor="hsl(280 85% 65% / 0.15)"
-                    >
-                      <span className="text-base font-bold text-purple-600">{taskCompletionPercentage}%</span>
-                    </CircularProgress>
-                    <p className="text-xs font-semibold mt-2 text-purple-700 dark:text-purple-400">Tasks</p>
-                    <span className="text-[10px] text-muted-foreground">{taskStats?.completed || 0}/{taskStats?.total || 0} done</span>
                   </div>
                 </Card>
 
@@ -482,34 +431,6 @@ export default function ProjectDetail() {
                   </Card>
                 )}
 
-                {/* Pending Tasks List */}
-                <Card className="p-3 flex-1 min-h-0 overflow-hidden flex flex-col bg-gradient-to-br from-amber-500/5 via-card to-card border-amber-200/30 shadow-sm">
-                  <h3 className="text-xs font-semibold mb-2 flex items-center gap-2 flex-none">
-                    <div className="p-1 rounded bg-amber-100 dark:bg-amber-900/30"><AlertCircle className="h-3 w-3 text-amber-600" /></div>
-                    Pending Tasks
-                  </h3>
-                  {taskStats?.pendingTasks && taskStats.pendingTasks.length > 0 ? (
-                    <div className="space-y-1.5 overflow-auto flex-1">
-                      {taskStats.pendingTasks.map((task: any) => (
-                        <div key={task.id} className="flex items-center gap-2 p-2 rounded-lg bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-900/10 dark:to-orange-900/10 border border-amber-100 dark:border-amber-800/30 text-xs">
-                          <div className={`h-2.5 w-2.5 rounded-full shrink-0 shadow-sm ${task.status === "in_progress" ? "bg-blue-500 ring-2 ring-blue-200" : "bg-amber-500 ring-2 ring-amber-200"}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate text-foreground">{task.task_name}</p>
-                            {task.due_date && (
-                              <p className="text-[10px] text-amber-600">Due: {format(new Date(task.due_date), "dd MMM")}</p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto mb-1" />
-                      <p className="text-xs text-emerald-600 font-medium">All tasks completed!</p>
-                    </div>
-                  )}
-                </Card>
-
                 {/* Locations */}
                 {locations.length > 0 && (
                   <Card className="p-3 flex-none bg-gradient-to-br from-rose-500/5 via-card to-card border-rose-200/30 shadow-sm">
@@ -535,7 +456,7 @@ export default function ProjectDetail() {
               <div className="col-span-4 flex flex-col gap-3 overflow-hidden">
                 {/* Quick Stats Bar */}
                 <Card className="p-3 flex-none bg-gradient-to-r from-primary/10 via-purple-500/10 to-cyan-500/10 border-primary/20 shadow-sm">
-                  <div className="grid grid-cols-4 divide-x divide-primary/20">
+                  <div className="grid grid-cols-3 divide-x divide-primary/20">
                     <div className="text-center px-1">
                       <p className="text-lg font-bold text-blue-600">{project.project_files?.length || 0}</p>
                       <p className="text-[10px] text-blue-600/70">Files</p>
@@ -543,10 +464,6 @@ export default function ProjectDetail() {
                     <div className="text-center px-1">
                       <p className="text-lg font-bold text-emerald-600">{project.project_quotations?.length || 0}</p>
                       <p className="text-[10px] text-emerald-600/70">Invoices</p>
-                    </div>
-                    <div className="text-center px-1">
-                      <p className="text-lg font-bold text-purple-600">{taskStats?.totalParent || 0}</p>
-                      <p className="text-[10px] text-purple-600/70">Tasks</p>
                     </div>
                     <div className="text-center px-1">
                       <p className="text-lg font-bold text-orange-600">{registrationStats?.teamMembers || 0}</p>
@@ -588,43 +505,8 @@ export default function ProjectDetail() {
                   )}
                 </Card>
 
-                {/* Task Breakdown Mini */}
-                {taskStats && taskStats.total > 0 && (
-                  <Card className="p-3 flex-none bg-gradient-to-br from-violet-500/5 via-card to-card border-violet-200/30 shadow-sm">
-                    <h3 className="text-xs font-semibold mb-2 flex items-center gap-2">
-                      <div className="p-1 rounded bg-violet-100 dark:bg-violet-900/30"><CheckCircle2 className="h-3 w-3 text-violet-600" /></div>
-                      Task Status
-                    </h3>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30">
-                        <div className="h-2 w-2 rounded-full bg-amber-500" />
-                        <span className="text-xs font-medium text-amber-700 dark:text-amber-400">{taskStats.pending}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                        <div className="h-2 w-2 rounded-full bg-blue-500" />
-                        <span className="text-xs font-medium text-blue-700 dark:text-blue-400">{taskStats.inProgress}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{taskStats.completed}</span>
-                      </div>
-                    </div>
-                    {taskStats.totalSubtasks > 0 && (
-                      <p className="text-[10px] text-violet-600 mt-1.5 text-center">
-                        {taskStats.totalSubtasks} subtasks
-                      </p>
-                    )}
-                  </Card>
-                )}
               </div>
             </div>
-          </TabsContent>
-
-          {/* Tasks Tab */}
-          <TabsContent value="tasks" className="flex-1 overflow-auto p-6 pt-4 m-0">
-            <Card className="p-4">
-              <ProjectTaskManager projectId={id!} />
-            </Card>
           </TabsContent>
 
           {/* Files & Invoices Tab */}

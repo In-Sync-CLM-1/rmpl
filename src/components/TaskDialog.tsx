@@ -6,13 +6,22 @@ import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Label } from "./ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { ProjectTask } from "@/hooks/useProjectTasks";
+
+interface Task {
+  id: string;
+  task_name: string;
+  description: string | null;
+  assigned_to: string;
+  due_date: string;
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+  priority: "low" | "medium" | "high" | "urgent";
+}
 
 interface TaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (task: any) => Promise<void>;
-  task?: ProjectTask | null;
+  task?: Task | null;
 }
 
 interface Profile {

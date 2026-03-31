@@ -169,7 +169,7 @@ export default function DigicomDashboard() {
             gradient="from-sky-500/15 via-blue-500/10 to-cyan-500/5"
             border="border-sky-500/30"
             accent="from-sky-500 to-blue-600"
-            subtitle={`${summary.general_tasks} general + ${summary.project_tasks} project`}
+            subtitle={`${summary.total_tasks} total`}
           />
           <KpiCard
             label="Completed"
@@ -398,7 +398,7 @@ export default function DigicomDashboard() {
                         <div>
                           <p className="text-sm font-semibold">{member.full_name}</p>
                           <p className="text-[10px] text-muted-foreground">
-                            {member.general_tasks}G + {member.project_tasks}P &middot; {pct}% done
+                            {member.total_tasks} tasks &middot; {pct}% done
                           </p>
                         </div>
                       </div>

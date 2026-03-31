@@ -28,7 +28,6 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ProjectFileUploader } from "@/components/ProjectFileUploader";
 import { ProjectTeamSelector } from "@/components/ProjectTeamSelector";
-import { ProjectTaskManager } from "@/components/ProjectTaskManager";
 import { ProjectLiveComEvents } from "@/components/ProjectLiveComEvents";
 import { ProjectDemandComAllocations } from "@/components/ProjectDemandComAllocations";
 import { ProjectInvoiceManager } from "@/components/cashflow/ProjectInvoiceManager";
@@ -398,22 +397,6 @@ export default function ProjectForm() {
     },
   });
 
-  // Query to check task count for existing projects
-  const { data: taskCount = 0 } = useQuery({
-    queryKey: ["project-task-count", id],
-    queryFn: async () => {
-      if (!id || id === 'new') return 0;
-      const { count, error } = await supabase
-        .from("tasks")
-        .select("*", { count: "exact", head: true })
-        .eq("project_id", id)
-        .not("project_id", "is", null);
-      if (error) throw error;
-      return count || 0;
-    },
-    enabled: isEditing,
-  });
-
   const onSubmit = (data: ProjectFormData) => {
     // Validate event dates - at least one required
     if (eventDates.filter(d => d.date).length === 0) {
@@ -430,17 +413,6 @@ export default function ProjectForm() {
       toast({
         title: "Team Members Required",
         description: "Please assign at least one team member to the project",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // For existing projects: validate tasks when moving beyond "pitched"
-    const statusRequiresTasks = ["confirmed", "in_progress", "completed", "closed"];
-    if (isEditing && statusRequiresTasks.includes(data.status) && taskCount === 0) {
-      toast({
-        title: "Tasks Required",
-        description: `Please add at least one task before changing status to "${data.status}"`,
         variant: "destructive",
       });
       return;
@@ -469,14 +441,8 @@ export default function ProjectForm() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-6">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="tasks" className="relative">
-                  Tasks
-                  {isEditing && taskCount === 0 && (
-                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-destructive rounded-full" />
-                  )}
-                </TabsTrigger>
                 <TabsTrigger value="files">Files</TabsTrigger>
                 <TabsTrigger value="invoices">Invoices</TabsTrigger>
                 <TabsTrigger value="livecom">LiveCom</TabsTrigger>
@@ -981,18 +947,6 @@ export default function ProjectForm() {
                       onChange={setTeamMembers}
                     />
                   </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="tasks" className="mt-4">
-                <div className="bg-card rounded-lg border p-6">
-                  {id && id !== 'new' ? (
-                    <ProjectTaskManager projectId={id} />
-                  ) : (
-                    <p className="text-muted-foreground text-center py-8">
-                      Save the project first to manage tasks
-                    </p>
-                  )}
                 </div>
               </TabsContent>
 
