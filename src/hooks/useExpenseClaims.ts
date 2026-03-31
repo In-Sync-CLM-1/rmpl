@@ -269,11 +269,21 @@ export function useSubmitClaim() {
         .update({ status: "submitted", submitted_at: new Date().toISOString() })
         .eq("id", claimId);
       if (error) throw error;
+      return claimId;
     },
-    onSuccess: () => {
+    onSuccess: async (claimId) => {
       queryClient.invalidateQueries({ queryKey: ["expense-claims"] });
       queryClient.invalidateQueries({ queryKey: ["expense-claim-detail"] });
       toast.success("Claim submitted for approval!");
+
+      // Send WhatsApp notification to manager
+      try {
+        await supabase.functions.invoke("send-approval-email", {
+          body: { request_type: "expense", request_id: claimId },
+        });
+      } catch (err) {
+        console.error("Failed to send expense approval notification:", err);
+      }
     },
     onError: (err: Error) => {
       toast.error("Failed to submit: " + err.message);

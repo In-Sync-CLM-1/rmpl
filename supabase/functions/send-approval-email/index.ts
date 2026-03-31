@@ -20,10 +20,11 @@ function normalizePhone(phone: string): string {
   return cleaned;
 }
 
-async function sendWhatsAppNotification(
+async function sendWhatsAppTemplate(
   supabase: any,
   phoneNumber: string,
-  message: string
+  templateName: string,
+  parameters: string[]
 ) {
   try {
     if (!phoneNumber) return;
@@ -53,6 +54,8 @@ async function sendWhatsAppNotification(
     const phoneDigits = normalizePhone(phoneNumber).replace(/^\+/, "");
     const url = `https://${exotelSubdomain}/v2/accounts/${exotelSid}/messages`;
 
+    const bodyParams = parameters.map((text) => ({ type: "text", text }));
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -65,7 +68,16 @@ async function sendWhatsAppNotification(
             {
               from: sourceNumber,
               to: phoneDigits,
-              content: { type: "text", text: { body: message } },
+              content: {
+                type: "template",
+                template: {
+                  name: templateName,
+                  language: { code: "en" },
+                  components: [
+                    { type: "body", parameters: bodyParams },
+                  ],
+                },
+              },
             },
           ],
         },
@@ -73,7 +85,7 @@ async function sendWhatsAppNotification(
     });
 
     const responseText = await response.text();
-    console.log("WhatsApp notification response:", responseText);
+    console.log(`WhatsApp template [${templateName}] response:`, responseText);
   } catch (err) {
     console.error("WhatsApp notification failed (non-blocking):", err);
   }
@@ -329,6 +341,85 @@ function buildRegularizationApprovalEmail(data: any): {
   return { subject, html: buildEmailWrapper(content) };
 }
 
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+}
+
+function buildExpenseApprovalEmail(data: any): {
+  subject: string;
+  html: string;
+} {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const approveUrl = `${supabaseUrl}/functions/v1/handle-approval?token=${data.approve_token}&action=approve`;
+  const rejectUrl = `${supabaseUrl}/functions/v1/handle-approval?token=${data.reject_token}&action=reject`;
+
+  const subject = `Expense Claim Approval: ${data.employee_name} — ${data.trip_title}`;
+
+  const content = `
+    <h2 style="color: #1e3a5f; margin: 0 0 6px 0; font-size: 20px;">Expense Claim Approval Required</h2>
+    <p style="color: #6c757d; font-size: 14px; margin: 0 0 24px 0;">
+      Hi ${data.manager_name || "Manager"}, a travel expense claim needs your attention.
+    </p>
+
+    <!-- Request Details Card -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; margin-bottom: 24px;">
+      <tr>
+        <td style="padding: 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 6px 0; color: #6c757d; font-size: 13px; width: 140px;">Employee</td>
+              <td style="padding: 6px 0; color: #212529; font-size: 14px; font-weight: 600;">${data.employee_name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6c757d; font-size: 13px;">Trip</td>
+              <td style="padding: 6px 0; color: #212529; font-size: 14px; font-weight: 600;">${data.trip_title}</td>
+            </tr>
+            ${data.destination ? `<tr>
+              <td style="padding: 6px 0; color: #6c757d; font-size: 13px;">Destination</td>
+              <td style="padding: 6px 0; color: #212529; font-size: 14px;">${data.destination}</td>
+            </tr>` : ""}
+            <tr>
+              <td style="padding: 6px 0; color: #6c757d; font-size: 13px;">Period</td>
+              <td style="padding: 6px 0; color: #212529; font-size: 14px; font-weight: 600;">${formatDate(data.trip_start_date)} &mdash; ${formatDate(data.trip_end_date)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6c757d; font-size: 13px;">Total Amount</td>
+              <td style="padding: 6px 0; color: #212529; font-size: 18px; font-weight: 700;">${formatCurrency(data.total_amount)}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Action Buttons -->
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding: 8px 0 24px 0;">
+          <table cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding-right: 12px;">
+                <a href="${approveUrl}" style="display: inline-block; background-color: #198754; color: #ffffff; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
+                  &#10003; Approve
+                </a>
+              </td>
+              <td style="padding-left: 12px;">
+                <a href="${rejectUrl}" style="display: inline-block; background-color: #dc3545; color: #ffffff; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
+                  &#10007; Reject
+                </a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <p style="color: #adb5bd; font-size: 12px; text-align: center; margin: 0;">
+      This link expires in 72 hours. You can also log in to RMPL OPM to take action.
+    </p>`;
+
+  return { subject, html: buildEmailWrapper(content) };
+}
+
 function buildResultNotificationEmail(data: any): {
   subject: string;
   html: string;
@@ -492,6 +583,21 @@ Deno.serve(async (req) => {
       }
       requestData = data;
       employeeId = data.user_id;
+    } else if (request_type === "expense") {
+      const { data, error } = await supabase
+        .from("travel_expense_claims")
+        .select("*")
+        .eq("id", request_id)
+        .single();
+      if (error || !data) throw new Error("Expense claim not found");
+      if (data.status !== "submitted") {
+        return new Response(
+          JSON.stringify({ success: false, message: "Claim is no longer pending" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      requestData = data;
+      employeeId = data.user_id;
     } else {
       throw new Error(`Unknown request_type: ${request_type}`);
     }
@@ -577,6 +683,18 @@ Deno.serve(async (req) => {
         total_days: requestData.total_days,
         reason: requestData.reason,
       });
+    } else if (request_type === "expense") {
+      emailData = buildExpenseApprovalEmail({
+        employee_name: employee.full_name,
+        manager_name: manager.full_name,
+        approve_token: approveToken.token,
+        reject_token: rejectToken.token,
+        trip_title: requestData.trip_title,
+        destination: requestData.destination,
+        trip_start_date: requestData.trip_start_date,
+        trip_end_date: requestData.trip_end_date,
+        total_amount: requestData.total_amount,
+      });
     } else {
       emailData = buildRegularizationApprovalEmail({
         employee_name: employee.full_name,
@@ -609,23 +727,44 @@ Deno.serve(async (req) => {
       `Approval email sent to ${manager.email} (${manager.full_name}). Resend ID: ${emailResponse.data?.id}`
     );
 
-    // Send WhatsApp notification to manager (non-blocking)
+    // Send WhatsApp template notification to manager (non-blocking)
     if (manager.phone) {
       const empName = employee.full_name || "An employee";
-      let whatsappMsg = "";
+      const mgrName = manager.full_name || "Manager";
 
       if (request_type === "leave") {
         const leaveLabel =
           LEAVE_TYPE_LABELS[requestData.leave_type] || requestData.leave_type || "Leave";
-        whatsappMsg = `Hi ${manager.full_name || "Manager"}, ${empName} has submitted a *${leaveLabel}* request (${formatDate(requestData.start_date)} — ${formatDate(requestData.end_date)}, ${requestData.total_days} day(s)).\n\nPlease check your email or log in to RMPL OPM to approve/reject.\n\n— RMPL OPM`;
+        // rmpl_leave_approval_request: {{1}}=manager, {{2}}=employee, {{3}}=leave_type, {{4}}=from, {{5}}=to, {{6}}=days
+        sendWhatsAppTemplate(supabase, manager.phone, "rmpl_leave_approval_request", [
+          mgrName,
+          empName,
+          leaveLabel,
+          formatDate(requestData.start_date),
+          formatDate(requestData.end_date),
+          String(requestData.total_days),
+        ]);
+      } else if (request_type === "expense") {
+        // rmpl_expense_approval_request: {{1}}=manager, {{2}}=employee, {{3}}=trip_title, {{4}}=amount
+        sendWhatsAppTemplate(supabase, manager.phone, "rmpl_expense_approval_request", [
+          mgrName,
+          empName,
+          requestData.trip_title || "Travel Expense",
+          formatCurrency(requestData.total_amount || 0),
+        ]);
       } else {
         const typeLabel =
           REGULARIZATION_TYPE_LABELS[requestData.regularization_type] ||
           requestData.regularization_type || "Regularization";
-        whatsappMsg = `Hi ${manager.full_name || "Manager"}, ${empName} has submitted an attendance regularization request.\n\nType: ${typeLabel}\nDate: ${formatDate(requestData.attendance_date)}\nReason: ${requestData.reason || "Not specified"}\n\nPlease check your email or log in to RMPL OPM to approve/reject.\n\n— RMPL OPM`;
+        // rmpl_regularization_request: {{1}}=manager, {{2}}=employee, {{3}}=type, {{4}}=date, {{5}}=reason
+        sendWhatsAppTemplate(supabase, manager.phone, "rmpl_regularization_request", [
+          mgrName,
+          empName,
+          typeLabel,
+          formatDate(requestData.attendance_date),
+          requestData.reason || "Not specified",
+        ]);
       }
-
-      sendWhatsAppNotification(supabase, manager.phone, whatsappMsg);
     }
 
     return new Response(

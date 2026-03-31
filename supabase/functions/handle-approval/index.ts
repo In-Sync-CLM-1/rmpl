@@ -20,10 +20,11 @@ function normalizePhone(phone: string): string {
   return cleaned;
 }
 
-async function sendWhatsAppNotification(
+async function sendWhatsAppTemplate(
   supabase: any,
   phoneNumber: string,
-  message: string
+  templateName: string,
+  parameters: string[]
 ) {
   try {
     if (!phoneNumber) return;
@@ -53,6 +54,8 @@ async function sendWhatsAppNotification(
     const phoneDigits = normalizePhone(phoneNumber).replace(/^\+/, "");
     const url = `https://${exotelSubdomain}/v2/accounts/${exotelSid}/messages`;
 
+    const bodyParams = parameters.map((text) => ({ type: "text", text }));
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -65,7 +68,16 @@ async function sendWhatsAppNotification(
             {
               from: sourceNumber,
               to: phoneDigits,
-              content: { type: "text", text: { body: message } },
+              content: {
+                type: "template",
+                template: {
+                  name: templateName,
+                  language: { code: "en" },
+                  components: [
+                    { type: "body", parameters: bodyParams },
+                  ],
+                },
+              },
             },
           ],
         },
@@ -73,7 +85,7 @@ async function sendWhatsAppNotification(
     });
 
     const responseText = await response.text();
-    console.log("WhatsApp notification response:", responseText);
+    console.log(`WhatsApp template [${templateName}] response:`, responseText);
   } catch (err) {
     console.error("WhatsApp notification failed (non-blocking):", err);
   }
@@ -187,7 +199,9 @@ async function sendEmployeeNotification(
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) return;
 
-    const table = tokenRecord.request_type === "leave" ? "leave_applications" : "attendance_regularizations";
+    const table = tokenRecord.request_type === "leave" ? "leave_applications"
+      : tokenRecord.request_type === "expense" ? "travel_expense_claims"
+      : "attendance_regularizations";
 
     const { data: request } = await supabase
       .from(table)
@@ -287,6 +301,8 @@ async function processApproval(
   const table =
     tokenRecord.request_type === "leave"
       ? "leave_applications"
+      : tokenRecord.request_type === "expense"
+      ? "travel_expense_claims"
       : "attendance_regularizations";
 
   const { data: currentRequest, error: fetchError } = await supabase
@@ -301,7 +317,8 @@ async function processApproval(
       : redirect("/approval-result?error=not_found");
   }
 
-  if (currentRequest.status !== "pending") {
+  const pendingStatus = tokenRecord.request_type === "expense" ? "submitted" : "pending";
+  if (currentRequest.status !== pendingStatus) {
     await supabase
       .from("approval_tokens")
       .update({ used_at: new Date().toISOString() })
@@ -330,7 +347,7 @@ async function processApproval(
     .from(table)
     .update(updateData)
     .eq("id", tokenRecord.request_id)
-    .eq("status", "pending");
+    .eq("status", pendingStatus);
 
   if (updateError) {
     console.error("Failed to update request:", updateError);
@@ -371,7 +388,7 @@ async function processApproval(
     rejectionReason?.trim()
   );
 
-  // Send WhatsApp notification to employee (async, non-blocking)
+  // Send WhatsApp template notification to employee (async, non-blocking)
   (async () => {
     try {
       const { data: empProfile } = await supabase
@@ -387,15 +404,29 @@ async function processApproval(
         .single();
 
       if (empProfile?.phone) {
+        const empName = empProfile.full_name || "there";
+        const approverName = approverProfile?.full_name || "your manager";
         const rtLabel =
-          tokenRecord.request_type === "leave" ? "leave application" : "attendance regularization";
-        const sLabel = effectiveAction === "approve" ? "approved" : "rejected";
-        let whatsappMsg = `Hi ${empProfile.full_name || "there"}, your ${rtLabel} has been *${sLabel}* by ${approverProfile?.full_name || "your manager"}.`;
-        if (effectiveAction !== "approve" && rejectionReason?.trim()) {
-          whatsappMsg += `\nReason: ${rejectionReason.trim()}`;
+          tokenRecord.request_type === "leave" ? "leave application"
+          : tokenRecord.request_type === "expense" ? "expense claim"
+          : "attendance regularization";
+
+        if (effectiveAction === "approve") {
+          // rmpl_request_approved: {{1}}=employee, {{2}}=request_type, {{3}}=approver
+          await sendWhatsAppTemplate(supabase, empProfile.phone, "rmpl_request_approved", [
+            empName,
+            rtLabel,
+            approverName,
+          ]);
+        } else {
+          // rmpl_request_rejected: {{1}}=employee, {{2}}=request_type, {{3}}=approver, {{4}}=reason
+          await sendWhatsAppTemplate(supabase, empProfile.phone, "rmpl_request_rejected", [
+            empName,
+            rtLabel,
+            approverName,
+            rejectionReason?.trim() || "No reason provided",
+          ]);
         }
-        whatsappMsg += "\n\n— RMPL OPM";
-        await sendWhatsAppNotification(supabase, empProfile.phone, whatsappMsg);
       }
     } catch (err) {
       console.error("WhatsApp to employee failed:", err);
