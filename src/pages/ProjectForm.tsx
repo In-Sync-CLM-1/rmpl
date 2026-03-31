@@ -33,9 +33,21 @@ import { ProjectDemandComAllocations } from "@/components/ProjectDemandComAlloca
 import { ProjectInvoiceManager } from "@/components/cashflow/ProjectInvoiceManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+const PROJECT_TYPES = [
+  { value: "integrated", label: "Integrated" },
+  { value: "mice", label: "MICE" },
+  { value: "digital_creatives", label: "Digital/Creatives" },
+  { value: "telecalling", label: "Telecalling" },
+  { value: "data_services", label: "Data Services" },
+  { value: "logistics_gifts", label: "Logistics/Gifts" },
+] as const;
+
+const EVENT_BASED_TYPES = ["integrated", "mice"];
+
 type ProjectFormData = {
   project_number: string;
   project_name: string;
+  project_type: string;
   brief: string;
   client_id: string;
   contact_id: string;
@@ -65,6 +77,7 @@ type EventDate = {
 const projectFormSchema = z.object({
   project_number: z.string().optional(), // Auto-generated for new projects
   project_name: z.string().min(1, "Project name is required"),
+  project_type: z.string().min(1, "Project type is required"),
   project_owner: z.string().min(1, "Project owner is required"),
   status: z.string().min(1, "Status is required"),
   brief: z.string().optional(),
@@ -78,7 +91,7 @@ const projectFormSchema = z.object({
   final_afactor: z.string().optional(),
   closed_reason: z.string().optional(),
   lost_reason: z.string().optional(),
-  number_of_attendees: z.string().min(1, "Number of attendees is required"),
+  number_of_attendees: z.string().optional(),
 });
 
 export default function ProjectForm() {
@@ -105,6 +118,7 @@ export default function ProjectForm() {
     defaultValues: {
       project_number: "",
       project_name: "",
+      project_type: "",
       brief: "",
       client_id: "",
       contact_id: "",
@@ -211,6 +225,7 @@ export default function ProjectForm() {
       form.reset({
         project_number: project.project_number || "",
         project_name: project.project_name,
+        project_type: (project as any).project_type || "",
         brief: project.brief || "",
         client_id: project.client_id || "",
         contact_id: project.contact_id || "",
@@ -269,6 +284,7 @@ export default function ProjectForm() {
       const projectData: any = {
         project_number: projectNumber,
         project_name: data.project_name,
+        project_type: data.project_type || null,
         brief: data.brief || null,
         client_id: data.client_id || (isEditing ? project?.client_id : null) || null,
         contact_id: data.contact_id || (isEditing ? project?.contact_id : null) || null,
@@ -394,17 +410,30 @@ export default function ProjectForm() {
     },
   });
 
+  const watchedProjectType = form.watch("project_type");
+  const isEventBased = EVENT_BASED_TYPES.includes(watchedProjectType);
+
   const onSubmit = (data: ProjectFormData) => {
-    // Validate event dates - at least one required
-    if (eventDates.filter(d => d.date).length === 0) {
+    // Validate event dates - required only for Integrated and MICE
+    if (isEventBased && eventDates.filter(d => d.date).length === 0) {
       toast({
         title: "Event Date Required",
-        description: "Please add at least one event date",
+        description: "Please add at least one event date for Integrated/MICE projects",
         variant: "destructive",
       });
       return;
     }
-    
+
+    // Validate number of attendees - required for Integrated and MICE
+    if (isEventBased && (!data.number_of_attendees || data.number_of_attendees === "")) {
+      toast({
+        title: "Attendees Required",
+        description: "Please enter the number of attendees for Integrated/MICE projects",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate team members - at least one required
     if (teamMembers.length === 0) {
       toast({
@@ -470,6 +499,31 @@ export default function ProjectForm() {
                         <FormControl>
                           <Input placeholder="e.g., Product Launch 2024" {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="project_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="bg-background">
+                              <SelectValue placeholder="Select project type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="bg-popover z-50">
+                            {PROJECT_TYPES.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -590,113 +644,117 @@ export default function ProjectForm() {
                     )}
                   />
 
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <FormLabel>Event Locations</FormLabel>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setLocations([...locations, { city: "", venue: "" }])}
-                      >
-                        Add Location
-                      </Button>
-                    </div>
-                    {locations.map((location, index) => (
-                      <div key={index} className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Input
-                            placeholder="City"
-                            value={location.city}
-                            onChange={(e) => {
-                              const newLocations = [...locations];
-                              newLocations[index].city = e.target.value;
-                              setLocations(newLocations);
-                            }}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Venue"
-                            value={location.venue}
-                            onChange={(e) => {
-                              const newLocations = [...locations];
-                              newLocations[index].venue = e.target.value;
-                              setLocations(newLocations);
-                            }}
-                          />
-                          {locations.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setLocations(locations.filter((_, i) => i !== index))}
-                            >
-                              ✕
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <FormLabel>Event Dates *</FormLabel>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const today = new Date().toISOString().split('T')[0];
-                          setEventDates([...eventDates, { date: today, type: 'full_day' }]);
-                        }}
-                      >
-                        Add Date
-                      </Button>
-                    </div>
-                    <div className="space-y-3">
-                      {eventDates.map((eventDate, index) => (
-                        <div key={index} className="flex gap-2">
-                          <Input
-                            type="date"
-                            value={eventDate.date}
-                            onChange={(e) => {
-                              const newDates = [...eventDates];
-                              newDates[index].date = e.target.value;
-                              setEventDates(newDates);
-                            }}
-                            className="flex-1"
-                          />
-                          <Select
-                            value={eventDate.type}
-                            onValueChange={(value: 'full_day' | 'first_half' | 'second_half') => {
-                              const newDates = [...eventDates];
-                              newDates[index].type = value;
-                              setEventDates(newDates);
-                            }}
-                          >
-                            <SelectTrigger className="w-[140px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="full_day">Full Day</SelectItem>
-                              <SelectItem value="first_half">1st Half</SelectItem>
-                              <SelectItem value="second_half">2nd Half</SelectItem>
-                            </SelectContent>
-                          </Select>
+                  {isEventBased && (
+                    <>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <FormLabel>Event Locations</FormLabel>
                           <Button
                             type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setEventDates(eventDates.filter((_, i) => i !== index))}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setLocations([...locations, { city: "", venue: "" }])}
                           >
-                            ✕
+                            Add Location
                           </Button>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                        {locations.map((location, index) => (
+                          <div key={index} className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Input
+                                placeholder="City"
+                                value={location.city}
+                                onChange={(e) => {
+                                  const newLocations = [...locations];
+                                  newLocations[index].city = e.target.value;
+                                  setLocations(newLocations);
+                                }}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Venue"
+                                value={location.venue}
+                                onChange={(e) => {
+                                  const newLocations = [...locations];
+                                  newLocations[index].venue = e.target.value;
+                                  setLocations(newLocations);
+                                }}
+                              />
+                              {locations.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setLocations(locations.filter((_, i) => i !== index))}
+                                >
+                                  ✕
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <FormLabel>Event Dates *</FormLabel>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const today = new Date().toISOString().split('T')[0];
+                              setEventDates([...eventDates, { date: today, type: 'full_day' }]);
+                            }}
+                          >
+                            Add Date
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          {eventDates.map((eventDate, index) => (
+                            <div key={index} className="flex gap-2">
+                              <Input
+                                type="date"
+                                value={eventDate.date}
+                                onChange={(e) => {
+                                  const newDates = [...eventDates];
+                                  newDates[index].date = e.target.value;
+                                  setEventDates(newDates);
+                                }}
+                                className="flex-1"
+                              />
+                              <Select
+                                value={eventDate.type}
+                                onValueChange={(value: 'full_day' | 'first_half' | 'second_half') => {
+                                  const newDates = [...eventDates];
+                                  newDates[index].type = value;
+                                  setEventDates(newDates);
+                                }}
+                              >
+                                <SelectTrigger className="w-[140px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="full_day">Full Day</SelectItem>
+                                  <SelectItem value="first_half">1st Half</SelectItem>
+                                  <SelectItem value="second_half">2nd Half</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEventDates(eventDates.filter((_, i) => i !== index))}
+                              >
+                                ✕
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <FormField
                     control={form.control}
@@ -749,25 +807,27 @@ export default function ProjectForm() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Project Commercials</h3>
 
-                    <FormField
-                      control={form.control}
-                      name="number_of_attendees"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Number of Attendees *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min="0"
-                              placeholder="Enter expected attendees"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
+                    {isEventBased && (
+                      <FormField
+                        control={form.control}
+                        name="number_of_attendees"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Number of Attendees *</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                placeholder="Enter expected attendees"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
                     <FormField
                       control={form.control}
                       name="project_value"

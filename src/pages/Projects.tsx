@@ -15,10 +15,20 @@ import { useQuery } from "@tanstack/react-query";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
 import { ProjectExportDialog } from "@/components/ProjectExportDialog";
 
+const PROJECT_TYPE_LABELS: Record<string, string> = {
+  integrated: "Integrated",
+  mice: "MICE",
+  digital_creatives: "Digital/Creatives",
+  telecalling: "Telecalling",
+  data_services: "Data Services",
+  logistics_gifts: "Logistics/Gifts",
+};
+
 interface Project {
   id: string;
   project_number: string;
   project_name: string;
+  project_type: string | null;
   status: string;
   client_id: string | null;
   client_name?: string | null;
@@ -40,6 +50,7 @@ export default function Projects() {
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("year");
   const [userFilter, setUserFilter] = useState<string>("all");
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -69,7 +80,7 @@ export default function Projects() {
     handlePageChange,
     handleItemsPerPageChange,
   } = usePaginatedQuery<Project>({
-    queryKey: ["projects", searchQuery, statusFilter, dateFilter, userFilter],
+    queryKey: ["projects", searchQuery, statusFilter, typeFilter, dateFilter, userFilter],
     queryFn: async (from, to) => {
       let query = supabase
         .from("projects")
@@ -100,6 +111,11 @@ export default function Projects() {
       // Apply status filter
       if (statusFilter && statusFilter !== "all") {
         query = query.eq("status", statusFilter);
+      }
+
+      // Apply type filter
+      if (typeFilter && typeFilter !== "all") {
+        query = query.eq("project_type", typeFilter);
       }
 
       // Apply date filter
@@ -239,11 +255,12 @@ export default function Projects() {
   const handleResetFilters = () => {
     setSearchQuery("");
     setStatusFilter("all");
+    setTypeFilter("all");
     setDateFilter("quarter");
     setUserFilter("all");
   };
 
-  const hasActiveFilters = searchQuery || statusFilter !== "all" || dateFilter !== "all" || userFilter !== "all";
+  const hasActiveFilters = searchQuery || statusFilter !== "all" || typeFilter !== "all" || dateFilter !== "all" || userFilter !== "all";
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
@@ -281,6 +298,12 @@ export default function Projects() {
     {
       header: "Project Name",
       cell: (project) => <span className="font-medium">{project.project_name}</span>,
+    },
+    {
+      header: "Type",
+      cell: (project) => project.project_type ? (
+        <Badge variant="outline">{PROJECT_TYPE_LABELS[project.project_type] || project.project_type}</Badge>
+      ) : "—",
     },
     {
       header: "Client",
@@ -364,7 +387,7 @@ export default function Projects() {
 
         {/* Filters Section */}
         <div className="bg-card rounded-lg border p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             {/* Search Filter */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -391,6 +414,19 @@ export default function Projects() {
                 <SelectItem value="invoiced">Invoiced</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
                 <SelectItem value="lost">Lost</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Type Filter */}
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {Object.entries(PROJECT_TYPE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 

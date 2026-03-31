@@ -23,6 +23,7 @@ const BATCH_SIZE = 1000;
 const EXPORT_COLUMNS = [
   "project_number",
   "project_name",
+  "project_type",
   "client_id",
   "contact_id",
   "status",
@@ -45,6 +46,7 @@ const EXPORT_COLUMNS = [
 const HEADER_LABELS: Record<string, string> = {
   project_number: "Project Number",
   project_name: "Project Name",
+  project_type: "Project Type",
   client_id: "Client",
   contact_id: "Contact",
   status: "Status",

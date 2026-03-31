@@ -301,6 +301,18 @@ export default function ProjectDetail() {
               <div className="flex items-center gap-3">
                 <span className="text-sm font-mono text-primary/70">{project.project_number}</span>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{project.project_name}</h1>
+                {(project as any).project_type && (
+                  <Badge variant="outline" className="text-xs">
+                    {{
+                      integrated: "Integrated",
+                      mice: "MICE",
+                      digital_creatives: "Digital/Creatives",
+                      telecalling: "Telecalling",
+                      data_services: "Data Services",
+                      logistics_gifts: "Logistics/Gifts",
+                    }[(project as any).project_type] || (project as any).project_type}
+                  </Badge>
+                )}
                 <Badge className={`${statusConfig.bg} ${statusConfig.color} border-0 shadow-sm`}>
                   {statusConfig.label}
                 </Badge>

@@ -4578,6 +4578,7 @@ export type Database = {
           project_number: string | null
           project_owner: string
           project_source: string | null
+          project_type: string | null
           project_value: number | null
           referrer_name: string | null
           status: string
@@ -4604,6 +4605,7 @@ export type Database = {
           project_number?: string | null
           project_owner: string
           project_source?: string | null
+          project_type?: string | null
           project_value?: number | null
           referrer_name?: string | null
           status?: string
@@ -4630,6 +4632,7 @@ export type Database = {
           project_number?: string | null
           project_owner?: string
           project_source?: string | null
+          project_type?: string | null
           project_value?: number | null
           referrer_name?: string | null
           status?: string
