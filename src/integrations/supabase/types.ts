@@ -930,6 +930,7 @@ export type Database = {
         Row: {
           id: string
           client_id: string
+          branch_id: string | null
           contact_name: string
           designation: string | null
           department: string | null
@@ -947,6 +948,7 @@ export type Database = {
         Insert: {
           id?: string
           client_id: string
+          branch_id?: string | null
           contact_name: string
           designation?: string | null
           department?: string | null
@@ -964,6 +966,7 @@ export type Database = {
         Update: {
           id?: string
           client_id?: string
+          branch_id?: string | null
           contact_name?: string
           designation?: string | null
           department?: string | null

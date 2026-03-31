@@ -36,6 +36,7 @@ interface ContactRow {
   anniversary_date: string | null;
   created_at: string;
   company_name?: string;
+  branch_name?: string | null;
 }
 
 const Contacts = () => {
@@ -59,7 +60,7 @@ const Contacts = () => {
     queryFn: async (from, to) => {
       let query = supabase
         .from("contacts")
-        .select("*, client:client_id(company_name)", { count: "exact" });
+        .select("*, client:client_id(company_name), branch:branch_id(branch_name)", { count: "exact" });
 
       if (searchQuery.trim()) {
         const term = `%${searchQuery.trim()}%`;
@@ -75,6 +76,7 @@ const Contacts = () => {
       const mapped = data?.map((c: any) => ({
         ...c,
         company_name: c.client?.company_name || null,
+        branch_name: c.branch?.branch_name || null,
       })) || null;
 
       return { data: mapped, count, error };
@@ -162,6 +164,7 @@ const Contacts = () => {
               <TableRow>
                 <TableHead>Contact Name</TableHead>
                 <TableHead>Company</TableHead>
+                <TableHead>Branch</TableHead>
                 <TableHead>Designation</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Phone</TableHead>
@@ -180,6 +183,7 @@ const Contacts = () => {
                 <TableRow key={contact.id}>
                   <TableCell className="font-medium">{contact.contact_name}</TableCell>
                   <TableCell>{contact.company_name || "-"}</TableCell>
+                  <TableCell>{contact.branch_name || "-"}</TableCell>
                   <TableCell>{contact.designation || "-"}</TableCell>
                   <TableCell>{contact.department || "-"}</TableCell>
                   <TableCell>{contact.contact_number || "-"}</TableCell>

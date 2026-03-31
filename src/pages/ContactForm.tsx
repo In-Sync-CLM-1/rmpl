@@ -29,6 +29,12 @@ interface ClientOption {
   company_name: string;
 }
 
+interface BranchOption {
+  id: string;
+  branch_name: string;
+  is_primary: boolean | null;
+}
+
 const ContactForm = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -37,6 +43,7 @@ const ContactForm = () => {
   const queryClient = useQueryClient();
   const isEditMode = !!id;
   const [clientId, setClientId] = useState<string>(searchParams.get("clientId") || "");
+  const [branchId, setBranchId] = useState<string>("");
   const [isPrimary, setIsPrimary] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ContactFormData>();
@@ -52,6 +59,22 @@ const ContactForm = () => {
       if (error) throw error;
       return data as ClientOption[];
     },
+  });
+
+  // Fetch branches for the selected client
+  const { data: branches = [] } = useQuery({
+    queryKey: ["client-branches", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from("client_branches")
+        .select("id, branch_name, is_primary")
+        .eq("client_id", clientId)
+        .order("is_primary", { ascending: false });
+      if (error) throw error;
+      return data as BranchOption[];
+    },
+    enabled: !!clientId,
   });
 
   const { data: contact } = useQuery({
@@ -83,6 +106,7 @@ const ContactForm = () => {
         linkedin_id: contact.linkedin_id || "",
       });
       setClientId(contact.client_id);
+      setBranchId(contact.branch_id || "");
       setIsPrimary(contact.is_primary || false);
     }
   }, [contact, reset]);
@@ -100,6 +124,7 @@ const ContactForm = () => {
 
       const contactData = {
         client_id: clientId,
+        branch_id: branchId || null,
         contact_name: data.contact_name,
         designation: data.designation || null,
         department: data.department || null,
@@ -160,7 +185,7 @@ const ContactForm = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="client_id">Company *</Label>
-                <Select value={clientId} onValueChange={setClientId}>
+                <Select value={clientId} onValueChange={(v) => { setClientId(v); setBranchId(""); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select company" />
                   </SelectTrigger>
@@ -168,6 +193,23 @@ const ContactForm = () => {
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.company_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="branch_id">Branch</Label>
+                <Select value={branchId} onValueChange={(v) => setBranchId(v === "none" ? "" : v)} disabled={!clientId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={clientId ? "Select branch (optional)" : "Select company first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— No branch —</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.branch_name}{branch.is_primary ? " (Primary)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
