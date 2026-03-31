@@ -78,33 +78,42 @@
        );
      }
 
-     // Fetch templates from Exotel
-     const exotelUrl = `https://${exotelSubdomain}/v2/accounts/${exotelSid}/templates?waba_id=${wabaId}`;
+     // Fetch ALL templates from Exotel with pagination
+     const authHeader = `Basic ${btoa(`${exotelApiKey}:${exotelApiToken}`)}`;
+     const templates: any[] = [];
+     let offset = 0;
+     const limit = 100;
 
-     console.log('Fetching templates from:', exotelUrl);
+     while (true) {
+       const exotelUrl = `https://${exotelSubdomain}/v2/accounts/${exotelSid}/templates?waba_id=${wabaId}&limit=${limit}&offset=${offset}`;
+       console.log('Fetching templates from:', exotelUrl);
 
-     const response = await fetch(exotelUrl, {
-       method: 'GET',
-       headers: {
-         'Authorization': `Basic ${btoa(`${exotelApiKey}:${exotelApiToken}`)}`,
-       },
-     });
+       const response = await fetch(exotelUrl, {
+         method: 'GET',
+         headers: { 'Authorization': authHeader },
+       });
 
-     const responseText = await response.text();
-     console.log('Exotel templates response:', responseText);
+       const responseText = await response.text();
 
-     let exotelData: any;
-     try {
-       exotelData = JSON.parse(responseText);
-     } catch {
-       return new Response(
-         JSON.stringify({ error: 'Failed to parse Exotel response', raw: responseText }),
-         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-       );
+       let exotelData: any;
+       try {
+         exotelData = JSON.parse(responseText);
+       } catch {
+         return new Response(
+           JSON.stringify({ error: 'Failed to parse Exotel response', raw: responseText }),
+           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         );
+       }
+
+       const batch = exotelData?.response?.whatsapp?.templates || [];
+       templates.push(...batch);
+       console.log(`Fetched ${batch.length} templates (offset=${offset}, total so far=${templates.length})`);
+
+       if (batch.length < limit) break;
+       offset += limit;
      }
 
-     const templates = exotelData?.response?.whatsapp?.templates || [];
-     console.log(`Found ${templates.length} templates from Exotel`);
+     console.log(`Found ${templates.length} total templates from Exotel`);
 
      let synced = 0;
      let errors: string[] = [];
