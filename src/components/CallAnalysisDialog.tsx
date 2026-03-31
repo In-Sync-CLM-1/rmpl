@@ -126,31 +126,20 @@ export function CallAnalysisDialog({
         {!hasAnalysis && !isAnalyzing && (
           <div className="flex flex-col items-center py-8 space-y-4">
             <Brain className="h-16 w-16 text-muted-foreground" />
-            {analysis?.error ? (
-              <>
-                <p className="text-sm text-muted-foreground text-center">{analysis.error}</p>
-                <Button onClick={handleAnalyze} disabled={!recordingUrl}>
-                  <Brain className="h-4 w-4 mr-2" />
-                  Retry Analysis
-                </Button>
-              </>
-            ) : existingAnalysis && existingAnalysis.status === "completed" ? (
-              <p className="text-sm text-muted-foreground">Analysis data loaded.</p>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground text-center">
-                  AI will transcribe the recording and analyze call quality,
-                  <br />
-                  providing scores, strengths, and improvement suggestions.
-                </p>
-                <Button onClick={handleAnalyze} disabled={!recordingUrl} size="lg">
-                  <Brain className="h-4 w-4 mr-2" />
-                  Analyze Call
-                </Button>
-                {!recordingUrl && (
-                  <p className="text-xs text-destructive">No recording available for this call</p>
-                )}
-              </>
+            {analysis?.error && (
+              <p className="text-sm text-destructive text-center">{analysis.error}</p>
+            )}
+            <p className="text-sm text-muted-foreground text-center">
+              AI will transcribe the recording and analyze call quality,
+              <br />
+              providing scores, strengths, and improvement suggestions.
+            </p>
+            <Button onClick={handleAnalyze} disabled={!recordingUrl} size="lg">
+              <Brain className="h-4 w-4 mr-2" />
+              {analysis?.error ? "Retry Analysis" : "Analyze Call"}
+            </Button>
+            {!recordingUrl && (
+              <p className="text-xs text-destructive">No recording available for this call</p>
             )}
           </div>
         )}
