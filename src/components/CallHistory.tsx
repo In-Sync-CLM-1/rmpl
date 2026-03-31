@@ -403,7 +403,7 @@ export function CallHistory({ demandcomId, limit = 50, showFilters = true }: Cal
           open={analysisDialogOpen}
           onOpenChange={setAnalysisDialogOpen}
           callLogId={selectedCallLog.id}
-          recordingUrl={selectedCallLog.recording_url}
+          recordingUrl={selectedCallLog.storage_recording_url || selectedCallLog.recording_url}
           existingTranscript={selectedCallLog.transcript}
           existingAnalysis={selectedCallLog.call_analysis}
         />

@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -7,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -15,6 +14,9 @@ serve(async (req) => {
   try {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured. Get a free key from console.groq.com and add it as a Supabase secret.");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -43,9 +45,8 @@ serve(async (req) => {
       .update({ call_analysis: { status: "processing" } })
       .eq("id", callLogId);
 
-    // Step 1: Download the audio from the recording URL (storage URL or Exotel URL)
+    // Step 1: Download the audio
     const fetchHeaders: Record<string, string> = {};
-    // If using Exotel URL directly (no storage URL), add auth
     if (!callLog.storage_recording_url && callLog.recording_url) {
       const { data: settings } = await supabase
         .from("whatsapp_settings")
@@ -58,25 +59,69 @@ serve(async (req) => {
         fetchHeaders["Authorization"] = `Basic ${btoa(`${apiKey}:${apiToken}`)}`;
       }
     }
+
     const audioResponse = await fetch(recordingUrl, { headers: fetchHeaders });
     if (!audioResponse.ok) {
       throw new Error(`Failed to download recording: ${audioResponse.status}`);
     }
 
     const audioBuffer = await audioResponse.arrayBuffer();
-    const uint8Array = new Uint8Array(audioBuffer);
-    let binary = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.slice(i, i + chunkSize);
-      binary += String.fromCharCode(...chunk);
-    }
-    const audioBase64 = btoa(binary);
-
     const contentType = audioResponse.headers.get("content-type") || "audio/mpeg";
     console.log(`Downloaded audio: ${audioBuffer.byteLength} bytes, type: ${contentType}`);
 
-    // Step 2: Send audio directly to Claude for transcription + analysis
+    // Step 2: Transcribe audio using Groq Whisper (free, fast)
+    console.log("Transcribing with Groq Whisper...");
+    const extension = contentType.includes("wav") ? "wav" : "mp3";
+    const formData = new FormData();
+    formData.append("file", new Blob([audioBuffer], { type: contentType }), `recording.${extension}`);
+    formData.append("model", "whisper-large-v3");
+    formData.append("language", "hi"); // Hindi + English mix — Whisper handles code-switching well
+    formData.append("response_format", "text");
+
+    const whisperResponse = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+      },
+      body: formData,
+    });
+
+    if (!whisperResponse.ok) {
+      const errText = await whisperResponse.text();
+      console.error("Groq Whisper error:", whisperResponse.status, errText);
+      throw new Error(`Transcription failed (${whisperResponse.status}): ${errText.substring(0, 200)}`);
+    }
+
+    const transcript = await whisperResponse.text();
+    console.log(`Transcription complete: ${transcript.length} chars`);
+
+    if (!transcript || transcript.trim().length === 0) {
+      // No speech detected — save and return
+      const analysis = {
+        status: "completed",
+        analyzed_at: new Date().toISOString(),
+        overall_score: 0,
+        sentiment: "neutral",
+        call_summary: "No speech detected in the recording.",
+        strengths: [],
+        improvement_areas: [],
+        key_topics: [],
+        customer_interest_level: "not_applicable",
+        next_steps: "Verify the recording is valid.",
+      };
+      await supabase
+        .from("call_logs")
+        .update({ transcript: "(no speech detected)", call_analysis: analysis })
+        .eq("id", callLogId);
+
+      return new Response(
+        JSON.stringify({ success: true, transcript: "(no speech detected)", analysis }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Step 3: Analyze transcript with Haiku
+    console.log("Analyzing transcript with Haiku...");
     const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -85,20 +130,16 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5-20241022",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 4096,
-        system: `You are a call quality analyst for a B2B sales and marketing company. You will receive a call recording audio. First transcribe the conversation, then analyze the call quality. Be specific, actionable, and constructive. Consider the Indian business context. The call may be in Hindi, English, or a mix of both.`,
+        system: `You are a call quality analyst for a B2B sales and marketing company called Redefine Marcom. Analyze the provided call transcript for quality, sentiment, and actionable insights. Be specific, actionable, and constructive. Consider the Indian business context. The transcript may be in Hindi, English, or a mix of both — respond in English.`,
         tools: [
           {
             name: "call_quality_analysis",
-            description: "Return structured call quality analysis with transcription",
+            description: "Return structured call quality analysis",
             input_schema: {
               type: "object",
               properties: {
-                transcript: {
-                  type: "string",
-                  description: "Full transcription of the call conversation",
-                },
                 overall_score: {
                   type: "number",
                   description: "Overall call quality score from 1-10",
@@ -138,7 +179,6 @@ serve(async (req) => {
                 },
               },
               required: [
-                "transcript",
                 "overall_score",
                 "sentiment",
                 "call_summary",
@@ -155,26 +195,16 @@ serve(async (req) => {
         messages: [
           {
             role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Listen to this sales/business call recording and provide a comprehensive quality analysis. First transcribe the conversation, then analyze it for quality, providing scores, strengths, improvement areas, and next steps.
+            content: `Analyze this sales/business call transcript for quality. Provide scores, strengths, improvement areas, and next steps.
 
 Call details:
 - Duration: ${callLog.conversation_duration || "unknown"} seconds
 - Status: ${callLog.status}
 ${callLog.disposition ? `- Disposition: ${callLog.disposition}` : ""}
-${callLog.notes ? `- Agent notes: ${callLog.notes}` : ""}`,
-              },
-              {
-                type: "document",
-                source: {
-                  type: "base64",
-                  media_type: contentType,
-                  data: audioBase64,
-                },
-              },
-            ],
+${callLog.notes ? `- Agent notes: ${callLog.notes}` : ""}
+
+Transcript:
+${transcript}`,
           },
         ],
       }),
@@ -184,15 +214,17 @@ ${callLog.notes ? `- Agent notes: ${callLog.notes}` : ""}`,
       const errText = await aiResponse.text();
       console.error("Claude API error:", aiResponse.status, errText);
 
+      // Save transcript even if analysis fails
       await supabase
         .from("call_logs")
         .update({
-          call_analysis: { status: "completed", error: "AI analysis failed: " + aiResponse.status },
+          transcript,
+          call_analysis: { status: "completed", error: `AI analysis failed (${aiResponse.status}): ${errText.substring(0, 200)}` },
         })
         .eq("id", callLogId);
 
       return new Response(
-        JSON.stringify({ success: false, error: "AI analysis failed" }),
+        JSON.stringify({ success: false, error: `AI analysis failed (${aiResponse.status})` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -201,12 +233,16 @@ ${callLog.notes ? `- Agent notes: ${callLog.notes}` : ""}`,
     const toolUse = aiData.content?.find((c: any) => c.type === "tool_use");
 
     if (!toolUse) {
+      // Save transcript even if structured analysis not returned
+      await supabase
+        .from("call_logs")
+        .update({ transcript, call_analysis: { status: "completed", error: "No structured analysis returned" } })
+        .eq("id", callLogId);
       throw new Error("No analysis returned from AI");
     }
 
-    const { transcript, ...analysisData } = toolUse.input;
     const analysis = {
-      ...analysisData,
+      ...toolUse.input,
       status: "completed",
       analyzed_at: new Date().toISOString(),
     };
