@@ -144,12 +144,12 @@ export function ClientSideExportDialog({
     return 'nameEmail' in f;
   };
 
-  const buildFilteredQuery = () => {
+  const buildFilteredQuery = (withCount: boolean = false) => {
     // Use standardized columns for consistent export format matching import template
     const exportColumns = columns || STANDARD_EXPORT_COLUMNS;
     let query = supabase
       .from(tableName as any)
-      .select(exportColumns.join(","), { count: "exact" })
+      .select(exportColumns.join(","), withCount ? { count: "exact" } : {})
       .order("mobile_numb");
 
     if (filters && isMasterFilters(filters)) {
@@ -238,7 +238,7 @@ export function ClientSideExportDialog({
 
     try {
       // Get count with filters applied
-      const countQuery = buildFilteredQuery();
+      const countQuery = buildFilteredQuery(true);
       const { count, error: countError } = await countQuery;
 
       if (countError) throw countError;
@@ -255,6 +255,7 @@ export function ClientSideExportDialog({
       const totalBatches = Math.ceil(total / BATCH_SIZE);
       let allData: any[] = [];
       let headers: string[] = [];
+      const seenMobiles = new Set<string>();
 
       // Fetch data in batches with filters
       for (let batch = 0; batch < totalBatches; batch++) {
@@ -263,11 +264,9 @@ export function ClientSideExportDialog({
         }
 
         const offset = batch * BATCH_SIZE;
-        const remainingRecords = total - (batch * BATCH_SIZE);
-        const batchLimit = Math.min(BATCH_SIZE, remainingRecords);
-        
+
         const query = buildFilteredQuery();
-        const { data, error: fetchError } = await query.range(offset, offset + batchLimit - 1);
+        const { data, error: fetchError } = await query.range(offset, offset + BATCH_SIZE - 1);
 
         if (fetchError) throw fetchError;
 
@@ -277,7 +276,16 @@ export function ClientSideExportDialog({
             headers = Object.keys(data[0]);
           }
 
-          allData = allData.concat(data);
+          // Deduplicate by mobile_numb
+          for (const row of data) {
+            const mobile = row.mobile_numb;
+            if (mobile && !seenMobiles.has(mobile)) {
+              seenMobiles.add(mobile);
+              allData.push(row);
+            } else if (!mobile) {
+              allData.push(row);
+            }
+          }
         }
 
         const processed = Math.min((batch + 1) * BATCH_SIZE, total);
