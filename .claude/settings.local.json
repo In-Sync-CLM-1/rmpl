@@ -3,7 +3,12 @@
     "allow": [
       "Bash(git add:*)",
       "Bash(git rebase:*)",
-      "Bash(GIT_EDITOR=true git rebase --continue)"
+      "Bash(GIT_EDITOR=true git rebase --continue)",
+      "Bash(npm run:*)",
+      "Bash(git:*)",
+      "Bash(curl:*)",
+      "Bash(npx supabase:*)",
+      "Bash(SUPABASE_ACCESS_TOKEN=sbp_68e70c187e18c25ba82fc27a13585372ef8c7ad2 npx supabase:*)"
     ]
   }
 }
