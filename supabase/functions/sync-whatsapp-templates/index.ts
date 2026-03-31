@@ -80,7 +80,7 @@
      }
 
      // Fetch ALL templates from Exotel with pagination
-     const authHeader = `Basic ${btoa(`${exotelApiKey}:${exotelApiToken}`)}`;
+     const exotelAuth = `Basic ${btoa(`${exotelApiKey}:${exotelApiToken}`)}`;
      const templates: any[] = [];
      let offset = 0;
      const limit = 100;
@@ -91,7 +91,7 @@
 
        const response = await fetch(exotelUrl, {
          method: 'GET',
-         headers: { 'Authorization': authHeader },
+         headers: { 'Authorization': exotelAuth },
        });
 
        const responseText = await response.text();
