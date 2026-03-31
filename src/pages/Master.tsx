@@ -661,6 +661,10 @@ export default function Master() {
         }
         return;
       }
+      if (data.status === 'completed') {
+        toast.success(data.message || 'No new records to sync.');
+        return;
+      }
       setActiveSyncId(data.syncId);
       setShowSyncProgress(true);
       toast.success(`Sync started! Processing ${data.totalRecords} records in ${data.totalBatches} batches`);

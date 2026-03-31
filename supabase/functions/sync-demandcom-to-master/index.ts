@@ -160,6 +160,34 @@ Deno.serve(async (req) => {
     const totalBatches = Math.ceil((totalRecords || 0) / BATCH_SIZE);
     console.log(`📊 Total unique records to sync: ${totalRecords}, Total batches: ${totalBatches}`);
 
+    // If nothing to sync, create a completed log and return immediately
+    if (!totalRecords || totalRecords === 0) {
+      const { data: syncLog } = await supabase
+        .from('sync_logs')
+        .insert({
+          sync_type: 'demandcom_to_master',
+          status: 'completed',
+          items_fetched: 0,
+          items_inserted: 0,
+          items_updated: 0,
+          items_failed: 0,
+          total_batches: 0,
+          current_batch: 0,
+          duration_seconds: 0,
+        })
+        .select()
+        .single();
+
+      return successResponse({
+        success: true,
+        syncId: syncLog?.id,
+        status: 'completed',
+        totalRecords: 0,
+        totalBatches: 0,
+        message: 'No new records in DemandCom to sync.',
+      });
+    }
+
     // Create sync log entry
     const { data: syncLog, error: syncLogError } = await supabase
       .from('sync_logs')
@@ -191,16 +219,14 @@ Deno.serve(async (req) => {
       status: 'pending'
     }));
 
-    if (batches.length > 0) {
-      const { error: batchInsertError } = await supabase
-        .from('sync_batches')
-        .insert(batches);
+    const { error: batchInsertError } = await supabase
+      .from('sync_batches')
+      .insert(batches);
 
-      if (batchInsertError) {
-        throw new Error(`Failed to create batches: ${batchInsertError.message}`);
-      }
-      console.log(`✅ Created ${batches.length} batch entries`);
+    if (batchInsertError) {
+      throw new Error(`Failed to create batches: ${batchInsertError.message}`);
     }
+    console.log(`✅ Created ${batches.length} batch entries`);
 
     // Start background processing using Postgres function
     EdgeRuntime.waitUntil(processAllBatchesWithRpc(syncLog.id, trigger, supabase, false));
@@ -366,6 +392,23 @@ async function processAllBatchesWithRpc(syncLogId: string, trigger: string, supa
 async function finalizeSyncAndNotify(syncLogId: string, trigger: string, supabase: any, startTime: number) {
   const duration = Date.now() - startTime;
   const durationMinutes = (duration / 1000 / 60).toFixed(2);
+
+  // Finalize: update progress from batches, then set status and duration
+  await supabase.rpc('update_sync_log_progress', { p_sync_log_id: syncLogId });
+
+  // Ensure status is set (update_sync_log_progress may leave it 'running' if 0 batches)
+  const { data: currentLog } = await supabase
+    .from('sync_logs')
+    .select('status')
+    .eq('id', syncLogId)
+    .single();
+
+  if (currentLog?.status === 'running') {
+    await supabase
+      .from('sync_logs')
+      .update({ status: 'completed' })
+      .eq('id', syncLogId);
+  }
 
   // Update duration
   await supabase
