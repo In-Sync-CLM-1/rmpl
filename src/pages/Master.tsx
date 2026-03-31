@@ -581,7 +581,7 @@ export default function Master() {
     queryKey: ["master", JSON.stringify(filters)],
     queryFn: async (from, to) => {
       let query = supabase
-        .from("demandcom" as any)
+        .from("master" as any)
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
 
@@ -625,7 +625,7 @@ export default function Master() {
     createFn: async () => null as any,
     updateFn: async () => null as any,
     deleteFn: async (id) => {
-      const { error } = await supabase.from("demandcom" as any).delete().eq("id", id);
+      const { error } = await supabase.from("master" as any).delete().eq("id", id);
       if (error) throw error;
     },
     successMessages: {
@@ -916,7 +916,7 @@ export default function Master() {
       <BulkImportDialog
         open={showBulkImport}
         onOpenChange={setShowBulkImport}
-        tableName="demandcom"
+        tableName="master"
         tableLabel="Master"
         requiredColumns={['name', 'mobile_numb']}
         templateColumns={[
@@ -973,7 +973,7 @@ export default function Master() {
         <ClientSideExportDialog
           open={showExportOptions}
           onOpenChange={setShowExportOptions}
-          tableName="demandcom"
+          tableName="master"
           filenamePrefix="master-export"
           filters={filters}
           filteredCount={totalCount}

@@ -87,7 +87,7 @@ export default function MasterForm() {
     queryFn: async () => {
       if (!id) return null;
       const { data, error } = await supabase
-        .from("demandcom" as any)
+        .from("master" as any)
         .select("*")
         .eq("id", id)
         .maybeSingle();
@@ -110,13 +110,13 @@ export default function MasterForm() {
       
       if (isEditing) {
         const { error } = await supabase
-          .from("demandcom" as any)
+          .from("master" as any)
           .update({ ...data, created_by: userId })
           .eq("id", id);
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from("demandcom" as any)
+          .from("master" as any)
           .insert([{ ...data, created_by: userId }]);
         if (error) throw error;
       }
