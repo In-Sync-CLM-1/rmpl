@@ -26,14 +26,16 @@ serve(async (req) => {
     // Fetch the call log
     const { data: callLog, error: fetchError } = await supabase
       .from("call_logs")
-      .select("id, recording_url, to_number, from_number, conversation_duration, status, disposition, notes")
+      .select("id, recording_url, storage_recording_url, to_number, from_number, conversation_duration, status, disposition, notes")
       .eq("id", callLogId)
       .single();
 
     if (fetchError || !callLog) throw new Error("Call log not found");
-    if (!callLog.recording_url) throw new Error("No recording URL available for this call");
 
-    console.log(`Analyzing call ${callLogId}, recording: ${callLog.recording_url}`);
+    const recordingUrl = callLog.storage_recording_url || callLog.recording_url;
+    if (!recordingUrl) throw new Error("No recording URL available for this call");
+
+    console.log(`Analyzing call ${callLogId}, recording: ${recordingUrl}`);
 
     // Mark as processing
     await supabase
@@ -41,8 +43,22 @@ serve(async (req) => {
       .update({ call_analysis: { status: "processing" } })
       .eq("id", callLogId);
 
-    // Step 1: Download the audio from the recording URL
-    const audioResponse = await fetch(callLog.recording_url);
+    // Step 1: Download the audio from the recording URL (storage URL or Exotel URL)
+    const fetchHeaders: Record<string, string> = {};
+    // If using Exotel URL directly (no storage URL), add auth
+    if (!callLog.storage_recording_url && callLog.recording_url) {
+      const { data: settings } = await supabase
+        .from("whatsapp_settings")
+        .select("exotel_api_key, exotel_api_token")
+        .limit(1)
+        .single();
+      const apiKey = settings?.exotel_api_key || Deno.env.get("EXOTEL_API_KEY");
+      const apiToken = settings?.exotel_api_token || Deno.env.get("EXOTEL_API_TOKEN");
+      if (apiKey && apiToken) {
+        fetchHeaders["Authorization"] = `Basic ${btoa(`${apiKey}:${apiToken}`)}`;
+      }
+    }
+    const audioResponse = await fetch(recordingUrl, { headers: fetchHeaders });
     if (!audioResponse.ok) {
       throw new Error(`Failed to download recording: ${audioResponse.status}`);
     }

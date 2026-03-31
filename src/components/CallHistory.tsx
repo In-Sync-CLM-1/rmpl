@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Phone, PlayCircle, Search, FileText, Plus, Edit2, Brain, Loader2 } from "lucide-react";
+import { Phone, PlayCircle, Search, FileText, Plus, Edit2, Brain, Loader2, Download, Volume2, Pause } from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { CallDispositionDialog } from "./CallDispositionDialog";
 import { CallAnalysisDialog } from "./CallAnalysisDialog";
@@ -28,6 +29,7 @@ interface CallLog {
   status: string;
   conversation_duration: number;
   recording_url: string | null;
+  storage_recording_url: string | null;
   start_time: string | null;
   end_time: string | null;
   created_at: string;
@@ -80,6 +82,57 @@ export function CallHistory({ demandcomId, limit = 50, showFilters = true }: Cal
   const [dispositionDialogOpen, setDispositionDialogOpen] = useState(false);
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
   const [selectedCallLog, setSelectedCallLog] = useState<CallLog | null>(null);
+  const [playingCallId, setPlayingCallId] = useState<string | null>(null);
+  const [processingCallId, setProcessingCallId] = useState<string | null>(null);
+  const [audioRef, setAudioRef] = useState<HTMLAudioElement | null>(null);
+
+  const handlePlayRecording = async (log: CallLog) => {
+    // If already playing this call, pause it
+    if (playingCallId === log.id && audioRef) {
+      audioRef.pause();
+      setPlayingCallId(null);
+      setAudioRef(null);
+      return;
+    }
+
+    // Stop any currently playing audio
+    if (audioRef) {
+      audioRef.pause();
+      setAudioRef(null);
+    }
+
+    const url = log.storage_recording_url;
+    if (url) {
+      const audio = new Audio(url);
+      audio.onended = () => { setPlayingCallId(null); setAudioRef(null); };
+      audio.onerror = () => { toast.error("Failed to play recording"); setPlayingCallId(null); setAudioRef(null); };
+      audio.play();
+      setPlayingCallId(log.id);
+      setAudioRef(audio);
+      return;
+    }
+
+    // No storage URL yet — trigger download
+    if (log.recording_url && !log.storage_recording_url) {
+      setProcessingCallId(log.id);
+      try {
+        const { data, error } = await supabase.functions.invoke("process-call-recording", {
+          body: { callLogId: log.id },
+        });
+        if (error) throw error;
+        if (data?.storageUrl) {
+          toast.success("Recording ready! Click play again.");
+        } else if (data?.alreadyProcessed) {
+          toast.success("Recording ready! Click play again.");
+        }
+        refetch();
+      } catch (err: any) {
+        toast.error(`Failed to download recording: ${err.message}`);
+      } finally {
+        setProcessingCallId(null);
+      }
+    }
+  };
 
   const { data: callLogs, isLoading, refetch } = useQuery({
     queryKey: ['call-logs', demandcomId, statusFilter, searchQuery],
@@ -257,13 +310,22 @@ export function CallHistory({ demandcomId, limit = 50, showFilters = true }: Cal
                     {log.initiated_by_profile?.full_name || log.initiated_by_profile?.email || '-'}
                   </TableCell>
                   <TableCell>
-                    {log.recording_url ? (
+                    {log.recording_url || log.storage_recording_url ? (
                       <Button
-                        variant="ghost"
+                        variant={playingCallId === log.id ? "default" : "ghost"}
                         size="sm"
-                        onClick={() => window.open(log.recording_url!, '_blank')}
+                        onClick={() => handlePlayRecording(log)}
+                        disabled={processingCallId === log.id}
                       >
-                        <PlayCircle className="h-4 w-4" />
+                        {processingCallId === log.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : playingCallId === log.id ? (
+                          <Pause className="h-4 w-4" />
+                        ) : log.storage_recording_url ? (
+                          <Volume2 className="h-4 w-4" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
                       </Button>
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>

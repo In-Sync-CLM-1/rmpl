@@ -112,6 +112,23 @@ Deno.serve(async (req) => {
 
     console.log("Call log updated:", data);
 
+    // Auto-trigger recording download + AI analysis if recording URL is present
+    if (rawRecording && data && data.length > 0) {
+      const callLogId = data[0].id;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+      console.log(`Triggering recording download for call ${callLogId}`);
+      fetch(`${supabaseUrl}/functions/v1/process-call-recording`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ callLogId }),
+      }).catch((err) => console.error("Failed to trigger recording download:", err));
+    }
+
     return new Response(
       JSON.stringify({ success: true, updated: data }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
