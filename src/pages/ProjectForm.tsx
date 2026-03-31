@@ -146,13 +146,10 @@ export default function ProjectForm() {
     queryKey: ["client-contacts", selectedCompany],
     queryFn: async () => {
       if (!selectedCompany) return [];
-      // Find the client UUID for the selected company name
-      const client = clients?.find(c => c.company_name === selectedCompany);
-      if (!client) return [];
       const { data, error } = await supabase
         .from("contacts")
         .select("id, contact_name, contact_number, email_id")
-        .eq("client_id", client.id)
+        .eq("client_id", selectedCompany)
         .order("contact_name");
       if (error) {
         logError(error, {
@@ -508,7 +505,7 @@ export default function ProjectForm() {
                             setSelectedCompany(value);
                             form.setValue("contact_id", ""); // Reset contact when client changes
                             // Auto-set project owner from client's assigned_to
-                            const selectedClient = clients?.find(c => c.company_name === value);
+                            const selectedClient = clients?.find(c => c.id === value);
                             if (selectedClient?.assigned_to && !isEditing) {
                               form.setValue("project_owner", selectedClient.assigned_to);
                             }
@@ -522,7 +519,7 @@ export default function ProjectForm() {
                           </FormControl>
                           <SelectContent className="bg-popover z-50">
                             {clients?.map((client) => (
-                              <SelectItem key={client.company_name} value={client.company_name}>
+                              <SelectItem key={client.id} value={client.id}>
                                 {client.company_name}
                               </SelectItem>
                             ))}
