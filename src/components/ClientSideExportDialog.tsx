@@ -30,7 +30,7 @@ export interface DemandComFilters {
 interface ClientSideExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  tableName: "demandcom";
+  tableName: "demandcom" | "master";
   filenamePrefix: string;
   columns?: string[];
   filters?: MasterFilters | DemandComFilters;
@@ -148,7 +148,7 @@ export function ClientSideExportDialog({
     // Use standardized columns for consistent export format matching import template
     const exportColumns = columns || STANDARD_EXPORT_COLUMNS;
     let query = supabase
-      .from("demandcom" as any)
+      .from(tableName as any)
       .select(exportColumns.join(","), { count: "exact" })
       .order("mobile_numb");
 
