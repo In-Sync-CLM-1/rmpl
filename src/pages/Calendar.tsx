@@ -36,7 +36,10 @@ const eventTypeColors: Record<string, string> = {
   general: "#3b82f6",   // blue
   project: "#10b981",   // emerald - for projects
   holiday: "#f59e0b",   // amber - for holidays applicable to user (festive gold)
+  holiday_optional: "#fb923c", // orange - for optional holidays
+  holiday_availed: "#22c55e", // green - for availed optional holidays
   holiday_other: "#94a3b8", // gray - for holidays not applicable to user
+  personal_holiday: "#a855f7", // purple - for personal optional holiday claims
 };
 
 interface ProjectEventDate {
@@ -63,7 +66,7 @@ export default function Calendar() {
   const [defaultEventType, setDefaultEventType] = useState<string>("general");
 
   const currentYear = date.getFullYear();
-  const { holidays, applicableHolidays, userLocation } = useCompanyHolidays(currentYear);
+  const { holidays, userLocation, userClaims, availedHolidayIds } = useCompanyHolidays(currentYear);
 
   // Build a date range for filtering projects (current month +/- 1 month for navigation)
   const rangeStart = format(subMonths(startOfMonth(date), 1), "yyyy-MM-dd");
@@ -155,34 +158,91 @@ export default function Calendar() {
     // Holiday events
     const holidayEvents = holidays.map((holiday) => {
       const dateObj = parseLocalDateString(holiday.holiday_date);
-      const isApplicable = !holiday.applicable_locations || 
+      const isApplicable = !holiday.applicable_locations ||
         holiday.applicable_locations.includes("all") ||
         holiday.applicable_locations.includes(userLocation || "Delhi");
+      const isOptional = holiday.is_optional;
+      const isAvailed = availedHolidayIds.has(holiday.id);
+
+      // Determine event type and color based on holiday type
+      let eventType = "holiday";
+      let color = eventTypeColors.holiday;
+      let titlePrefix = "🎉";
+
+      if (!isApplicable) {
+        eventType = "holiday_other";
+        color = eventTypeColors.holiday_other;
+      } else if (isOptional && isAvailed) {
+        eventType = "holiday_availed";
+        color = eventTypeColors.holiday_availed;
+        titlePrefix = "✅";
+      } else if (isOptional) {
+        eventType = "holiday_optional";
+        color = eventTypeColors.holiday_optional;
+        titlePrefix = "⭐";
+      }
 
       return {
         id: `holiday-${holiday.id}`,
-        title: `🎉 ${holiday.holiday_name}`,
+        title: `${titlePrefix} ${holiday.holiday_name}`,
         start: startOfDay(dateObj),
         end: endOfDay(dateObj),
         allDay: true,
         resource: {
           id: holiday.id,
           title: holiday.holiday_name,
-          event_type: isApplicable ? "holiday" : "holiday_other",
-          color: isApplicable ? eventTypeColors.holiday : eventTypeColors.holiday_other,
-          description: `${holiday.holiday_name}${holiday.notes ? ` - ${holiday.notes}` : ""}\nLocations: ${holiday.applicable_locations?.join(", ") || "All"}`,
+          event_type: eventType,
+          color,
+          description: `${holiday.holiday_name}${isOptional ? ' (Optional)' : ''}${holiday.notes && !isOptional ? ` - ${holiday.notes}` : ""}\nLocations: ${holiday.applicable_locations?.join(", ") || "All"}`,
           isHoliday: true,
           isApplicable,
+          isOptional,
+          isAvailed,
           holidayData: holiday,
         },
         isProject: false,
         isHoliday: true,
         isApplicable,
+        isOptional,
+        isAvailed,
       };
     });
 
-    return [...holidayEvents, ...regularEvents, ...projectEvents];
-  }, [events, projects, holidays, userLocation]);
+    // Personal optional holiday claims (birthday, anniversary, festival)
+    const personalClaimEvents = (userClaims || [])
+      .filter(claim => !claim.holiday_id && claim.claim_date)
+      .map(claim => {
+        const dateObj = parseLocalDateString(claim.claim_date!);
+        const labelMap: Record<string, string> = {
+          birthday: 'Birthday Leave',
+          anniversary: 'Anniversary Leave',
+          regional_festival: 'Festival Leave',
+        };
+        const title = labelMap[claim.claim_type] || 'Optional Holiday';
+
+        return {
+          id: `claim-${claim.id}`,
+          title: `🎁 ${title}`,
+          start: startOfDay(dateObj),
+          end: endOfDay(dateObj),
+          allDay: true,
+          resource: {
+            id: claim.id,
+            title,
+            event_type: "personal_holiday",
+            color: eventTypeColors.personal_holiday,
+            description: `Personal optional holiday: ${title}`,
+            isHoliday: true,
+            isApplicable: true,
+          },
+          isProject: false,
+          isHoliday: true,
+          isApplicable: true,
+        };
+      });
+
+    return [...holidayEvents, ...personalClaimEvents, ...regularEvents, ...projectEvents];
+  }, [events, projects, holidays, userLocation, userClaims, availedHolidayIds]);
 
   const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
     setSelectedEvent(null);
@@ -239,9 +299,55 @@ export default function Calendar() {
   const eventStyleGetter = (event: any) => {
     const eventType = event.resource?.event_type || "general";
     const bgColor = event.resource?.color || eventTypeColors[eventType] || eventTypeColors.general;
-    
-    // Special styling for holidays (amber/gold for festive look)
+
+    // Special styling for holidays
     if (event.isHoliday) {
+      // Optional holiday (not availed) - dashed border, lighter
+      if (event.isOptional && !event.isAvailed) {
+        return {
+          style: {
+            backgroundColor: bgColor,
+            borderRadius: "6px",
+            opacity: 0.7,
+            color: "white",
+            border: "2px dashed #fb923c",
+            display: "block",
+            fontWeight: 500,
+            boxShadow: "none",
+          }
+        };
+      }
+      // Availed optional holiday - solid green
+      if (event.isAvailed) {
+        return {
+          style: {
+            backgroundColor: bgColor,
+            borderRadius: "6px",
+            opacity: 0.95,
+            color: "white",
+            border: "2px solid #16a34a",
+            display: "block",
+            fontWeight: 600,
+            boxShadow: "0 2px 8px rgba(34, 197, 94, 0.3)",
+          }
+        };
+      }
+      // Personal claim (birthday/anniversary/festival)
+      if (eventType === "personal_holiday") {
+        return {
+          style: {
+            backgroundColor: bgColor,
+            borderRadius: "6px",
+            opacity: 0.95,
+            color: "white",
+            border: "2px solid #9333ea",
+            display: "block",
+            fontWeight: 600,
+            boxShadow: "0 2px 8px rgba(168, 85, 247, 0.3)",
+          }
+        };
+      }
+      // Regular holiday or non-applicable
       return {
         style: {
           backgroundColor: bgColor,
@@ -255,7 +361,7 @@ export default function Calendar() {
         }
       };
     }
-    
+
     return {
       style: {
         backgroundColor: bgColor,
@@ -317,8 +423,11 @@ export default function Calendar() {
               style={{ backgroundColor: color }}
             />
             <span className="capitalize text-muted-foreground">
-              {type === "holiday" ? "Holiday (Your Location)" : 
-               type === "holiday_other" ? "Holiday (Other)" : 
+              {type === "holiday" ? "Holiday (Your Location)" :
+               type === "holiday_optional" ? "Optional Holiday" :
+               type === "holiday_availed" ? "Availed Optional" :
+               type === "holiday_other" ? "Holiday (Other)" :
+               type === "personal_holiday" ? "Personal Holiday" :
                type.replace("_", " ")}
             </span>
           </div>

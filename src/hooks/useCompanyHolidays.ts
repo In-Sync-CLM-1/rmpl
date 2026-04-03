@@ -155,6 +155,46 @@ export const useCompanyHolidays = (year: number = new Date().getFullYear()) => {
     },
   });
 
+  // Avail a pre-defined optional holiday from the holiday list
+  const availOptionalHoliday = useMutation({
+    mutationFn: async ({ holidayId, holidayDate }: { holidayId: string; holidayDate: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      if (userClaims.length >= 2) {
+        throw new Error('You have already used 2 optional holidays this year');
+      }
+
+      // Check if already availed
+      const alreadyAvailed = userClaims.find(c => c.holiday_id === holidayId);
+      if (alreadyAvailed) {
+        throw new Error('You have already availed this holiday');
+      }
+
+      const { data, error } = await supabase
+        .from('user_optional_holiday_claims')
+        .insert({
+          user_id: user.id,
+          year,
+          claim_type: 'availed_holiday',
+          claim_date: holidayDate,
+          holiday_id: holidayId,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['optional-holiday-claims', year] });
+      toast.success('Optional holiday availed successfully!');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   const deleteOptionalHolidayClaim = useMutation({
     mutationFn: async (claimId: string) => {
       const { error } = await supabase
@@ -190,15 +230,26 @@ export const useCompanyHolidays = (year: number = new Date().getFullYear()) => {
     return holidayDate >= today && holidayDate <= threeMonthsLater;
   });
 
+  // Set of holiday IDs the user has availed
+  const availedHolidayIds = new Set(
+    userClaims.filter(c => c.holiday_id).map(c => c.holiday_id!)
+  );
+
+  // Optional holidays from the holiday list
+  const optionalHolidays = applicableHolidays.filter(h => h.is_optional);
+
   return {
     holidays,
     applicableHolidays,
+    optionalHolidays,
     upcomingHolidays,
     userClaims,
     userLocation,
+    availedHolidayIds,
     isLoading: holidaysLoading || claimsLoading,
     error: holidaysError,
     claimOptionalHoliday,
+    availOptionalHoliday,
     deleteOptionalHolidayClaim,
     remainingOptionalHolidays: 2 - userClaims.length,
   };
