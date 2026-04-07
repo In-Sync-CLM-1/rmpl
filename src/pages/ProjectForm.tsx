@@ -108,6 +108,7 @@ export default function ProjectForm() {
   }, [id]);
   
   const [teamMembers, setTeamMembers] = useState<Array<{ user_id: string; role_in_project: string }>>([]);
+  const [teamMembersLoaded, setTeamMembersLoaded] = useState(!isEditing); // New projects don't need to wait
   const [filesChanged, setFilesChanged] = useState(false);
   const [locations, setLocations] = useState<Location[]>([{ city: "", venue: "" }]);
   const [eventDates, setEventDates] = useState<EventDate[]>([]);
@@ -265,6 +266,7 @@ export default function ProjectForm() {
           role_in_project: m.role_in_project
         })));
       }
+      setTeamMembersLoaded(true);
     }
   }, [project, clients, form]);
 
@@ -313,8 +315,57 @@ export default function ProjectForm() {
           .eq("id", id);
         if (error) throw error;
 
-        // Delete existing team members and re-insert
-        await supabase.from("project_team_members").delete().eq("project_id", id);
+        // Differential update: fetch current members, then add/remove/update as needed
+        const { data: currentMembers, error: fetchError } = await supabase
+          .from("project_team_members")
+          .select("user_id, role_in_project")
+          .eq("project_id", id);
+        if (fetchError) throw fetchError;
+
+        const currentMap = new Map((currentMembers || []).map(m => [m.user_id, m.role_in_project]));
+        const newMap = new Map(teamMembers.map(m => [m.user_id, m.role_in_project]));
+
+        // Members to remove (in DB but not in form)
+        const toRemove = (currentMembers || [])
+          .filter(m => !newMap.has(m.user_id))
+          .map(m => m.user_id);
+        if (toRemove.length > 0) {
+          const { error: delError } = await supabase
+            .from("project_team_members")
+            .delete()
+            .eq("project_id", id)
+            .in("user_id", toRemove);
+          if (delError) throw delError;
+        }
+
+        // Members to add (in form but not in DB)
+        const toAdd = teamMembers
+          .filter(m => !currentMap.has(m.user_id))
+          .map(m => ({
+            project_id: id,
+            user_id: m.user_id,
+            role_in_project: m.role_in_project,
+            assigned_by: user.id,
+          }));
+        if (toAdd.length > 0) {
+          const { error: addError } = await supabase
+            .from("project_team_members")
+            .insert(toAdd);
+          if (addError) throw addError;
+        }
+
+        // Members whose role changed
+        for (const member of teamMembers) {
+          const currentRole = currentMap.get(member.user_id);
+          if (currentRole && currentRole !== member.role_in_project) {
+            const { error: updateError } = await supabase
+              .from("project_team_members")
+              .update({ role_in_project: member.role_in_project })
+              .eq("project_id", id)
+              .eq("user_id", member.user_id);
+            if (updateError) throw updateError;
+          }
+        }
       } else {
         const { data: newProject, error } = await supabase
           .from("projects")
@@ -323,20 +374,20 @@ export default function ProjectForm() {
           .single();
         if (error) throw error;
         projectId = newProject.id;
-      }
 
-      // Insert team members
-      if (teamMembers.length > 0 && projectId) {
-        const teamData = teamMembers.map(member => ({
-          project_id: projectId,
-          user_id: member.user_id,
-          role_in_project: member.role_in_project,
-          assigned_by: user.id,
-        }));
-        const { error: teamError } = await supabase
-          .from("project_team_members")
-          .insert(teamData);
-        if (teamError) throw teamError;
+        // Insert team members for new project
+        if (teamMembers.length > 0 && projectId) {
+          const teamData = teamMembers.map(member => ({
+            project_id: projectId,
+            user_id: member.user_id,
+            role_in_project: member.role_in_project,
+            assigned_by: user.id,
+          }));
+          const { error: teamError } = await supabase
+            .from("project_team_members")
+            .insert(teamData);
+          if (teamError) throw teamError;
+        }
       }
 
       return projectId;
@@ -429,6 +480,16 @@ export default function ProjectForm() {
       toast({
         title: "Attendees Required",
         description: "Please enter the number of attendees for Integrated/MICE projects",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Prevent saving before team members have loaded from database
+    if (isEditing && !teamMembersLoaded) {
+      toast({
+        title: "Please Wait",
+        description: "Project data is still loading. Please try again in a moment.",
         variant: "destructive",
       });
       return;

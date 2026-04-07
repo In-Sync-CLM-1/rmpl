@@ -45,6 +45,7 @@ const ContactForm = () => {
   const [clientId, setClientId] = useState<string>(searchParams.get("clientId") || "");
   const [branchId, setBranchId] = useState<string>("");
   const [isPrimary, setIsPrimary] = useState(false);
+  const [contactStatus, setContactStatus] = useState<string>("Active");
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ContactFormData>();
 
@@ -108,6 +109,7 @@ const ContactForm = () => {
       setClientId(contact.client_id);
       setBranchId(contact.branch_id || "");
       setIsPrimary(contact.is_primary || false);
+      setContactStatus(contact.contact_status || "Active");
     }
   }, [contact, reset]);
 
@@ -135,6 +137,7 @@ const ContactForm = () => {
         anniversary_date: data.anniversary_date || null,
         linkedin_id: data.linkedin_id || null,
         is_primary: isPrimary,
+        contact_status: contactStatus,
       };
 
       if (isEditMode) {
@@ -299,6 +302,20 @@ const ContactForm = () => {
                   type="date"
                   {...register("anniversary_date")}
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="contact_status">Contact Status</Label>
+                <Select value={contactStatus} onValueChange={setContactStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                    <SelectItem value="Mapped">Mapped</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex items-center gap-2 col-span-2">

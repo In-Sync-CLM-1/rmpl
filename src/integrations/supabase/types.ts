@@ -941,6 +941,7 @@ export type Database = {
           anniversary_date: string | null
           linkedin_id: string | null
           is_primary: boolean | null
+          contact_status: string
           created_by: string | null
           created_at: string
           updated_at: string
@@ -959,6 +960,7 @@ export type Database = {
           anniversary_date?: string | null
           linkedin_id?: string | null
           is_primary?: boolean | null
+          contact_status?: string
           created_by?: string | null
           created_at?: string
           updated_at?: string
@@ -977,6 +979,7 @@ export type Database = {
           anniversary_date?: string | null
           linkedin_id?: string | null
           is_primary?: boolean | null
+          contact_status?: string
           created_by?: string | null
           created_at?: string
           updated_at?: string

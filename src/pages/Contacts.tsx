@@ -32,6 +32,7 @@ interface ContactRow {
   contact_linkedin: string | null;
   contact_address: string | null;
   is_primary: boolean | null;
+  contact_status: string;
   birthday_date: string | null;
   anniversary_date: string | null;
   created_at: string;
@@ -173,6 +174,7 @@ const Contacts = () => {
                 <TableHead>Address</TableHead>
                 <TableHead>Birthday</TableHead>
                 <TableHead>Anniversary</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Primary</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -205,6 +207,17 @@ const Contacts = () => {
                     {contact.anniversary_date
                       ? new Date(contact.anniversary_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
                       : "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={`text-[10px] border-0 ${
+                      contact.contact_status === "Active"
+                        ? "bg-green-100 text-green-700"
+                        : contact.contact_status === "Inactive"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-blue-100 text-blue-700"
+                    }`}>
+                      {contact.contact_status || "Active"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     {contact.is_primary && (
