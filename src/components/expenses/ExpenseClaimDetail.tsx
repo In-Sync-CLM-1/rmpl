@@ -1,11 +1,15 @@
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, MapPin, Calendar, Target, User, Receipt, FileText, Image as ImageIcon } from "lucide-react";
+import { ExternalLink, MapPin, Calendar, Target, User, Receipt, FileText, Image as ImageIcon, Upload, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import { type ExpenseClaim, type ProofFile, getExpenseTypeLabel, getStatusColor, getStatusLabel, useSubmitClaim, useDeleteClaim } from "@/hooks/useExpenseClaims";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { type ExpenseClaim, type ProofFile, getExpenseTypeLabel, getStatusColor, getStatusLabel, useSubmitClaim, useDeleteClaim, uploadProofFiles, validateProofFile, MAX_PROOF_FILES } from "@/hooks/useExpenseClaims";
 
 interface ExpenseClaimDetailProps {
   claim: ExpenseClaim | null;
@@ -17,6 +21,52 @@ interface ExpenseClaimDetailProps {
 export function ExpenseClaimDetail({ claim, open, onOpenChange, isOwner }: ExpenseClaimDetailProps) {
   const submitClaim = useSubmitClaim();
   const deleteClaim = useDeleteClaim();
+  const queryClient = useQueryClient();
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const existingProofs = claim?.proof_urls ? (claim.proof_urls as ProofFile[]) : [];
+  const remainingSlots = MAX_PROOF_FILES - existingProofs.length - newFiles.length;
+
+  const handleFileSelect = (fileList: FileList | null) => {
+    if (!fileList) return;
+    const toAdd: File[] = [];
+    let available = MAX_PROOF_FILES - existingProofs.length - newFiles.length;
+    for (const file of Array.from(fileList)) {
+      if (available <= 0) { toast.error(`Maximum ${MAX_PROOF_FILES} files allowed.`); break; }
+      const err = validateProofFile(file);
+      if (err) { toast.error(err); continue; }
+      toAdd.push(file);
+      available--;
+    }
+    if (toAdd.length > 0) setNewFiles((prev) => [...prev, ...toAdd]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeNewFile = (index: number) => setNewFiles((prev) => prev.filter((_, i) => i !== index));
+
+  const handleUpload = async () => {
+    if (!claim || newFiles.length === 0) return;
+    setUploading(true);
+    try {
+      const uploaded = await uploadProofFiles(newFiles, claim.user_id, claim.id);
+      const updatedProofs = [...existingProofs, ...uploaded];
+      const { error } = await supabase
+        .from("travel_expense_claims" as any)
+        .update({ proof_urls: updatedProofs })
+        .eq("id", claim.id);
+      if (error) throw error;
+      setNewFiles([]);
+      queryClient.invalidateQueries({ queryKey: ["expense-claim-detail", claim.id] });
+      queryClient.invalidateQueries({ queryKey: ["expense-claims"] });
+      toast.success("Documents uploaded successfully!");
+    } catch (err: any) {
+      toast.error("Upload failed: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   if (!claim) return null;
 
@@ -30,8 +80,13 @@ export function ExpenseClaimDetail({ claim, open, onOpenChange, isOwner }: Expen
     onOpenChange(false);
   };
 
+  const handleOpenChange = (v: boolean) => {
+    if (!v) setNewFiles([]);
+    onOpenChange(v);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
@@ -133,14 +188,17 @@ export function ExpenseClaimDetail({ claim, open, onOpenChange, isOwner }: Expen
             </div>
           )}
 
-          {/* Expense Proofs */}
-          {claim.proof_urls && (claim.proof_urls as ProofFile[]).length > 0 && (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <h3 className="font-semibold text-sm">Expense Proofs ({(claim.proof_urls as ProofFile[]).length})</h3>
+          {/* Expense Proofs / Document Upload */}
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm">
+                Supporting Documents ({existingProofs.length}/{MAX_PROOF_FILES})
+              </h3>
+
+              {existingProofs.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {(claim.proof_urls as ProofFile[]).map((proof, idx) => (
+                  {existingProofs.map((proof, idx) => (
                     <a
                       key={idx}
                       href={proof.url}
@@ -158,9 +216,76 @@ export function ExpenseClaimDetail({ claim, open, onOpenChange, isOwner }: Expen
                     </a>
                   ))}
                 </div>
-              </div>
-            </>
-          )}
+              )}
+
+              {isOwner && existingProofs.length === 0 && newFiles.length === 0 && (
+                <p className="text-xs text-muted-foreground">No documents uploaded yet.</p>
+              )}
+
+              {/* New files staged for upload */}
+              {newFiles.length > 0 && (
+                <div className="space-y-1.5">
+                  {newFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/30 rounded text-sm border border-blue-200 dark:border-blue-800">
+                      {file.type === "application/pdf" ? (
+                        <FileText className="h-4 w-4 text-red-500 shrink-0" />
+                      ) : (
+                        <ImageIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                      )}
+                      <span className="truncate flex-1">{file.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{(file.size / 1024).toFixed(0)} KB</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => removeNewFile(idx)}
+                        disabled={uploading}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Upload controls — available to owner when slots remain */}
+              {isOwner && remainingSlots > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFileSelect(e.target.files)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Choose Files
+                  </Button>
+                  {newFiles.length > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleUpload}
+                      disabled={uploading}
+                    >
+                      {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                      Upload {newFiles.length} file{newFiles.length > 1 ? "s" : ""}
+                    </Button>
+                  )}
+                  <span className="text-xs text-muted-foreground">{remainingSlots} slot{remainingSlots !== 1 ? "s" : ""} remaining · images or PDF, max 1 MB each</span>
+                </div>
+              )}
+            </div>
+          </>
 
           {/* Rejection reason */}
           {claim.rejection_reason && (
