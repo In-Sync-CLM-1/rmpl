@@ -63,6 +63,7 @@ export const getRolePermissions = (roles: string[], userId?: string, hasSubordin
   // CSBD Projections: additional authorized users by email
   const AUTHORIZED_PROJECTION_USERS = [
     'geeta.punjabi@redefine.in',
+    'mansi.grover@redefine.in',
   ];
   const isAuthorizedProjectionUser = userEmail ? AUTHORIZED_PROJECTION_USERS.includes(userEmail) : false;
 
