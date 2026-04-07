@@ -13,7 +13,8 @@ import { format, isSameDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, Users } from "lucide-react";
+import { BarChart3, Users, ShieldOff } from "lucide-react";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 export default function DemandComDashboard() {
   const today = new Date();
@@ -21,6 +22,8 @@ export default function DemandComDashboard() {
   const [endDate, setEndDate] = useState<Date>(today);
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [teamFilter, setTeamFilter] = useState<string>("all");
+
+  const { permissions, isLoading: isPermissionsLoading } = useUserPermissions();
 
   // Team filter hook
   const { data: teamFilterData, isLoading: isTeamFilterLoading } = useTeamFilter();
@@ -136,6 +139,30 @@ export default function DemandComDashboard() {
   };
 
   const isLoading = isMetricsLoading || isAgentReportLoading;
+
+  if (isPermissionsLoading) {
+    return (
+      <div className="h-screen flex flex-col overflow-hidden p-4 gap-3">
+        <Skeleton className="h-10 w-64 flex-shrink-0" />
+        <div className="grid grid-cols-4 gap-3 flex-shrink-0">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20" />)}
+        </div>
+        <Skeleton className="flex-1" />
+      </div>
+    );
+  }
+
+  if (!permissions.canViewDemandCom) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <ShieldOff className="h-12 w-12 mx-auto text-muted-foreground/40" />
+          <p className="text-lg font-medium">Access Restricted</p>
+          <p className="text-sm text-muted-foreground">This dashboard is only available to the DemandCom team.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
