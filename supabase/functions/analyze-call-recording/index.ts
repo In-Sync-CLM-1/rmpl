@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  groqStructuredResponse,
+  GroqApiError,
+} from "../_shared/groq.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,9 +16,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
-
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
     if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured. Get a free key from console.groq.com and add it as a Supabase secret.");
 
@@ -120,82 +121,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 3: Analyze transcript with Haiku
-    console.log("Analyzing transcript with Haiku...");
-    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4096,
-        system: `You are a call quality analyst for a B2B sales and marketing company called Redefine Marcom. Analyze the provided call transcript for quality, sentiment, and actionable insights. Be specific, actionable, and constructive. Consider the Indian business context. The transcript may be in Hindi, English, or a mix of both — respond in English.`,
-        tools: [
-          {
-            name: "call_quality_analysis",
-            description: "Return structured call quality analysis",
-            input_schema: {
-              type: "object",
-              properties: {
-                overall_score: {
-                  type: "number",
-                  description: "Overall call quality score from 1-10",
-                },
-                sentiment: {
-                  type: "string",
-                  enum: ["positive", "neutral", "negative"],
-                  description: "Overall sentiment of the call",
-                },
-                call_summary: {
-                  type: "string",
-                  description: "2-3 sentence summary of what happened in the call",
-                },
-                strengths: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "2-4 things the caller did well",
-                },
-                improvement_areas: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "2-4 specific, actionable suggestions for improvement",
-                },
-                key_topics: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "3-5 key topics discussed in the call",
-                },
-                customer_interest_level: {
-                  type: "string",
-                  enum: ["high", "medium", "low", "not_applicable"],
-                  description: "How interested the customer seemed",
-                },
-                next_steps: {
-                  type: "string",
-                  description: "Recommended next steps based on the call outcome",
-                },
-              },
-              required: [
-                "overall_score",
-                "sentiment",
-                "call_summary",
-                "strengths",
-                "improvement_areas",
-                "key_topics",
-                "customer_interest_level",
-                "next_steps",
-              ],
-            },
-          },
-        ],
-        tool_choice: { type: "tool", name: "call_quality_analysis" },
-        messages: [
-          {
-            role: "user",
-            content: `Analyze this sales/business call transcript for quality. Provide scores, strengths, improvement areas, and next steps.
+    // Step 3: Analyze transcript with Groq
+    console.log("Analyzing transcript with Groq...");
+    let analysisInput;
+    try {
+      analysisInput = await groqStructuredResponse<{
+        overall_score: number;
+        sentiment: "positive" | "neutral" | "negative";
+        call_summary: string;
+        strengths: string[];
+        improvement_areas: string[];
+        key_topics: string[];
+        customer_interest_level: "high" | "medium" | "low" | "not_applicable";
+        next_steps: string;
+      }>({
+        instructions:
+          "You are a call quality analyst for a B2B sales and marketing company called Redefine Marcom. Analyze the provided call transcript for quality, sentiment, and actionable insights. Be specific, actionable, and constructive. Consider the Indian business context. The transcript may be in Hindi, English, or a mix of both. Respond in English and output only JSON matching the schema.",
+        input: `Analyze this sales/business call transcript for quality. Provide scores, strengths, improvement areas, and next steps.
 
 Call details:
 - Duration: ${callLog.conversation_duration || "unknown"} seconds
@@ -205,44 +147,60 @@ ${callLog.notes ? `- Agent notes: ${callLog.notes}` : ""}
 
 Transcript:
 ${transcript}`,
+        schemaName: "call_quality_analysis",
+        schema: {
+          type: "object",
+          properties: {
+            overall_score: { type: "number" },
+            sentiment: {
+              type: "string",
+              enum: ["positive", "neutral", "negative"],
+            },
+            call_summary: { type: "string" },
+            strengths: { type: "array", items: { type: "string" } },
+            improvement_areas: { type: "array", items: { type: "string" } },
+            key_topics: { type: "array", items: { type: "string" } },
+            customer_interest_level: {
+              type: "string",
+              enum: ["high", "medium", "low", "not_applicable"],
+            },
+            next_steps: { type: "string" },
           },
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("Claude API error:", aiResponse.status, errText);
+          required: [
+            "overall_score",
+            "sentiment",
+            "call_summary",
+            "strengths",
+            "improvement_areas",
+            "key_topics",
+            "customer_interest_level",
+            "next_steps",
+          ],
+        },
+        maxOutputTokens: 4096,
+      });
+    } catch (error) {
+      const errText = error instanceof GroqApiError ? error.body : String(error);
+      const errStatus = error instanceof GroqApiError ? error.status : 500;
+      console.error("Groq API error:", errStatus, errText);
 
       // Save transcript even if analysis fails
       await supabase
         .from("call_logs")
         .update({
           transcript,
-          call_analysis: { status: "completed", error: `AI analysis failed (${aiResponse.status}): ${errText.substring(0, 200)}` },
+          call_analysis: { status: "completed", error: `AI analysis failed (${errStatus}): ${errText.substring(0, 200)}` },
         })
         .eq("id", callLogId);
 
       return new Response(
-        JSON.stringify({ success: false, error: `AI analysis failed (${aiResponse.status})` }),
+        JSON.stringify({ success: false, error: `AI analysis failed (${errStatus})` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const aiData = await aiResponse.json();
-    const toolUse = aiData.content?.find((c: any) => c.type === "tool_use");
-
-    if (!toolUse) {
-      // Save transcript even if structured analysis not returned
-      await supabase
-        .from("call_logs")
-        .update({ transcript, call_analysis: { status: "completed", error: "No structured analysis returned" } })
-        .eq("id", callLogId);
-      throw new Error("No analysis returned from AI");
-    }
-
     const analysis = {
-      ...toolUse.input,
+      ...analysisInput,
       status: "completed",
       analyzed_at: new Date().toISOString(),
     };

@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import {
+  groqStructuredResponse,
+  GroqApiError,
+} from "../_shared/groq.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -82,78 +86,50 @@ Analyze for:
 5. Missing critical documents
 6. Any red flags or inconsistencies`;
 
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY not configured');
-    }
-
-    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        system: 'You are an HR document verification AI. Always respond using the provided tool.',
-        tools: [{
-          name: 'document_analysis',
-          description: 'Return structured document analysis results',
-          input_schema: {
-            type: 'object',
-            properties: {
-              risk_score: { type: 'number', description: 'Risk score 0-100' },
-              findings: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    category: { type: 'string' },
-                    severity: { type: 'string', enum: ['low', 'medium', 'high'] },
-                    description: { type: 'string' },
-                  },
-                  required: ['category', 'severity', 'description'],
+    let analysis;
+    try {
+      analysis = await groqStructuredResponse<{
+        risk_score: number;
+        findings: Array<{
+          category: string;
+          severity: 'low' | 'medium' | 'high';
+          description: string;
+        }>;
+        recommendation: 'approve' | 'review' | 'reject';
+        summary: string;
+      }>({
+        instructions: 'You are an HR document verification AI. Analyze the onboarding submission and return only JSON matching the schema.',
+        input: prompt,
+        schemaName: 'document_analysis',
+        schema: {
+          type: 'object',
+          properties: {
+            risk_score: { type: 'number' },
+            findings: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  category: { type: 'string' },
+                  severity: { type: 'string', enum: ['low', 'medium', 'high'] },
+                  description: { type: 'string' },
                 },
+                required: ['category', 'severity', 'description'],
               },
-              recommendation: { type: 'string', enum: ['approve', 'review', 'reject'] },
-              summary: { type: 'string' },
             },
-            required: ['risk_score', 'findings', 'recommendation', 'summary'],
+            recommendation: { type: 'string', enum: ['approve', 'review', 'reject'] },
+            summary: { type: 'string' },
           },
-        }],
-        tool_choice: { type: 'tool', name: 'document_analysis' },
-        messages: [
-          { role: 'user', content: prompt },
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
+          required: ['risk_score', 'findings', 'recommendation', 'summary'],
+        },
+      });
+    } catch (error) {
+      if (error instanceof GroqApiError && error.status === 429) {
         return new Response(JSON.stringify({ error: 'Rate limit exceeded, please try again later.' }), {
           status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      throw new Error('Anthropic API error');
-    }
-
-    const aiData = await aiResponse.json();
-    let analysis;
-
-    try {
-      const toolUse = aiData.content?.find((c: any) => c.type === 'tool_use');
-      if (toolUse) {
-        analysis = toolUse.input;
-      } else {
-        const textBlock = aiData.content?.find((c: any) => c.type === 'text');
-        const content = textBlock?.text || '';
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { risk_score: 50, findings: [], recommendation: 'review', summary: 'Unable to parse AI response' };
-      }
-    } catch {
-      analysis = { risk_score: 50, findings: [], recommendation: 'review', summary: 'AI analysis could not be parsed' };
+      throw error;
     }
 
     const serviceSupabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -170,10 +146,10 @@ Analyze for:
       JSON.stringify({ success: true, analysis }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error('analyze-onboarding-document error:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Analysis failed' }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Analysis failed' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

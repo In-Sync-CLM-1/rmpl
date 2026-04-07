@@ -1,9 +1,45 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getDocument } from "https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs";
+import {
+  groqStructuredResponse,
+  GroqApiError,
+} from "../_shared/groq.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+async function extractPdfText(pdfBuffer: ArrayBuffer) {
+  const loadingTask = getDocument({
+    data: new Uint8Array(pdfBuffer),
+    disableWorker: true,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+  });
+  const pdf = await loadingTask.promise;
+  const pageTexts: string[] = [];
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+    const page = await pdf.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item) => {
+        if (typeof item === "object" && item !== null && "str" in item && typeof item.str === "string") {
+          return item.str;
+        }
+        return "";
+      })
+      .join(" ")
+      .trim();
+
+    if (pageText) {
+      pageTexts.push(`Page ${pageNumber}:\n${pageText}`);
+    }
+  }
+
+  return pageTexts.join("\n\n");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -20,15 +56,6 @@ serve(async (req) => {
       );
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
-      console.error("ANTHROPIC_API_KEY is not configured");
-      return new Response(
-        JSON.stringify({ error: "AI service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     console.log("Fetching PDF from URL:", pdfUrl);
 
     const pdfResponse = await fetch(pdfUrl);
@@ -41,15 +68,15 @@ serve(async (req) => {
     }
 
     const pdfBuffer = await pdfResponse.arrayBuffer();
-    const uint8Array = new Uint8Array(pdfBuffer);
-    let binary = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.slice(i, i + chunkSize);
-      binary += String.fromCharCode(...chunk);
+    const extractedText = await extractPdfText(pdfBuffer);
+    console.log("PDF fetched and text extracted, size:", pdfBuffer.byteLength, "text chars:", extractedText.length);
+
+    if (!extractedText.trim()) {
+      return new Response(
+        JSON.stringify({ error: "Could not extract readable text from invoice PDF" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
-    const pdfBase64 = btoa(binary);
-    console.log("PDF fetched and converted to base64, size:", pdfBuffer.byteLength);
 
     const systemPrompt = `You are an invoice parsing AI. Analyze the provided invoice PDF and extract the following information:
 
@@ -66,86 +93,43 @@ Return the extracted data using the provided function. If a field cannot be dete
 Be careful to distinguish between the billing company (issuer) and the client (recipient).
 Also return the raw_amount_text field — the exact amount string as printed on the invoice (e.g. "47,36,811.00") for verification.`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        system: systemPrompt,
-        tools: [
-          {
-            name: "extract_invoice_details",
-            description: "Extract invoice details from the document",
-            input_schema: {
-              type: "object",
-              properties: {
-                client_name: { type: "string", description: "Name of the client/customer being billed" },
-                invoice_amount: { type: "number", description: "Total/grand total invoice amount as a plain number in INR. Convert Indian format (e.g. 47,36,811 = 4736811) correctly." },
-                invoice_date: { type: "string", description: "Invoice date in YYYY-MM-DD format" },
-                raw_amount_text: { type: "string", description: "The exact amount string as printed on the invoice, e.g. '47,36,811.00'" },
-              },
-              required: ["client_name", "invoice_amount", "invoice_date"],
-            },
+    let extractedData;
+    try {
+      extractedData = await groqStructuredResponse<{
+        client_name: string | null;
+        invoice_amount: number | null;
+        invoice_date: string | null;
+        raw_amount_text: string | null;
+      }>({
+        instructions: `${systemPrompt}\nUse only the extracted invoice text provided by the user. Return only JSON matching the schema.`,
+        input: `Please extract the client name, invoice amount, and invoice date from this invoice text.\n\n${extractedText}`,
+        schemaName: "extract_invoice_details",
+        schema: {
+          type: "object",
+          properties: {
+            client_name: { type: ["string", "null"] },
+            invoice_amount: { type: ["number", "null"] },
+            invoice_date: { type: ["string", "null"] },
+            raw_amount_text: { type: ["string", "null"] },
           },
-        ],
-        tool_choice: { type: "tool", name: "extract_invoice_details" },
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "document",
-                source: {
-                  type: "base64",
-                  media_type: "application/pdf",
-                  data: pdfBase64,
-                },
-              },
-              {
-                type: "text",
-                text: "Please extract the client name, invoice amount, and invoice date from this invoice.",
-              },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Anthropic API error:", response.status, errorText);
-
-      if (response.status === 429) {
+          required: ["client_name", "invoice_amount", "invoice_date", "raw_amount_text"],
+        },
+      });
+    } catch (error) {
+      if (error instanceof GroqApiError && error.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded, please try again later" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-
+      const status = error instanceof GroqApiError ? error.status : 500;
+      const body = error instanceof GroqApiError ? error.body : String(error);
+      console.error("Groq API error:", status, body);
       return new Response(
         JSON.stringify({ error: "Failed to parse invoice" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const data = await response.json();
-    console.log("AI response:", JSON.stringify(data, null, 2));
-
-    const toolUse = data.content?.find((c: any) => c.type === 'tool_use');
-    if (!toolUse) {
-      console.error("No tool use in response");
-      return new Response(
-        JSON.stringify({ error: "Could not extract invoice details" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const extractedData = toolUse.input;
     console.log("Extracted invoice data:", extractedData);
 
     return new Response(

@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import {
+  groqTextResponse,
+  GroqApiError,
+} from "../_shared/groq.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -90,41 +94,25 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
-
-    if (!anthropicApiKey) {
-      throw new Error('ANTHROPIC_API_KEY is not configured');
-    }
-
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Step 1: Ask AI to generate SQL query
     console.log('Step 1: Generating SQL query from natural language...');
-    const sqlResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        system: SCHEMA_CONTEXT,
-        messages: [
-          { role: 'user', content: `Generate a SQL query to answer this business question: "${query}"
+    let aiSqlResponse = '';
+    try {
+      aiSqlResponse = await groqTextResponse({
+        instructions: SCHEMA_CONTEXT,
+        input: `Generate a SQL query to answer this business question: "${query}"
 
 Think about what tables and joins are needed. Return ONLY the SQL query wrapped in <sql></sql> tags.
-If the question is a greeting or doesn't need data, return <sql>SELECT 'no_query_needed' as status</sql>` }
-        ],
-      }),
-    });
-
-    if (!sqlResponse.ok) {
-      const errorText = await sqlResponse.text();
-      console.error('AI SQL generation error:', sqlResponse.status, errorText);
-
-      if (sqlResponse.status === 429) {
+If the question is a greeting or doesn't need data, return <sql>SELECT 'no_query_needed' as status</sql>`,
+        maxOutputTokens: 1024,
+      });
+    } catch (error) {
+      const status = error instanceof GroqApiError ? error.status : 500;
+      const errorText = error instanceof GroqApiError ? error.body : String(error);
+      console.error('AI SQL generation error:', status, errorText);
+      if (error instanceof GroqApiError && error.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -132,9 +120,6 @@ If the question is a greeting or doesn't need data, return <sql>SELECT 'no_query
       }
       throw new Error('Failed to generate SQL query');
     }
-
-    const sqlData = await sqlResponse.json();
-    const aiSqlResponse = sqlData.content?.[0]?.text || '';
     console.log('AI SQL Response:', aiSqlResponse);
 
     const sqlMatch = aiSqlResponse.match(/<sql>([\s\S]*?)<\/sql>/i);
@@ -159,27 +144,12 @@ If the question is a greeting or doesn't need data, return <sql>SELECT 'no_query
         if (queryError) {
           console.error('Query execution error:', queryError);
 
-          const errorResp = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'x-api-key': anthropicApiKey,
-              'anthropic-version': '2023-06-01',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'claude-haiku-4-5-20251001',
-              max_tokens: 512,
-              system: 'You are a helpful business assistant. A database query failed. Provide a polite, helpful response explaining you had trouble retrieving that specific data.',
-              messages: [
-                { role: 'user', content: `User asked: "${query}"\nQuery failed with: ${queryError.message}\n\nProvide a brief, friendly response acknowledging the issue.` }
-              ],
-            }),
-          });
-
-          if (errorResp.ok) {
-            const errorData = await errorResp.json();
-            const fallbackResponse = errorData.content?.[0]?.text ||
-              'I apologize, I had some trouble retrieving that data. Could you try rephrasing your question?';
+          try {
+            const fallbackResponse = await groqTextResponse({
+              instructions: 'You are a helpful business assistant. A database query failed. Provide a polite, helpful response explaining you had trouble retrieving that specific data.',
+              input: `User asked: "${query}"\nQuery failed with: ${queryError.message}\n\nProvide a brief, friendly response acknowledging the issue.`,
+              maxOutputTokens: 512,
+            });
 
             return new Response(
               JSON.stringify({
@@ -189,6 +159,8 @@ If the question is a greeting or doesn't need data, return <sql>SELECT 'no_query
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
+          } catch {
+            // Fall through to generic error below.
           }
 
           throw new Error(`Query failed: ${queryError.message}`);
@@ -222,25 +194,16 @@ Guidelines:
 This appears to be a conversational question that doesn't require database data.
 Respond naturally and helpfully. If they're asking about business data, let them know what kinds of questions you can help with (payments, collections, registrations, call performance, etc.).`;
 
-    const finalResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        system: 'You are a friendly, professional business intelligence assistant for RMPL, a B2B events and marketing company. Provide clear, conversational answers. Your responses will be converted to speech, so keep them natural and concise.',
-        messages: [
-          { role: 'user', content: responsePrompt }
-        ],
-      }),
-    });
-
-    if (!finalResponse.ok) {
-      console.error('AI response generation error:', finalResponse.status);
+    let naturalResponse = '';
+    try {
+      naturalResponse = await groqTextResponse({
+        instructions: 'You are a friendly, professional business intelligence assistant for RMPL, a B2B events and marketing company. Provide clear, conversational answers. Your responses will be converted to speech, so keep them natural and concise.',
+        input: responsePrompt,
+        maxOutputTokens: 1024,
+      });
+    } catch (error) {
+      const status = error instanceof GroqApiError ? error.status : 500;
+      console.error('AI response generation error:', status);
       const basicResponse = queryResult?.length
         ? `I found ${queryResult.length} records for your query.`
         : 'I processed your question but had trouble generating a detailed response.';
@@ -254,9 +217,7 @@ Respond naturally and helpfully. If they're asking about business data, let them
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const finalData = await finalResponse.json();
-    const naturalResponse = finalData.content?.[0]?.text ||
+    naturalResponse = naturalResponse ||
       'I found some information but had trouble summarizing it. Please try asking again.';
 
     console.log('Final response generated successfully');
