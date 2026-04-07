@@ -9,7 +9,7 @@ interface ParsedInvoiceData {
 }
 
 interface UseParseInvoiceResult {
-  parseInvoice: (pdfUrl: string) => Promise<ParsedInvoiceData | null>;
+  parseInvoice: (input: { pdfUrl?: string; bucket?: string; filePath?: string }) => Promise<ParsedInvoiceData | null>;
   isParsing: boolean;
   parseError: string | null;
 }
@@ -18,18 +18,34 @@ export function useParseInvoice(): UseParseInvoiceResult {
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
 
-  const parseInvoice = async (pdfUrl: string): Promise<ParsedInvoiceData | null> => {
+  const parseInvoice = async (input: { pdfUrl?: string; bucket?: string; filePath?: string }): Promise<ParsedInvoiceData | null> => {
     setIsParsing(true);
     setParseError(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("parse-invoice-pdf", {
-        body: { pdfUrl },
+        body: input,
       });
 
       if (error) {
         console.error("Parse invoice error:", error);
-        setParseError(error.message || "Failed to parse invoice");
+
+        let errorMessage = error.message || "Failed to parse invoice";
+        if ("context" in error && error.context) {
+          try {
+            const body = await error.context.json();
+            errorMessage = body?.error || body?.message || errorMessage;
+          } catch {
+            try {
+              const text = await error.context.text?.();
+              if (text) errorMessage = text;
+            } catch {
+              // Ignore secondary parsing errors and keep the original message.
+            }
+          }
+        }
+
+        setParseError(errorMessage);
         return null;
       }
 

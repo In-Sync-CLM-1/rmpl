@@ -277,12 +277,10 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
       return;
     }
 
-    // Get public URL for parsing
-    const { data: urlData } = supabase.storage
-      .from("project-quotations")
-      .getPublicUrl(tempPath);
-
-    const result = await parseInvoice(urlData.publicUrl);
+    const result = await parseInvoice({
+      bucket: "project-quotations",
+      filePath: tempPath,
+    });
 
     // Clean up temp file
     await supabase.storage.from("project-quotations").remove([tempPath]);

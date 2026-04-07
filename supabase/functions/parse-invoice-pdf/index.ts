@@ -4,6 +4,7 @@ import {
   groqStructuredResponse,
   GroqApiError,
 } from "../_shared/groq.ts";
+import { createServiceClient } from "../_shared/supabase-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,35 +42,76 @@ async function extractPdfText(pdfBuffer: ArrayBuffer) {
   return pageTexts.join("\n\n");
 }
 
+async function loadPdfBuffer(options: {
+  bucket?: string;
+  filePath?: string;
+  pdfUrl?: string;
+}) {
+  if (options.bucket && options.filePath) {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase.storage
+      .from(options.bucket)
+      .download(options.filePath);
+
+    if (error) {
+      throw new Error(`Failed to download PDF from storage: ${error.message}`);
+    }
+
+    return await data.arrayBuffer();
+  }
+
+  if (options.pdfUrl) {
+    const pdfResponse = await fetch(options.pdfUrl);
+    if (!pdfResponse.ok) {
+      const responseText = await pdfResponse.text().catch(() => "");
+      throw new Error(`Failed to fetch PDF file (${pdfResponse.status})${responseText ? `: ${responseText}` : ""}`);
+    }
+
+    return await pdfResponse.arrayBuffer();
+  }
+
+  throw new Error("Either storage bucket/path or PDF URL is required");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { pdfUrl } = await req.json();
+    const { pdfUrl, bucket, filePath } = await req.json();
 
-    if (!pdfUrl) {
+    if ((!bucket || !filePath) && !pdfUrl) {
       return new Response(
-        JSON.stringify({ error: "PDF URL is required" }),
+        JSON.stringify({ error: "Storage bucket/path or PDF URL is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Fetching PDF from URL:", pdfUrl);
+    console.log("Loading invoice PDF", { bucket, filePath, pdfUrlProvided: Boolean(pdfUrl) });
 
-    const pdfResponse = await fetch(pdfUrl);
-    if (!pdfResponse.ok) {
-      console.error("Failed to fetch PDF:", pdfResponse.status, await pdfResponse.text());
+    let pdfBuffer: ArrayBuffer;
+    try {
+      pdfBuffer = await loadPdfBuffer({ bucket, filePath, pdfUrl });
+    } catch (error) {
+      console.error("Failed to load PDF:", error);
       return new Response(
-        JSON.stringify({ error: "Failed to fetch PDF file" }),
+        JSON.stringify({ error: error instanceof Error ? error.message : "Failed to load PDF file" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const extractedText = await extractPdfText(pdfBuffer);
-    console.log("PDF fetched and text extracted, size:", pdfBuffer.byteLength, "text chars:", extractedText.length);
+    let extractedText: string;
+    try {
+      extractedText = await extractPdfText(pdfBuffer);
+    } catch (error) {
+      console.error("PDF text extraction failed:", error);
+      return new Response(
+        JSON.stringify({ error: "Could not read text from invoice PDF. If this is a scanned PDF, manual entry is required." }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    console.log("PDF loaded and text extracted, size:", pdfBuffer.byteLength, "text chars:", extractedText.length);
 
     if (!extractedText.trim()) {
       return new Response(
@@ -126,7 +168,7 @@ Also return the raw_amount_text field — the exact amount string as printed on 
       const body = error instanceof GroqApiError ? error.body : String(error);
       console.error("Groq API error:", status, body);
       return new Response(
-        JSON.stringify({ error: "Failed to parse invoice" }),
+        JSON.stringify({ error: "Failed to parse invoice", details: body }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
