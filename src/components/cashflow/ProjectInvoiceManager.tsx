@@ -277,9 +277,14 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
       return;
     }
 
+    const { data: urlData } = supabase.storage
+      .from("project-quotations")
+      .getPublicUrl(tempPath);
+
     const result = await parseInvoice({
       bucket: "project-quotations",
       filePath: tempPath,
+      pdfUrl: urlData.publicUrl,
     });
 
     // Clean up temp file
