@@ -6,11 +6,22 @@ export interface LiveComDashboardMetrics {
   totalCost: number;
   avgLiveComRating: number;
   avgCsbdRating: number;
+  completionRate: number;
+  servicesBreakdown: Array<{ service: string; count: number; total_cost: number }>;
   topVendors: Array<{
     vendor_name: string;
     event_count: number;
     total_cost: number;
     avg_rating: number;
+  }>;
+  vendorBilling: Array<{
+    vendor_name: string;
+    event_count: number;
+    total_cost: number;
+    cost_per_event: number;
+    avg_livecom_rating: number;
+    avg_csbd_rating: number;
+    services: string[];
   }>;
   teamMembers: Array<{
     user_id: string;
@@ -132,7 +143,9 @@ export function useLiveComDashboard(dateFrom?: string, dateTo?: string) {
         vendor_name: string;
         event_count: number;
         total_cost: number;
-        ratings: number[];
+        livecom_ratings: number[];
+        csbd_ratings: number[];
+        services: Set<string>;
       }>();
 
       events?.forEach(event => {
@@ -142,30 +155,72 @@ export function useLiveComDashboard(dateFrom?: string, dateTo?: string) {
             vendor_name: vendorName,
             event_count: 0,
             total_cost: 0,
-            ratings: [],
+            livecom_ratings: [],
+            csbd_ratings: [],
+            services: new Set<string>(),
           };
 
           existing.event_count += 1;
           existing.total_cost += event.internal_cost_exc_tax || 0;
           if (event.rating_by_livecom) {
-            existing.ratings.push(event.rating_by_livecom);
+            existing.livecom_ratings.push(event.rating_by_livecom);
+          }
+          if (event.rating_by_csbd) {
+            existing.csbd_ratings.push(event.rating_by_csbd);
+          }
+          if (event.services) {
+            existing.services.add(event.services);
           }
 
           vendorMap.set(vendorName, existing);
         }
       });
 
-      const topVendors = Array.from(vendorMap.values())
+      const allVendors = Array.from(vendorMap.values())
         .map(v => ({
           vendor_name: v.vendor_name,
           event_count: v.event_count,
           total_cost: v.total_cost,
-          avg_rating: v.ratings.length > 0
-            ? v.ratings.reduce((a, b) => a + b, 0) / v.ratings.length
+          cost_per_event: v.event_count > 0 ? v.total_cost / v.event_count : 0,
+          avg_rating: v.livecom_ratings.length > 0
+            ? v.livecom_ratings.reduce((a, b) => a + b, 0) / v.livecom_ratings.length
             : 0,
+          avg_livecom_rating: v.livecom_ratings.length > 0
+            ? v.livecom_ratings.reduce((a, b) => a + b, 0) / v.livecom_ratings.length
+            : 0,
+          avg_csbd_rating: v.csbd_ratings.length > 0
+            ? v.csbd_ratings.reduce((a, b) => a + b, 0) / v.csbd_ratings.length
+            : 0,
+          services: Array.from(v.services),
         }))
+        .sort((a, b) => b.total_cost - a.total_cost);
+
+      const topVendors = allVendors
         .sort((a, b) => b.event_count - a.event_count)
         .slice(0, 5);
+
+      const vendorBilling = allVendors;
+
+      // Services breakdown
+      const servicesMap = new Map<string, { count: number; total_cost: number }>();
+      events?.forEach(event => {
+        if (event.services) {
+          const existing = servicesMap.get(event.services) || { count: 0, total_cost: 0 };
+          existing.count += 1;
+          existing.total_cost += event.internal_cost_exc_tax || 0;
+          servicesMap.set(event.services, existing);
+        }
+      });
+      const servicesBreakdown = Array.from(servicesMap.entries())
+        .map(([service, data]) => ({ service, count: data.count, total_cost: data.total_cost }))
+        .sort((a, b) => b.count - a.count);
+
+      // Completion rate
+      const eventsWithTarget = enrichedEvents.filter(e => (e.project?.number_of_attendees || 0) > 0);
+      const completedEvents = eventsWithTarget.filter(e => (e.registrations || 0) >= (e.project?.number_of_attendees || 0));
+      const completionRate = eventsWithTarget.length > 0
+        ? Math.round((completedEvents.length / eventsWithTarget.length) * 100)
+        : 0;
 
       // Monthly trends
       const monthlyMap = new Map<string, {
@@ -261,7 +316,10 @@ export function useLiveComDashboard(dateFrom?: string, dateTo?: string) {
         totalCost,
         avgLiveComRating,
         avgCsbdRating,
+        completionRate,
+        servicesBreakdown,
         topVendors,
+        vendorBilling,
         teamMembers,
         recentEvents: enrichedEvents.slice(0, 10),
         monthlyTrends,

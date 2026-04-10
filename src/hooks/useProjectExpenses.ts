@@ -21,6 +21,20 @@ export interface InvoiceFile {
   size: number;
 }
 
+export interface VendorDiscount {
+  vendor: string;
+  amount: number;
+  percentage?: number;
+  notes?: string;
+}
+
+export interface LoyaltyPoint {
+  provider: string;       // e.g. "Marriott Bonvoy", "Air India"
+  points: number;
+  est_value_inr?: number;
+  notes?: string;
+}
+
 export interface ExpenseSubmission {
   id: string;
   project_id: string;
@@ -32,6 +46,10 @@ export interface ExpenseSubmission {
   total_amount: number | null;
   submitted_by: string | null;
   created_at: string;
+  discounts_received: boolean;
+  vendor_discounts: VendorDiscount[];
+  points_received: boolean;
+  loyalty_points: LoyaltyPoint[];
 }
 
 export interface AISummaryItem {
@@ -79,8 +97,12 @@ export function useCreateExpenseSubmission() {
       excelFile: File | null;
       invoiceFiles: File[];
       userId: string;
+      discountsReceived: boolean;
+      vendorDiscounts: VendorDiscount[];
+      pointsReceived: boolean;
+      loyaltyPoints: LoyaltyPoint[];
     }) => {
-      const { projectId, category, excelFile, invoiceFiles, userId } = payload;
+      const { projectId, category, excelFile, invoiceFiles, userId, discountsReceived, vendorDiscounts, pointsReceived, loyaltyPoints } = payload;
 
       // Upload excel
       let excelUrl: string | null = null;
@@ -118,6 +140,10 @@ export function useCreateExpenseSubmission() {
           excel_filename: excelFilename,
           invoice_urls: invoiceUrls,
           submitted_by: userId,
+          discounts_received: discountsReceived,
+          vendor_discounts: vendorDiscounts,
+          points_received: pointsReceived,
+          loyalty_points: loyaltyPoints,
         })
         .select()
         .single();

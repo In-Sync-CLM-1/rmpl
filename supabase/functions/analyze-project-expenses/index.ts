@@ -62,6 +62,22 @@ serve(async (req) => {
   try {
     const { submissionId, excelUrl, invoiceUrls, category } = await req.json();
 
+    // Fetch submission record to get discount and loyalty data
+    let vendorDiscounts: any[] = [];
+    let loyaltyPoints: any[] = [];
+    if (submissionId) {
+      const supabaseClient = createServiceClient();
+      const { data: submissionRecord } = await supabaseClient
+        .from("project_expense_submissions")
+        .select("vendor_discounts, loyalty_points, discounts_received, points_received")
+        .eq("id", submissionId)
+        .single();
+      if (submissionRecord) {
+        vendorDiscounts = submissionRecord.vendor_discounts || [];
+        loyaltyPoints = submissionRecord.loyalty_points || [];
+      }
+    }
+
     let excelContent = "";
     if (excelUrl) {
       try {
@@ -92,12 +108,22 @@ serve(async (req) => {
       invoiceTexts.length > 0 ? `=== VENDOR INVOICES ===\n${invoiceTexts.join("\n\n")}` : "",
     ].filter(Boolean).join("\n\n");
 
+    const benefitsContext = [
+      vendorDiscounts.length > 0
+        ? `If vendor discounts were received: ${JSON.stringify(vendorDiscounts)}`
+        : "",
+      loyaltyPoints.length > 0
+        ? `If loyalty points were earned: ${JSON.stringify(loyaltyPoints)}`
+        : "",
+    ].filter(Boolean).join("\n");
+
     const systemPrompt = `You are a financial analyst for an events/marketing company in India.
 Analyze expense documents and produce a structured category-wise expense summary.
 The primary expense category context is: "${category}".
 All amounts are in INR. Use the Indian numbering system where relevant.
 Extract every line item you can find and group them by expense type.
 Common categories: Venue & Infrastructure, Food & Beverage, Travel & Accommodation, Audio Visual & Tech, Creative & Printing, Staffing & Labour, Gifting & Merchandise, Miscellaneous.
+${benefitsContext ? `\n${benefitsContext}\nInclude a "Benefits & Savings" section in your analysis that calls out discounts received and loyalty points earned.` : ""}
 Return ONLY valid JSON matching the exact schema provided.`;
 
     const userMessage = `Please analyze these expense documents and return a structured expense summary:\n\n${combinedContent || "No document content could be extracted."}`;
@@ -146,8 +172,40 @@ Return ONLY valid JSON matching the exact schema provided.`;
               grand_total: { type: "number" },
               narrative: { type: "string" },
               currency: { type: "string" },
+              benefits: {
+                type: "object",
+                properties: {
+                  total_discounts_inr: { type: "number" },
+                  total_points_value_inr: { type: "number" },
+                  discount_items: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        vendor: { type: "string" },
+                        amount: { type: "number" },
+                        notes: { type: "string" },
+                      },
+                      required: ["vendor", "amount"],
+                    },
+                  },
+                  points_items: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        provider: { type: "string" },
+                        points: { type: "number" },
+                        est_value_inr: { type: "number" },
+                      },
+                      required: ["provider", "points"],
+                    },
+                  },
+                },
+                required: ["total_discounts_inr", "total_points_value_inr", "discount_items", "points_items"],
+              },
             },
-            required: ["categories", "grand_total", "narrative", "currency"],
+            required: ["categories", "grand_total", "narrative", "currency", "benefits"],
           },
         }],
         tool_choice: { type: "tool", name: "expense_summary" },
