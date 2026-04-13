@@ -11,7 +11,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function extractPdfText(pdfBuffer: ArrayBuffer) {
+async function extractPdfText(pdfBuffer: ArrayBuffer): Promise<string> {
   const loadingTask = getDocument({
     data: new Uint8Array(pdfBuffer),
     disableWorker: true,
@@ -42,11 +42,80 @@ async function extractPdfText(pdfBuffer: ArrayBuffer) {
   return pageTexts.join("\n\n");
 }
 
+async function parseWithAnthropic(pdfBuffer: ArrayBuffer): Promise<{
+  client_name: string | null;
+  invoice_amount: number | null;
+  invoice_date: string | null;
+  raw_amount_text: string | null;
+}> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+
+  const bytes = new Uint8Array(pdfBuffer);
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunkSize, bytes.length)));
+  }
+  const base64Pdf = btoa(binary);
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 512,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: base64Pdf,
+              },
+            },
+            {
+              type: "text",
+              text: `Extract the following fields from this invoice and return ONLY a JSON object, no other text:
+{
+  "client_name": "<the client/customer being billed, not the issuer>",
+  "invoice_amount": <grand total as a plain number no commas e.g. 1399244>,
+  "invoice_date": "<date in YYYY-MM-DD format>",
+  "raw_amount_text": "<grand total exactly as printed e.g. 13,99,244.00>"
+}
+Use null for any field you cannot find. Indian invoices use lakh notation (e.g. 13,99,244 = 1399244).`,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Anthropic API error ${response.status}: ${text}`);
+  }
+
+  const data = await response.json();
+  const text = data?.content?.[0]?.text?.trim() || "";
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON found in Anthropic response");
+
+  return JSON.parse(jsonMatch[0]);
+}
+
 async function loadPdfBuffer(options: {
   bucket?: string;
   filePath?: string;
   pdfUrl?: string;
-}) {
+}): Promise<ArrayBuffer> {
   if (options.bucket && options.filePath) {
     const supabase = createServiceClient();
     const { data, error } = await supabase.storage
@@ -101,77 +170,63 @@ serve(async (req) => {
       );
     }
 
-    let extractedText: string;
-    try {
-      extractedText = await extractPdfText(pdfBuffer);
-    } catch (error) {
-      console.error("PDF text extraction failed:", error);
-      return new Response(
-        JSON.stringify({ error: "Could not read text from invoice PDF. If this is a scanned PDF, manual entry is required." }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    console.log("PDF loaded and text extracted, size:", pdfBuffer.byteLength, "text chars:", extractedText.length);
+    console.log("PDF loaded, size:", pdfBuffer.byteLength);
 
-    if (!extractedText.trim()) {
-      return new Response(
-        JSON.stringify({ error: "Could not extract readable text from invoice PDF" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Try pdfjs extraction first; fall back to Anthropic for signed/complex PDFs
+    let pdfText = "";
+    try {
+      pdfText = await extractPdfText(pdfBuffer);
+      console.log("pdfjs extracted text chars:", pdfText.length);
+    } catch (err) {
+      console.warn("pdfjs extraction failed, will use Anthropic:", err);
     }
 
-    const systemPrompt = `You are an invoice parsing AI. Analyze the provided invoice PDF and extract the following information:
+    let extractedData: {
+      client_name: string | null;
+      invoice_amount: number | null;
+      invoice_date: string | null;
+      raw_amount_text: string | null;
+    };
 
-1. **Client Name**: The name of the client/customer being billed (not the company issuing the invoice)
-2. **Invoice Amount**: The grand total / final invoice amount including taxes, as a plain number in INR (Rupees).
-   CRITICAL: Indian invoices use the Indian numbering system where commas are placed as: XX,XX,XXX (lakhs, thousands, hundreds).
-   For example: "47,36,811.00" means 47 lakhs 36 thousand 811 = 4736811 (NOT 47360811).
-   "1,91,632.00" means 1 lakh 91 thousand 632 = 191632.
-   "25,00,000.00" means 25 lakhs = 2500000.
-   Always return the amount as a plain integer/decimal number with NO commas. Double-check your conversion.
-3. **Invoice Date**: The date the invoice was issued
-
-Return the extracted data using the provided function. If a field cannot be determined, return null for that field.
-Be careful to distinguish between the billing company (issuer) and the client (recipient).
-Also return the raw_amount_text field — the exact amount string as printed on the invoice (e.g. "47,36,811.00") for verification.`;
-
-    let extractedData;
-    try {
-      extractedData = await groqStructuredResponse<{
-        client_name: string | null;
-        invoice_amount: number | null;
-        invoice_date: string | null;
-        raw_amount_text: string | null;
-      }>({
-        instructions: `${systemPrompt}\nUse only the extracted invoice text provided by the user. Return only JSON matching the schema.`,
-        input: `Please extract the client name, invoice amount, and invoice date from this invoice text.\n\n${extractedText}`,
-        schemaName: "extract_invoice_details",
-        schema: {
-          type: "object",
-          properties: {
-            client_name: { type: ["string", "null"] },
-            invoice_amount: { type: ["number", "null"] },
-            invoice_date: { type: ["string", "null"] },
-            raw_amount_text: { type: ["string", "null"] },
+    if (pdfText.trim()) {
+      // pdfjs worked — use Groq for structured extraction
+      try {
+        extractedData = await groqStructuredResponse<typeof extractedData>({
+          instructions: `You are an invoice parsing AI. Extract:
+1. client_name: The client/customer being billed (not the issuer)
+2. invoice_amount: Grand total as a plain number in INR (no commas). Indian notation: 13,99,244 = 1399244
+3. invoice_date: Invoice issue date
+4. raw_amount_text: Exact amount string as printed (e.g. "13,99,244.00")
+Return null for fields you cannot determine.`,
+          input: `Extract invoice details from this text:\n\n${pdfText}`,
+          schemaName: "extract_invoice_details",
+          schema: {
+            type: "object",
+            properties: {
+              client_name: { type: ["string", "null"] },
+              invoice_amount: { type: ["number", "null"] },
+              invoice_date: { type: ["string", "null"] },
+              raw_amount_text: { type: ["string", "null"] },
+            },
+            required: ["client_name", "invoice_amount", "invoice_date", "raw_amount_text"],
           },
-          required: ["client_name", "invoice_amount", "invoice_date", "raw_amount_text"],
-        },
-      });
-    } catch (error) {
-      if (error instanceof GroqApiError && error.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded, please try again later" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        });
+      } catch (error) {
+        if (error instanceof GroqApiError && error.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Rate limit exceeded, please try again later" }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        console.warn("Groq failed, falling back to Anthropic:", error);
+        extractedData = await parseWithAnthropic(pdfBuffer);
       }
-      const status = error instanceof GroqApiError ? error.status : 500;
-      const body = error instanceof GroqApiError ? error.body : String(error);
-      console.error("Groq API error:", status, body);
-      return new Response(
-        JSON.stringify({ error: "Failed to parse invoice", details: body }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    } else {
+      // pdfjs returned no text (signed/complex PDF) — use Anthropic directly
+      console.log("pdfjs returned no text, using Anthropic for PDF parsing");
+      extractedData = await parseWithAnthropic(pdfBuffer);
     }
+
     console.log("Extracted invoice data:", extractedData);
 
     return new Response(
