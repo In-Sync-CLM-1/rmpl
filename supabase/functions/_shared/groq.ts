@@ -27,7 +27,7 @@ type GroqInput =
 const GROQ_API_BASE = "https://api.groq.com/openai/v1";
 
 export const GROQ_TEXT_MODEL =
-  Deno.env.get("GROQ_TEXT_MODEL") ?? "openai/gpt-oss-20b";
+  Deno.env.get("GROQ_TEXT_MODEL") ?? "llama-3.3-70b-versatile";
 export const GROQ_VISION_MODEL =
   Deno.env.get("GROQ_VISION_MODEL") ??
   "meta-llama/llama-4-scout-17b-16e-instruct";
