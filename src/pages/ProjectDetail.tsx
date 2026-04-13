@@ -177,6 +177,20 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
+  const { data: expenseSubmissions } = useQuery({
+    queryKey: ["project-expense-submissions", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await (supabase as any)
+        .from("project_expense_submissions")
+        .select("expense_category, total_amount, discounts_received, vendor_discounts, points_received, loyalty_points, ai_summary")
+        .eq("project_id", id);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
   const { data: registrationStats } = useQuery({
     queryKey: ["project-registration-stats", id, project?.project_name],
     queryFn: async () => {
@@ -287,6 +301,28 @@ export default function ProjectDetail() {
   const totalInvoiceAmount = project.project_quotations?.reduce((sum, q) => sum + (q.amount || 0), 0) || 0;
   const totalPaidAmount = project.project_quotations?.reduce((sum, q) => sum + (q.paid_amount || 0), 0) || 0;
   const paymentPercentage = totalInvoiceAmount > 0 ? Math.round((totalPaidAmount / totalInvoiceAmount) * 100) : 0;
+
+  const totalExpenses = expenseSubmissions?.reduce((sum: number, s: any) => sum + (s.total_amount || 0), 0) || 0;
+  const totalDiscounts = expenseSubmissions?.reduce((sum: number, s: any) => {
+    const discounts = (s.vendor_discounts || []) as any[];
+    return sum + discounts.reduce((d: number, vd: any) => d + (vd.amount || 0), 0);
+  }, 0) || 0;
+  const totalPointsValue = expenseSubmissions?.reduce((sum: number, s: any) => {
+    const pts = (s.loyalty_points || []) as any[];
+    return sum + pts.reduce((p: number, lp: any) => p + (lp.est_value_inr || 0), 0);
+  }, 0) || 0;
+
+  const categoryTotals: Record<string, number> = {};
+  expenseSubmissions?.forEach((s: any) => {
+    if (s.ai_summary?.categories) {
+      s.ai_summary.categories.forEach((cat: any) => {
+        categoryTotals[cat.name] = (categoryTotals[cat.name] || 0) + (cat.subtotal || 0);
+      });
+    } else if (s.total_amount && s.expense_category) {
+      categoryTotals[s.expense_category] = (categoryTotals[s.expense_category] || 0) + s.total_amount;
+    }
+  });
+  const topCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).slice(0, 4);
 
   return (
     <div className="h-screen bg-gradient-to-br from-background via-background to-muted/30 overflow-hidden flex flex-col">
@@ -483,6 +519,51 @@ export default function ProjectDetail() {
                     </div>
                   </div>
                 </Card>
+
+                {/* Financials Card */}
+                {(totalExpenses > 0 || expenseSubmissions?.length > 0) && (
+                  <Card className="p-3 flex-none bg-gradient-to-br from-emerald-500/5 via-card to-card border-emerald-200/30 shadow-sm">
+                    <h3 className="text-xs font-semibold mb-2 flex items-center gap-2">
+                      <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900/30"><IndianRupee className="h-3 w-3 text-emerald-600" /></div>
+                      Financials
+                    </h3>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Total Invoiced</span>
+                        <span className="font-semibold text-emerald-600">₹{(totalInvoiceAmount / 100000).toFixed(2)}L</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Total Expenses</span>
+                        <span className={`font-semibold ${totalExpenses > 0 ? "text-amber-600" : "text-muted-foreground"}`}>
+                          {totalExpenses > 0 ? `₹${(totalExpenses / 100000).toFixed(2)}L` : "—"}
+                        </span>
+                      </div>
+                      {totalDiscounts > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Discounts saved</span>
+                          <span className="font-semibold text-green-600">₹{totalDiscounts.toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
+                      {totalPointsValue > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Points value</span>
+                          <span className="font-semibold text-blue-600">₹{totalPointsValue.toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
+                      {topCategories.length > 0 && (
+                        <div className="mt-2 pt-1.5 border-t border-border/50">
+                          <p className="text-[10px] text-muted-foreground mb-1">Top Expense Categories</p>
+                          {topCategories.slice(0, 3).map(([name, amount]) => (
+                            <div key={name} className="flex items-center justify-between text-[10px]">
+                              <span className="truncate text-muted-foreground max-w-[100px]">{name}</span>
+                              <span className="text-foreground font-medium">₹{amount.toLocaleString("en-IN")}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                )}
 
                 {/* Team Members */}
                 <Card className="p-3 flex-1 min-h-0 overflow-hidden flex flex-col bg-gradient-to-br from-indigo-500/5 via-card to-card border-indigo-200/30 shadow-sm">

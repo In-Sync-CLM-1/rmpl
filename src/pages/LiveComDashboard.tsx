@@ -25,7 +25,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Star, TrendingUp, DollarSign, Award, Building2, ChevronDown, ChevronUp, AlertTriangle, Sparkles } from "lucide-react";
+import { Star, TrendingUp, DollarSign, Award, Building2, ChevronDown, ChevronUp, AlertTriangle, Sparkles, CheckCircle2, BarChart2, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -36,6 +36,7 @@ export default function LiveComDashboard() {
   const [appliedDateTo, setAppliedDateTo] = useState("");
   const [showVendorTable, setShowVendorTable] = useState(false);
   const [showEventsTable, setShowEventsTable] = useState(false);
+  const [showVendorBillingTable, setShowVendorBillingTable] = useState(false);
 
   const { data: metrics, isLoading } = useLiveComDashboard(appliedDateFrom, appliedDateTo);
 
@@ -121,7 +122,7 @@ export default function LiveComDashboard() {
         </div>
 
         {/* KPI Cards - Compact Row */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -156,6 +157,15 @@ export default function LiveComDashboard() {
                 <p className="text-2xl font-bold">{metrics?.avgCsbdRating.toFixed(1) || "0.0"}</p>
               </div>
               {renderStars(Math.round(metrics?.avgCsbdRating || 0))}
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Completion Rate</p>
+                <p className="text-2xl font-bold">{metrics?.completionRate.toFixed(0) || "0"}%</p>
+              </div>
+              <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
             </div>
           </Card>
         </div>
@@ -258,6 +268,95 @@ export default function LiveComDashboard() {
           </Card>
         </div>
 
+        {/* Activity Analysis */}
+        <Card className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart2 className="h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold">Activity Analysis</p>
+          </div>
+          <div className="grid grid-cols-3 gap-6">
+            {/* Services breakdown */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Services Breakdown</p>
+              {(metrics?.servicesBreakdown || []).length === 0 ? (
+                <p className="text-xs text-muted-foreground">No data</p>
+              ) : (
+                <div className="space-y-2">
+                  {(metrics?.servicesBreakdown || []).slice(0, 6).map((s) => (
+                    <div key={s.service} className="space-y-0.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="truncate max-w-[100px]">{s.service}</span>
+                        <span className="text-muted-foreground">{s.count} events · ₹{(s.total_cost / 1000).toFixed(0)}K</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-1.5">
+                        <div
+                          className="bg-primary h-1.5 rounded-full transition-all"
+                          style={{ width: `${Math.min(100, (s.count / (metrics?.totalEvents || 1)) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Completion rate */}
+            <div className="flex flex-col items-center justify-center text-center">
+              <p className="text-xs font-medium text-muted-foreground mb-3">Completion Rate</p>
+              <div className="relative w-24 h-24">
+                <svg viewBox="0 0 100 100" className="-rotate-90 w-24 h-24">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+                  <circle
+                    cx="50" cy="50" r="40" fill="none"
+                    stroke="hsl(142 76% 36%)"
+                    strokeWidth="10"
+                    strokeDasharray={`${2 * Math.PI * 40}`}
+                    strokeDashoffset={`${2 * Math.PI * 40 * (1 - (metrics?.completionRate || 0) / 100)}`}
+                    strokeLinecap="round"
+                    className="transition-all duration-500"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xl font-bold text-green-600">{metrics?.completionRate.toFixed(0) || "0"}%</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {metrics?.recentEvents?.filter(e => (e.project?.number_of_attendees || 0) > 0 && (e.registrations || 0) >= (e.project?.number_of_attendees || 0)).length || 0} of{" "}
+                {metrics?.recentEvents?.filter(e => (e.project?.number_of_attendees || 0) > 0).length || 0} events met target
+              </p>
+            </div>
+
+            {/* Cost distribution */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Cost by Vendor (Top 3)</p>
+              {(metrics?.vendorBilling || []).length === 0 ? (
+                <p className="text-xs text-muted-foreground">No data</p>
+              ) : (
+                <div className="space-y-2">
+                  {(metrics?.vendorBilling || []).slice(0, 3).map((v) => {
+                    const pct = metrics?.totalCost ? Math.round((v.total_cost / metrics.totalCost) * 100) : 0;
+                    return (
+                      <div key={v.vendor_name} className="space-y-0.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="truncate max-w-[110px]">{v.vendor_name}</span>
+                          <span className="text-muted-foreground">{pct}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div
+                            className="bg-amber-500 h-1.5 rounded-full transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">₹{v.total_cost.toLocaleString()}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+
         {/* Collapsible Tables */}
         <div className="space-y-2">
           <Collapsible open={showVendorTable} onOpenChange={setShowVendorTable}>
@@ -288,6 +387,58 @@ export default function LiveComDashboard() {
                         <TableCell>{vendor.event_count}</TableCell>
                         <TableCell>₹{vendor.total_cost.toLocaleString()}</TableCell>
                         <TableCell>{renderStars(Math.round(vendor.avg_rating))}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Vendor Billing Details */}
+          <Collapsible open={showVendorBillingTable} onOpenChange={setShowVendorBillingTable}>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                <span className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4" />
+                  Vendor Billing Details ({metrics?.vendorBilling?.length || 0})
+                </span>
+                {showVendorBillingTable ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Card className="mt-2">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Events</TableHead>
+                      <TableHead>Total Billed</TableHead>
+                      <TableHead>Cost/Event</TableHead>
+                      <TableHead>Services</TableHead>
+                      <TableHead>LiveCom ★</TableHead>
+                      <TableHead>CSBD ★</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {metrics?.vendorBilling.map((vendor, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{vendor.vendor_name}</TableCell>
+                        <TableCell>{vendor.event_count}</TableCell>
+                        <TableCell>₹{vendor.total_cost.toLocaleString()}</TableCell>
+                        <TableCell>₹{Math.round(vendor.cost_per_event).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {vendor.services.slice(0, 2).map((s, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">{s}</Badge>
+                            ))}
+                            {vendor.services.length > 2 && (
+                              <Badge variant="outline" className="text-xs">+{vendor.services.length - 2}</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{renderStars(Math.round(vendor.avg_livecom_rating))}</TableCell>
+                        <TableCell>{renderStars(Math.round(vendor.avg_csbd_rating))}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

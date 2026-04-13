@@ -26,10 +26,8 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { ProjectFileUploader } from "@/components/ProjectFileUploader";
 import { ProjectTeamSelector } from "@/components/ProjectTeamSelector";
-import { ProjectLiveComEvents } from "@/components/ProjectLiveComEvents";
-import { ProjectDemandComAllocations } from "@/components/ProjectDemandComAllocations";
+import { ProjectExpensesTab } from "@/components/ProjectExpensesTab";
 import { ProjectInvoiceManager } from "@/components/cashflow/ProjectInvoiceManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -109,8 +107,7 @@ export default function ProjectForm() {
   
   const [teamMembers, setTeamMembers] = useState<Array<{ user_id: string; role_in_project: string }>>([]);
   const [teamMembersLoaded, setTeamMembersLoaded] = useState(!isEditing); // New projects don't need to wait
-  const [filesChanged, setFilesChanged] = useState(false);
-  const [locations, setLocations] = useState<Location[]>([{ city: "", venue: "" }]);
+const [locations, setLocations] = useState<Location[]>([{ city: "", venue: "" }]);
   const [eventDates, setEventDates] = useState<EventDate[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string>("");
 
@@ -528,12 +525,10 @@ export default function ProjectForm() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="files">Files</TabsTrigger>
+                <TabsTrigger value="files">Expenses</TabsTrigger>
                 <TabsTrigger value="invoices">Invoices</TabsTrigger>
-                <TabsTrigger value="livecom">LiveCom</TabsTrigger>
-                <TabsTrigger value="demandcom">DemandCom</TabsTrigger>
               </TabsList>
 
               <TabsContent value="details" className="space-y-4 mt-4">
@@ -1070,15 +1065,11 @@ export default function ProjectForm() {
 
               <TabsContent value="files" className="mt-4">
                 <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-4">Project Files</h3>
                   {isEditing && id ? (
-                    <ProjectFileUploader
-                      projectId={id}
-                      onFileUploaded={() => setFilesChanged(!filesChanged)}
-                    />
+                    <ProjectExpensesTab projectId={id} />
                   ) : (
                     <p className="text-muted-foreground text-center py-8">
-                      Save the project first to upload files
+                      Save the project first to submit expenses
                     </p>
                   )}
                 </div>
@@ -1096,26 +1087,7 @@ export default function ProjectForm() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="livecom" className="mt-4">
-                <div className="bg-card rounded-lg border p-6">
-                  {isEditing && id ? (
-                    <ProjectLiveComEvents projectId={id} />
-                  ) : (
-                    <p className="text-muted-foreground text-center py-8">
-                      Save the project first to manage LiveCom events
-                    </p>
-                  )}
-                </div>
-              </TabsContent>
 
-              <TabsContent value="demandcom" className="mt-4">
-                <div className="bg-card rounded-lg border p-6">
-                  <ProjectDemandComAllocations 
-                    projectId={isEditing ? id : undefined}
-                    numberOfAttendees={parseInt(form.watch("number_of_attendees") || "0", 10)}
-                  />
-                </div>
-              </TabsContent>
             </Tabs>
 
             <div className="flex justify-end gap-4">
