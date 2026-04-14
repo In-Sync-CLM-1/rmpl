@@ -156,3 +156,9 @@ verify_jwt = false
 
 [functions.wa-manager-summary]
 verify_jwt = false
+
+[functions.submit-invoice-reminder-template]
+verify_jwt = false
+
+[functions.invoice-reminder-cron]
+verify_jwt = false
