@@ -22,6 +22,7 @@ import { BulkSelectAssignDialog } from "@/components/BulkSelectAssignDialog";
 import { DeleteActivityDialog } from "@/components/DeleteActivityDialog";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
 import { WhatsAppHistory } from "@/components/whatsapp/WhatsAppHistory";
+import { SendEmailDialog } from "@/components/email/SendEmailDialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -120,6 +121,8 @@ export default function DemandCom() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [whatsappContact, setWhatsappContact] = useState<DemandCom | null>(null);
   const [showWhatsappSend, setShowWhatsappSend] = useState(false);
+  const [emailContact, setEmailContact] = useState<DemandCom | null>(null);
+  const [showBulkEmail, setShowBulkEmail] = useState(false);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [canAssign, setCanAssign] = useState(false);
   const [canBulkAssign, setCanBulkAssign] = useState(false);
@@ -578,6 +581,15 @@ export default function DemandCom() {
               </Button>
             )}
             <Button
+              onClick={() => setShowBulkEmail(true)}
+              variant="outline"
+              size="icon"
+              className="shadow-elegant"
+              title="Send email to filtered contacts"
+            >
+              <Mail className="h-4 w-4" />
+            </Button>
+            <Button
               onClick={() => setShowExportDialog(true)}
               variant="outline"
               size="icon"
@@ -865,6 +877,14 @@ export default function DemandCom() {
                             >
                               <MessageSquare className="h-4 w-4 text-green-600" />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEmailContact(demandCom)}
+                              title="Send Email"
+                            >
+                              <Mail className="h-4 w-4 text-blue-500" />
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">{demandCom.name}</TableCell>
@@ -1092,6 +1112,26 @@ export default function DemandCom() {
           phoneNumber={whatsappContact.mobile_numb}
         />
       )}
+
+      {/* Individual Email Dialog */}
+      {emailContact && (
+        <SendEmailDialog
+          open={!!emailContact}
+          onOpenChange={(open) => { if (!open) setEmailContact(null); }}
+          demandcomId={emailContact.id}
+          contactName={emailContact.name}
+          contactEmail={emailContact.personal_email_id || emailContact.generic_email_id || undefined}
+        />
+      )}
+
+      {/* Bulk Email Dialog */}
+      <SendEmailDialog
+        open={showBulkEmail}
+        onOpenChange={setShowBulkEmail}
+        isBulk
+        appliedFilters={appliedFilters}
+        totalCount={totalCount}
+      />
 
     </div>
   );
