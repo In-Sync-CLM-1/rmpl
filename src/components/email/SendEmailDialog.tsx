@@ -102,9 +102,12 @@ export function SendEmailDialog({
     }
   };
 
+  const hasRecipientEmail = isBulk || !!contactEmail;
+
   const canSend =
-    (messageType === "template" && selectedTemplateId) ||
-    (messageType === "freeform" && freeformSubject.trim() && freeformBody.trim());
+    hasRecipientEmail &&
+    ((messageType === "template" && selectedTemplateId) ||
+      (messageType === "freeform" && freeformSubject.trim() && freeformBody.trim()));
 
   const handleSend = async () => {
     if (!canSend) return;
@@ -131,7 +134,22 @@ export function SendEmailDialog({
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
-      if (error) throw error;
+      // supabase.functions.invoke wraps non-2xx as FunctionsHttpError and hides the body.
+      // Try to read the real error message from the response.
+      if (error) {
+        let serverMessage: string | undefined;
+        const ctx = (error as any).context;
+        if (ctx?.json) {
+          try { serverMessage = (await ctx.json())?.error; } catch { /* ignore */ }
+        }
+        if (!serverMessage && ctx?.text) {
+          try {
+            const txt = await ctx.text();
+            try { serverMessage = JSON.parse(txt)?.error; } catch { serverMessage = txt; }
+          } catch { /* ignore */ }
+        }
+        throw new Error(serverMessage || error.message || "Failed to send email");
+      }
 
       const { sent, skipped, failed } = data as { sent: number; skipped: number; failed: number };
       if (isBulk) {
@@ -141,7 +159,13 @@ export function SendEmailDialog({
           (failed > 0 ? `, ${failed} failed` : "")
         );
       } else {
-        toast.success("Email sent successfully");
+        if (failed > 0) {
+          toast.error("Email send failed — check Edge Function logs");
+        } else if (sent > 0) {
+          toast.success("Email sent successfully");
+        } else {
+          toast.error("Email not sent — recipient has no email on record");
+        }
       }
       onOpenChange(false);
     } catch (err: any) {

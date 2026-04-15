@@ -232,7 +232,16 @@ serve(async (req) => {
         .eq("id", demandcomId)
         .single();
       if (error) throw error;
-      if (data) records = [data as DemandComRecord];
+      if (data) {
+        const rec = data as DemandComRecord;
+        if (!rec.personal_email_id && !rec.generic_email_id) {
+          return new Response(
+            JSON.stringify({ error: "Recipient has no email address on record" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        records = [rec];
+      }
     } else if (mode === "bulk" && filters) {
       // Fetch all matching records in pages of 1000
       const PAGE_SIZE = 1000;

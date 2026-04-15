@@ -891,7 +891,12 @@ export default function DemandCom() {
                               variant="ghost"
                               size="icon"
                               onClick={() => setEmailContact(demandCom)}
-                              title="Send Email"
+                              disabled={!demandCom.personal_email_id && !demandCom.generic_email_id}
+                              title={
+                                !demandCom.personal_email_id && !demandCom.generic_email_id
+                                  ? "No email on record"
+                                  : "Send Email"
+                              }
                             >
                               <Mail className="h-4 w-4 text-blue-500" />
                             </Button>
