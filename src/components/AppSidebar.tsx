@@ -247,7 +247,6 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "My Documents", url: "/hr-documents", icon: FileText },
       { title: "Employee Directory", url: "/employee-directory", icon: Contact2, requiredPermission: 'canViewEmployeeDirectory' },
       { title: "Self Assessment", url: "/kpi-self-assessment", icon: ClipboardCheck },
-      { title: "Performance Assessment", url: "/kpi-role-assessment", icon: ClipboardCheck },
     ],
   },
   {
@@ -264,7 +263,6 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "Salary Admin", url: "/salary-slips-admin", icon: UserRoundCog, requiredPermission: 'canManageSalarySlips' },
       { title: "Employee Onboarding", url: "/hr-onboarding", icon: ClipboardPlus, requiredPermission: 'canManageOnboarding' },
       { title: "Team Assessment", url: "/kpi-team-dashboard", icon: BarChart3 },
-      { title: "Performance Dashboard", url: "/kpi-role-team-dashboard", icon: BarChart3, requiredPermission: 'canViewUsers' },
     ],
   },
   {
@@ -313,28 +311,19 @@ export function AppSidebar({ user, userRoles, onLogout }: AppSidebarProps) {
   } = useNavigationPermissions();
 
   const [hasCsbdTargets, setHasCsbdTargets] = useState(false);
-  const [hasRoleDefinitions, setHasRoleDefinitions] = useState(false);
 
   useEffect(() => {
     const check = async () => {
       if (!user) return;
       const currentYear = new Date().getFullYear();
-      const [{ data: target }, { data: roleDefs }] = await Promise.all([
-        (supabase as any)
-          .from("csbd_targets")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("fiscal_year", currentYear)
-          .eq("is_active", true)
-          .maybeSingle(),
-        (supabase as any)
-          .from("kpi_role_definitions")
-          .select("id")
-          .eq("user_id", user.id)
-          .limit(1),
-      ]);
+      const { data: target } = await (supabase as any)
+        .from("csbd_targets")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("fiscal_year", currentYear)
+        .eq("is_active", true)
+        .maybeSingle();
       setHasCsbdTargets(!!target);
-      setHasRoleDefinitions((roleDefs?.length || 0) > 0);
     };
     check();
   }, [user]);
@@ -353,7 +342,6 @@ export function AppSidebar({ user, userRoles, onLogout }: AppSidebarProps) {
         ...section,
         items: section.items.filter(item => {
           if (item.url === "/kpi-self-assessment" && !hasCsbdTargets && !isAdminUser) return false;
-          if (item.url === "/kpi-role-assessment" && !hasRoleDefinitions && !isAdminUser) return false;
           if (!item.requiredPermission) return true;
           return permissions[item.requiredPermission];
         })
@@ -371,7 +359,6 @@ export function AppSidebar({ user, userRoles, onLogout }: AppSidebarProps) {
       const allSectionItems = getVisibleItemsForSection(section.id);
       const sectionItems = allSectionItems.filter(item => {
         if (item.item_url === "/kpi-self-assessment" && !hasCsbdTargets && !isAdminUser) return false;
-        if (item.item_url === "/kpi-role-assessment" && !hasRoleDefinitions && !isAdminUser) return false;
         return true;
       });
 
