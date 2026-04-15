@@ -311,19 +311,28 @@ export function AppSidebar({ user, userRoles, onLogout }: AppSidebarProps) {
   } = useNavigationPermissions();
 
   const [hasCsbdTargets, setHasCsbdTargets] = useState(false);
+  const [hasRoleDefinitions, setHasRoleDefinitions] = useState(false);
 
   useEffect(() => {
     const check = async () => {
       if (!user) return;
       const currentYear = new Date().getFullYear();
-      const { data: target } = await (supabase as any)
-        .from("csbd_targets")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("fiscal_year", currentYear)
-        .eq("is_active", true)
-        .maybeSingle();
+      const [{ data: target }, { data: roleDefs }] = await Promise.all([
+        (supabase as any)
+          .from("csbd_targets")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("fiscal_year", currentYear)
+          .eq("is_active", true)
+          .maybeSingle(),
+        (supabase as any)
+          .from("kpi_role_definitions")
+          .select("id")
+          .eq("user_id", user.id)
+          .limit(1),
+      ]);
       setHasCsbdTargets(!!target);
+      setHasRoleDefinitions((roleDefs?.length || 0) > 0);
     };
     check();
   }, [user]);
@@ -341,7 +350,7 @@ export function AppSidebar({ user, userRoles, onLogout }: AppSidebarProps) {
       .map(section => ({
         ...section,
         items: section.items.filter(item => {
-          if (item.url === "/kpi-self-assessment" && !hasCsbdTargets && !isAdminUser) return false;
+          if (item.url === "/kpi-self-assessment" && !hasCsbdTargets && !hasRoleDefinitions && !isAdminUser) return false;
           if (!item.requiredPermission) return true;
           return permissions[item.requiredPermission];
         })
@@ -358,7 +367,7 @@ export function AppSidebar({ user, userRoles, onLogout }: AppSidebarProps) {
     return visibleSections.map((section) => {
       const allSectionItems = getVisibleItemsForSection(section.id);
       const sectionItems = allSectionItems.filter(item => {
-        if (item.item_url === "/kpi-self-assessment" && !hasCsbdTargets && !isAdminUser) return false;
+        if (item.item_url === "/kpi-self-assessment" && !hasCsbdTargets && !hasRoleDefinitions && !isAdminUser) return false;
         return true;
       });
 
