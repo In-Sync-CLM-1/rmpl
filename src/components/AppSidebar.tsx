@@ -244,6 +244,7 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "Salary Slips", url: "/salary-slips", icon: Wallet },
       { title: "My Documents", url: "/hr-documents", icon: FileText },
       { title: "Employee Directory", url: "/employee-directory", icon: Contact2, requiredPermission: 'canViewEmployeeDirectory' },
+      { title: "Self Assessment", url: "/kpi-self-assessment", icon: ClipboardCheck },
     ],
   },
   {
@@ -259,6 +260,7 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "Leave Limits", url: "/leave-limits", icon: SlidersHorizontal, requiredPermission: 'canAdjustLeaveBalances' },
       { title: "Salary Admin", url: "/salary-slips-admin", icon: UserRoundCog, requiredPermission: 'canManageSalarySlips' },
       { title: "Employee Onboarding", url: "/hr-onboarding", icon: ClipboardPlus, requiredPermission: 'canManageOnboarding' },
+      { title: "Team Assessment", url: "/kpi-team-dashboard", icon: BarChart3 },
     ],
   },
   {
