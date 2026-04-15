@@ -113,8 +113,11 @@ export function SendEmailDialog({
     if (!canSend) return;
     setIsSending(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
+      // Force a session refresh so we don't pass an expired access_token to the function
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session) {
+        throw new Error("Your session has expired — please log in again");
+      }
 
       const payload: Record<string, unknown> = {
         mode: isBulk ? "bulk" : "individual",
@@ -129,9 +132,9 @@ export function SendEmailDialog({
         payload.demandcomId = demandcomId;
       }
 
+      // Don't override headers — supabase-js auto-attaches the refreshed user JWT + apikey
       const { data, error } = await supabase.functions.invoke("send-bulk-email", {
         body: payload,
-        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       // supabase.functions.invoke wraps non-2xx as FunctionsHttpError and hides the body.

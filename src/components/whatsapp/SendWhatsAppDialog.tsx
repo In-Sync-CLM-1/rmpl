@@ -171,8 +171,10 @@ export function SendWhatsAppDialog({
   const handleBulkSend = async () => {
     setIsBulkSending(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session) {
+        throw new Error("Your session has expired — please log in again");
+      }
 
       const payload: Record<string, unknown> = {
         mode: "bulk",
@@ -187,7 +189,6 @@ export function SendWhatsAppDialog({
 
       const { data, error } = await supabase.functions.invoke("send-bulk-whatsapp", {
         body: payload,
-        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (error) throw error;
