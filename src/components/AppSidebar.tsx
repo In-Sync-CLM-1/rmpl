@@ -1,5 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard,
   Users,
@@ -298,15 +300,33 @@ export function AppSidebar({ user, userRoles, onLogout }: AppSidebarProps) {
   const location = useLocation();
   const currentPath = location.pathname;
   const permissions = getRolePermissions(userRoles);
-  const { 
-    sections, 
-    items, 
-    isLoading, 
-    canViewItem, 
+  const {
+    sections,
+    items,
+    isLoading,
+    canViewItem,
     getVisibleSections: getDbVisibleSections,
     getVisibleItemsForSection,
-    isAdmin 
+    isAdmin
   } = useNavigationPermissions();
+
+  const [hasCsbdTargets, setHasCsbdTargets] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      if (!user) return;
+      const currentYear = new Date().getFullYear();
+      const { data } = await (supabase as any)
+        .from("csbd_targets")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("fiscal_year", currentYear)
+        .eq("is_active", true)
+        .maybeSingle();
+      setHasCsbdTargets(!!data);
+    };
+    check();
+  }, [user]);
 
   const isActive = (path: string) => currentPath === path;
   
@@ -314,10 +334,14 @@ export function AppSidebar({ user, userRoles, onLogout }: AppSidebarProps) {
   const useDynamicNav = !isLoading && sections.length > 0 && items.length > 0;
 
   const getVisibleSectionsFromFallback = () => {
+    const isAdminUser = userRoles.some(r =>
+      ["platform_admin", "super_admin", "admin_administration"].includes(r)
+    );
     return fallbackNavigationSections
       .map(section => ({
         ...section,
         items: section.items.filter(item => {
+          if (item.url === "/kpi-self-assessment" && !hasCsbdTargets && !isAdminUser) return false;
           if (!item.requiredPermission) return true;
           return permissions[item.requiredPermission];
         })
@@ -327,10 +351,19 @@ export function AppSidebar({ user, userRoles, onLogout }: AppSidebarProps) {
 
   const renderDynamicNavigation = () => {
     const visibleSections = getDbVisibleSections();
-    
+    const isAdminUser = userRoles.some(r =>
+      ["platform_admin", "super_admin", "admin_administration"].includes(r)
+    );
+
     return visibleSections.map((section) => {
-      const sectionItems = getVisibleItemsForSection(section.id);
-      
+      const allSectionItems = getVisibleItemsForSection(section.id);
+      const sectionItems = allSectionItems.filter(item => {
+        if (item.item_url === "/kpi-self-assessment" && !hasCsbdTargets && !isAdminUser) return false;
+        return true;
+      });
+
+      if (sectionItems.length === 0) return null;
+
       return (
         <SidebarGroup key={section.id}>
           <SidebarGroupLabel className="text-[10px] font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-3 py-2 group-data-[collapsible=icon]:hidden">

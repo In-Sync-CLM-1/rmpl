@@ -229,15 +229,8 @@ export default function KPISelfAssessment() {
   }
 
   if (hasAccess === false) {
-    return (
-      <div className="container mx-auto py-12 text-center">
-        <ClipboardCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">KPI Self Assessment</h2>
-        <p className="text-muted-foreground">
-          This section is only available to CSBD team members who have active targets for {currentYear}.
-        </p>
-      </div>
-    );
+    navigate("/dashboard");
+    return null;
   }
 
   return (
