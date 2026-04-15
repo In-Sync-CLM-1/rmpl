@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDocument } from "https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs";
 import { createServiceClient } from "../_shared/supabase-client.ts";
+import { groqStructuredResponse } from "../_shared/groq.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,6 +55,81 @@ async function fetchFileAsText(url: string): Promise<string> {
   } catch {
     return `[Binary Excel file - ${bytes.length} bytes - parse from filename: ${url.split("/").pop()}]`;
   }
+}
+
+const EXPENSE_SCHEMA = {
+  type: "object",
+  properties: {
+    categories: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                description: { type: "string" },
+                vendor: { type: "string" },
+                amount: { type: "number" },
+              },
+              required: ["description", "amount"],
+            },
+          },
+          subtotal: { type: "number" },
+        },
+        required: ["name", "items", "subtotal"],
+      },
+    },
+    grand_total: { type: "number" },
+    narrative: { type: "string" },
+    currency: { type: "string" },
+    benefits: {
+      type: "object",
+      properties: {
+        total_discounts_inr: { type: "number" },
+        total_points_value_inr: { type: "number" },
+        discount_items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              vendor: { type: "string" },
+              amount: { type: "number" },
+              notes: { type: "string" },
+            },
+            required: ["vendor", "amount"],
+          },
+        },
+        points_items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              provider: { type: "string" },
+              points: { type: "number" },
+              est_value_inr: { type: "number" },
+            },
+            required: ["provider", "points"],
+          },
+        },
+      },
+      required: ["total_discounts_inr", "total_points_value_inr", "discount_items", "points_items"],
+    },
+  },
+  required: ["categories", "grand_total", "narrative", "currency", "benefits"],
+};
+
+async function analyzeWithGroq(combinedContent: string, systemPrompt: string) {
+  return await groqStructuredResponse({
+    instructions: systemPrompt,
+    input: `Please analyze these expense documents and return a structured expense summary:\n\n${combinedContent || "No document content could be extracted."}`,
+    schemaName: "expense_summary",
+    schema: EXPENSE_SCHEMA,
+    maxOutputTokens: 2048,
+  });
 }
 
 serve(async (req) => {
@@ -128,100 +204,42 @@ Return ONLY valid JSON matching the exact schema provided.`;
 
     const userMessage = `Please analyze these expense documents and return a structured expense summary:\n\n${combinedContent || "No document content could be extracted."}`;
 
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": getAnthropicKey(),
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }],
-        tools: [{
-          name: "expense_summary",
-          description: "Structured expense summary with category-wise breakdown",
-          input_schema: {
-            type: "object",
-            properties: {
-              categories: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    items: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          description: { type: "string" },
-                          vendor: { type: "string" },
-                          amount: { type: "number" },
-                        },
-                        required: ["description", "amount"],
-                      },
-                    },
-                    subtotal: { type: "number" },
-                  },
-                  required: ["name", "items", "subtotal"],
-                },
-              },
-              grand_total: { type: "number" },
-              narrative: { type: "string" },
-              currency: { type: "string" },
-              benefits: {
-                type: "object",
-                properties: {
-                  total_discounts_inr: { type: "number" },
-                  total_points_value_inr: { type: "number" },
-                  discount_items: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        vendor: { type: "string" },
-                        amount: { type: "number" },
-                        notes: { type: "string" },
-                      },
-                      required: ["vendor", "amount"],
-                    },
-                  },
-                  points_items: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        provider: { type: "string" },
-                        points: { type: "number" },
-                        est_value_inr: { type: "number" },
-                      },
-                      required: ["provider", "points"],
-                    },
-                  },
-                },
-                required: ["total_discounts_inr", "total_points_value_inr", "discount_items", "points_items"],
-              },
-            },
-            required: ["categories", "grand_total", "narrative", "currency", "benefits"],
-          },
-        }],
-        tool_choice: { type: "tool", name: "expense_summary" },
-      }),
-    });
+    let summary;
+    try {
+      const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": getAnthropicKey(),
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 2048,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userMessage }],
+          tools: [{
+            name: "expense_summary",
+            description: "Structured expense summary with category-wise breakdown",
+            input_schema: EXPENSE_SCHEMA,
+          }],
+          tool_choice: { type: "tool", name: "expense_summary" },
+        }),
+      });
 
-    if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text();
-      throw new Error(`Anthropic API error ${anthropicRes.status}: ${errText}`);
+      if (!anthropicRes.ok) {
+        const errText = await anthropicRes.text();
+        throw new Error(`Anthropic API error ${anthropicRes.status}: ${errText}`);
+      }
+
+      const anthropicData = await anthropicRes.json();
+      const toolUse = anthropicData.content?.find((c: any) => c.type === "tool_use");
+      if (!toolUse) throw new Error("No structured output from Claude");
+      summary = toolUse.input;
+    } catch (anthropicErr) {
+      console.warn("Anthropic failed, falling back to Groq:", anthropicErr);
+      summary = await analyzeWithGroq(combinedContent, systemPrompt);
     }
-
-    const anthropicData = await anthropicRes.json();
-    const toolUse = anthropicData.content?.find((c: any) => c.type === "tool_use");
-    if (!toolUse) throw new Error("No structured output from Claude");
-
-    const summary = toolUse.input;
 
     // Persist to DB
     if (submissionId) {
