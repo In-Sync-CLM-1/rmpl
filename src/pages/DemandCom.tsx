@@ -123,6 +123,7 @@ export default function DemandCom() {
   const [showWhatsappSend, setShowWhatsappSend] = useState(false);
   const [emailContact, setEmailContact] = useState<DemandCom | null>(null);
   const [showBulkEmail, setShowBulkEmail] = useState(false);
+  const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [canAssign, setCanAssign] = useState(false);
   const [canBulkAssign, setCanBulkAssign] = useState(false);
@@ -580,6 +581,15 @@ export default function DemandCom() {
                 <span>Bulk Assign</span>
               </Button>
             )}
+            <Button
+              onClick={() => setShowBulkWhatsApp(true)}
+              variant="outline"
+              size="icon"
+              className="shadow-elegant"
+              title="Send WhatsApp to filtered contacts"
+            >
+              <MessageSquare className="h-4 w-4 text-green-600" />
+            </Button>
             <Button
               onClick={() => setShowBulkEmail(true)}
               variant="outline"
@@ -1128,6 +1138,15 @@ export default function DemandCom() {
       <SendEmailDialog
         open={showBulkEmail}
         onOpenChange={setShowBulkEmail}
+        isBulk
+        appliedFilters={appliedFilters}
+        totalCount={totalCount}
+      />
+
+      {/* Bulk WhatsApp Dialog */}
+      <SendWhatsAppDialog
+        open={showBulkWhatsApp}
+        onOpenChange={setShowBulkWhatsApp}
         isBulk
         appliedFilters={appliedFilters}
         totalCount={totalCount}

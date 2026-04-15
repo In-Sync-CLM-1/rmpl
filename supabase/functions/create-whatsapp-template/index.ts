@@ -19,6 +19,7 @@ interface CreateTemplateRequest {
   language: string;
   components: TemplateComponent[];
   allow_category_change?: boolean;
+  fieldMappings?: Record<number, string>;
 }
 
 Deno.serve(async (req) => {
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
     }
 
     const body: CreateTemplateRequest = await req.json();
-    const { name, category, language, components, allow_category_change } = body;
+    const { name, category, language, components, allow_category_change, fieldMappings } = body;
 
     if (!name || !category || !language || !components?.length) {
       return new Response(
@@ -160,6 +161,7 @@ Deno.serve(async (req) => {
     const variables = variableMatches.map((match: string, index: number) => ({
       index: index + 1,
       placeholder: match,
+      field_name: fieldMappings?.[index + 1] || null,
     }));
 
     await serviceClient.from('whatsapp_templates').upsert({

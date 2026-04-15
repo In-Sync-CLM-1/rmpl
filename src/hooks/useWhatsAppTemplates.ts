@@ -13,7 +13,7 @@
    header_content: string | null;
    footer_text: string | null;
    buttons: Array<{ type: string; text: string }>;
-   variables: Array<{ index: number; placeholder: string }>;
+   variables: Array<{ index: number; placeholder: string; field_name?: string | null }>;
    sample_values: Record<string, string>;
    status: "approved" | "pending" | "rejected";
    rejection_reason: string | null;

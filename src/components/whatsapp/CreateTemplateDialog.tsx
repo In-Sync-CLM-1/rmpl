@@ -97,6 +97,34 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 16 * 1024 * 1024;
 const MAX_DOC_SIZE = 100 * 1024 * 1024;
 
+const DEMANDCOM_FIELDS = [
+  { value: "name", label: "Full Name" },
+  { value: "company_name", label: "Company Name" },
+  { value: "designation", label: "Designation" },
+  { value: "city", label: "City" },
+  { value: "state", label: "State" },
+  { value: "activity_name", label: "Activity Name" },
+  { value: "mobile_numb", label: "Mobile Number" },
+  { value: "personal_email_id", label: "Personal Email" },
+  { value: "generic_email_id", label: "Generic Email" },
+  { value: "deppt", label: "Department" },
+  { value: "industry_type", label: "Industry" },
+  { value: "sub_industry", label: "Sub Industry" },
+  { value: "zone", label: "Zone" },
+  { value: "tier", label: "Tier" },
+  { value: "latest_disposition", label: "Latest Disposition" },
+  { value: "latest_subdisposition", label: "Latest Sub-Disposition" },
+  { value: "linkedin", label: "LinkedIn URL" },
+  { value: "website", label: "Website" },
+  { value: "turnover", label: "Turnover" },
+  { value: "emp_size", label: "Employee Size" },
+  { value: "erp_name", label: "ERP Name" },
+  { value: "erp_vendor", label: "ERP Vendor" },
+  { value: "address", label: "Address" },
+  { value: "location", label: "Location" },
+  { value: "pincode", label: "Pincode" },
+];
+
 // ─── Types ───
 
 interface TemplateButton {
@@ -297,6 +325,7 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
   const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<BuilderForm>({ ...emptyForm });
+  const [fieldMappings, setFieldMappings] = useState<Record<number, string>>({});
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -336,6 +365,7 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
 
   const resetForm = () => {
     setForm({ ...emptyForm });
+    setFieldMappings({});
     setMediaFile(null);
     setMediaPreviewUrl(null);
     setMediaError(null);
@@ -532,6 +562,7 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
           language: form.language,
           components: buildComponents(),
           allow_category_change: true,
+          fieldMappings,
         },
       });
 
@@ -736,34 +767,57 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
               </CardContent>
             </Card>
 
-            {/* Sample Values */}
+            {/* Sample Values + Field Mappings */}
             {allVariables.length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Sample Values</CardTitle>
-                  <CardDescription className="text-xs">Provide example values for each variable. Required for WhatsApp approval.</CardDescription>
+                  <CardTitle className="text-sm">Variables</CardTitle>
+                  <CardDescription className="text-xs">
+                    Set a sample value (required for WhatsApp approval) and map each variable to a contact field for bulk sending.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {allVariables.map((v) => {
-                      const idx = parseInt(v.replace(/\D/g, "")) - 1;
-                      return (
-                        <div key={v} className="flex items-center gap-2">
-                          <Badge variant="secondary" className="shrink-0 font-mono text-xs">{v}</Badge>
-                          <Input
-                            placeholder={`e.g., ${idx === 0 ? "John" : idx === 1 ? "ORD-123" : "sample"}`}
-                            value={form.sampleValues[idx] || ""}
-                            onChange={(e) => {
-                              const updated = [...form.sampleValues];
-                              updated[idx] = e.target.value;
-                              updateForm({ sampleValues: updated });
-                            }}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                      );
-                    })}
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-[11px] font-medium text-muted-foreground px-1">
+                    <span>Variable</span>
+                    <span>Sample value (for approval)</span>
+                    <span>Maps to contact field</span>
                   </div>
+                  {allVariables.map((v) => {
+                    const idx = parseInt(v.replace(/\D/g, "")) - 1;
+                    const varNum = idx + 1;
+                    return (
+                      <div key={v} className="grid grid-cols-3 gap-2 items-center">
+                        <Badge variant="secondary" className="font-mono text-xs w-fit">{v}</Badge>
+                        <Input
+                          placeholder={`e.g., ${idx === 0 ? "John" : idx === 1 ? "Acme Corp" : "sample"}`}
+                          value={form.sampleValues[idx] || ""}
+                          onChange={(e) => {
+                            const updated = [...form.sampleValues];
+                            updated[idx] = e.target.value;
+                            updateForm({ sampleValues: updated });
+                          }}
+                          className="h-8 text-sm"
+                        />
+                        <Select
+                          value={fieldMappings[varNum] || ""}
+                          onValueChange={(val) =>
+                            setFieldMappings((prev) => ({ ...prev, [varNum]: val }))
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Select field…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DEMANDCOM_FIELDS.map((f) => (
+                              <SelectItem key={f.value} value={f.value} className="text-xs">
+                                {f.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
