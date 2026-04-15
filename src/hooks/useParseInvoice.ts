@@ -8,8 +8,13 @@ interface ParsedInvoiceData {
   raw_amount_text: string | null;
 }
 
+interface ParseInvoiceResult {
+  data: ParsedInvoiceData | null;
+  error: string | null;
+}
+
 interface UseParseInvoiceResult {
-  parseInvoice: (input: { pdfUrl?: string; bucket?: string; filePath?: string }) => Promise<ParsedInvoiceData | null>;
+  parseInvoice: (input: { pdfUrl?: string; bucket?: string; filePath?: string }) => Promise<ParseInvoiceResult>;
   isParsing: boolean;
   parseError: string | null;
 }
@@ -18,9 +23,14 @@ export function useParseInvoice(): UseParseInvoiceResult {
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
 
-  const parseInvoice = async (input: { pdfUrl?: string; bucket?: string; filePath?: string }): Promise<ParsedInvoiceData | null> => {
+  const parseInvoice = async (input: { pdfUrl?: string; bucket?: string; filePath?: string }): Promise<ParseInvoiceResult> => {
     setIsParsing(true);
     setParseError(null);
+
+    const fail = (message: string): ParseInvoiceResult => {
+      setParseError(message);
+      return { data: null, error: message };
+    };
 
     try {
       const { data, error } = await supabase.functions.invoke("parse-invoice-pdf", {
@@ -45,20 +55,18 @@ export function useParseInvoice(): UseParseInvoiceResult {
           }
         }
 
-        setParseError(errorMessage);
-        return null;
+        return fail(errorMessage);
       }
 
       if (!data?.success) {
-        setParseError(data?.error || "Failed to extract invoice details");
-        return null;
+        return fail(data?.error || "Failed to extract invoice details");
       }
 
-      return data.data as ParsedInvoiceData;
+      setIsParsing(false);
+      return { data: data.data as ParsedInvoiceData, error: null };
     } catch (err) {
       console.error("Parse invoice exception:", err);
-      setParseError(err instanceof Error ? err.message : "Unknown error");
-      return null;
+      return fail(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsParsing(false);
     }

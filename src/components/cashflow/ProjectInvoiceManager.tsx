@@ -281,7 +281,7 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
       .from("project-quotations")
       .getPublicUrl(tempPath);
 
-    const result = await parseInvoice({
+    const { data: result, error: parseErrMsg } = await parseInvoice({
       bucket: "project-quotations",
       filePath: tempPath,
       pdfUrl: urlData.publicUrl,
@@ -302,7 +302,7 @@ export function ProjectInvoiceManager({ projectId }: ProjectInvoiceManagerProps)
       setParseState("error");
       toast({
         title: "Parsing Failed",
-        description: parseError || "Could not extract invoice details. Please enter manually.",
+        description: parseErrMsg || "Could not extract invoice details. Please enter manually.",
         variant: "destructive",
       });
     }
