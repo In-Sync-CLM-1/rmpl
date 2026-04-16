@@ -132,9 +132,11 @@ export function SendEmailDialog({
         payload.demandcomId = demandcomId;
       }
 
-      // Don't override headers — supabase-js auto-attaches the refreshed user JWT + apikey
       const { data, error } = await supabase.functions.invoke("send-bulk-email", {
         body: payload,
+        headers: {
+          Authorization: `Bearer ${refreshed.session.access_token}`,
+        },
       });
 
       // supabase.functions.invoke wraps non-2xx as FunctionsHttpError and hides the body.
