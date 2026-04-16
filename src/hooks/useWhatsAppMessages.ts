@@ -133,11 +133,30 @@ export function useWhatsAppMessages(demandcomId?: string, phoneNumber?: string) 
 
   const sendMessage = useMutation({
     mutationFn: async (params: SendMessageParams) => {
-      const { data, error } = await supabase.functions.invoke("send-whatsapp-message", {
-        body: params,
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session) {
+        throw new Error("Your session has expired — please log in again");
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const response = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp-message`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${refreshed.session.access_token}`,
+          "apikey": supabaseAnonKey,
+        },
+        body: JSON.stringify(params),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        let serverMessage: string | undefined;
+        try { serverMessage = (await response.json())?.error; } catch { /* ignore */ }
+        throw new Error(serverMessage || `Request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
       if (!data.success) throw new Error(data.error || "Failed to send message");
       return data;
     },

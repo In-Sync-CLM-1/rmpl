@@ -187,11 +187,25 @@ export function SendWhatsAppDialog({
         message: messageType === "text" ? customMessage.trim() : undefined,
       };
 
-      const { data, error } = await supabase.functions.invoke("send-bulk-whatsapp", {
-        body: payload,
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const response = await fetch(`${supabaseUrl}/functions/v1/send-bulk-whatsapp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${refreshed.session.access_token}`,
+          "apikey": supabaseAnonKey,
+        },
+        body: JSON.stringify(payload),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        let serverMessage: string | undefined;
+        try { serverMessage = (await response.json())?.error; } catch { /* ignore */ }
+        throw new Error(serverMessage || `Request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
 
       const { sent, skipped, failed } = data as { sent: number; skipped: number; failed: number };
       toast.success(
