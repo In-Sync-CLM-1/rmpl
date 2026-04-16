@@ -168,3 +168,6 @@ verify_jwt = true
 
 [functions.send-bulk-whatsapp]
 verify_jwt = true
+
+[functions.create-whatsapp-template]
+verify_jwt = false
