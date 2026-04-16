@@ -132,31 +132,26 @@ export function SendEmailDialog({
         payload.demandcomId = demandcomId;
       }
 
-      const { data, error } = await supabase.functions.invoke("send-bulk-email", {
-        body: payload,
+      // Use direct fetch so we have full control over all headers
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const response = await fetch(`${supabaseUrl}/functions/v1/send-bulk-email`, {
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${refreshed.session.access_token}`,
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${refreshed.session.access_token}`,
+          "apikey": supabaseAnonKey,
         },
+        body: JSON.stringify(payload),
       });
 
-      // supabase.functions.invoke wraps non-2xx as FunctionsHttpError and hides the body.
-      // Try to read the real error message from the response.
-      if (error) {
+      if (!response.ok) {
         let serverMessage: string | undefined;
-        const ctx = (error as any).context;
-        if (ctx?.json) {
-          try { serverMessage = (await ctx.json())?.error; } catch { /* ignore */ }
-        }
-        if (!serverMessage && ctx?.text) {
-          try {
-            const txt = await ctx.text();
-            try { serverMessage = JSON.parse(txt)?.error; } catch { serverMessage = txt; }
-          } catch { /* ignore */ }
-        }
-        throw new Error(serverMessage || error.message || "Failed to send email");
+        try { serverMessage = (await response.json())?.error; } catch { /* ignore */ }
+        throw new Error(serverMessage || `Request failed: ${response.status}`);
       }
 
-      const { sent, skipped, failed } = data as { sent: number; skipped: number; failed: number };
+      const { sent, skipped, failed } = (await response.json()) as { sent: number; skipped: number; failed: number };
       if (isBulk) {
         toast.success(
           `Sent ${sent} email${sent !== 1 ? "s" : ""}` +

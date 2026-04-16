@@ -60,7 +60,7 @@ interface DemandComRecord {
 
 function buildMergeData(record: DemandComRecord): Record<string, string> {
   const nameParts = (record.name || "").trim().split(/\s+/);
-  const email = record.personal_email_id || record.generic_email_id || "";
+  const email = record.official || record.personal_email_id || record.generic_email_id || "";
   return {
     name: record.name || "",
     first_name: nameParts[0] || "",
@@ -234,7 +234,7 @@ serve(async (req) => {
       if (error) throw error;
       if (data) {
         const rec = data as DemandComRecord;
-        if (!rec.personal_email_id && !rec.generic_email_id) {
+        if (!rec.official && !rec.personal_email_id && !rec.generic_email_id) {
           return new Response(
             JSON.stringify({ error: "Recipient has no email address on record" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -274,14 +274,14 @@ serve(async (req) => {
     let failed = 0;
     const BATCH_SIZE = 100;
 
-    const emailRecords = records.filter((r) => r.personal_email_id || r.generic_email_id);
+    const emailRecords = records.filter((r) => r.official || r.personal_email_id || r.generic_email_id);
     skipped = records.length - emailRecords.length;
 
     for (let i = 0; i < emailRecords.length; i += BATCH_SIZE) {
       const batch = emailRecords.slice(i, i + BATCH_SIZE);
       const emails = batch.map((record) => {
         const mergeData = buildMergeData(record);
-        const toEmail = record.personal_email_id || record.generic_email_id || "";
+        const toEmail = record.official || record.personal_email_id || record.generic_email_id || "";
         return {
           from: "RMPL <approval@redefinemarcom.in>",
           to: [toEmail],
