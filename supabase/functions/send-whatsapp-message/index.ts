@@ -188,10 +188,6 @@ Deno.serve(async (req) => {
     // Build Exotel API URL
     const exotelUrl = `https://${exotelSubdomain}/v2/accounts/${exotelSid}/messages`;
 
-    // Webhook URL for delivery/read status callbacks
-    const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
-    const statusCallback = { url: webhookUrl, method: 'POST' };
-
     let exotelPayload: any;
 
     if (useTemplateApi && templateName) {
@@ -209,7 +205,6 @@ Deno.serve(async (req) => {
                 components: templateComponents || []
               }
             },
-            status_callback: statusCallback
           }]
         }
       };
@@ -248,7 +243,6 @@ Deno.serve(async (req) => {
                   components
                 }
               },
-              status_callback: statusCallback
             }]
           }
         };
@@ -267,7 +261,6 @@ Deno.serve(async (req) => {
                 ...(mediaCaption && { caption: mediaCaption })
               }
             },
-            status_callback: statusCallback
           }]
         }
       };
@@ -283,7 +276,6 @@ Deno.serve(async (req) => {
               type: 'text',
               text: { body: messageContent }
             },
-            status_callback: statusCallback
           }]
         }
       };
@@ -313,8 +305,9 @@ Deno.serve(async (req) => {
       exotelResult = jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: responseText };
     }
 
+    // Exotel returns empty body when status_callback is present; use HTTP status for success
     const exotelSidResult = extractMessageSid(exotelResult);
-    const success = !!exotelSidResult;
+    const success = exotelResponse.ok;
 
     // Log message to database
     const { error: insertError } = await supabase.from('whatsapp_messages').insert({

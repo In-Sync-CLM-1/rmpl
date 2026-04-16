@@ -165,7 +165,6 @@ Deno.serve(async (req) => {
     const exotelApiToken = settings.exotel_api_token || Deno.env.get('EXOTEL_API_TOKEN');
     const exotelSubdomain = settings.exotel_subdomain || 'api.exotel.com';
     const exotelUrl = `https://${exotelSubdomain}/v2/accounts/${exotelSid}/messages`;
-    const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
     const authHeader64 = btoa(`${exotelApiKey}:${exotelApiToken}`);
 
     if (!exotelSid || !exotelApiKey || !exotelApiToken) {
@@ -262,7 +261,6 @@ Deno.serve(async (req) => {
                         : [],
                     },
                   },
-                  status_callback: { url: webhookUrl, method: 'POST' },
                 }],
               },
             };
@@ -297,7 +295,7 @@ Deno.serve(async (req) => {
           try { resJson = JSON.parse(resText); } catch { resJson = {}; }
 
           const sid = resJson?.response?.whatsapp?.messages?.[0]?.data?.sid || null;
-          const success = !!sid;
+          const success = res.ok;
 
           // Log to whatsapp_messages
           await serviceClient.from('whatsapp_messages').insert({
