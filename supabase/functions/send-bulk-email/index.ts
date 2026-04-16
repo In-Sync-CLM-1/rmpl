@@ -283,7 +283,7 @@ serve(async (req) => {
         const mergeData = buildMergeData(record);
         const toEmail = record.official || record.personal_email_id || record.generic_email_id || "";
         return {
-          from: "RMPL <approval@redefinemarcom.in>",
+          from: "Redefine <events@redefine.in>",
           to: [toEmail],
           subject: replaceMergeTags(templateSubject, mergeData),
           html: replaceMergeTags(templateBodyHtml, mergeData),
