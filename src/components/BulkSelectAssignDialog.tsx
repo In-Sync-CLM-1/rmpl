@@ -44,6 +44,7 @@ export function BulkSelectAssignDialog({
   const [pageTo, setPageTo] = useState<number>(1);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [isAssigning, setIsAssigning] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
@@ -109,11 +110,10 @@ export function BulkSelectAssignDialog({
 
     try {
       setIsAssigning(true);
+      setProgress(null);
 
-      // Calculate offset and limit based on selection type
       let offset = 0;
       let limit = totalCount;
-
       switch (selectionType) {
         case "all":
           offset = 0;
@@ -137,7 +137,7 @@ export function BulkSelectAssignDialog({
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Authentication required");
 
-      const { data, error } = await supabase.rpc("assign_demandcom_records", {
+      const { data: startData, error: startError } = await supabase.rpc("start_demandcom_assign_job" as any, {
         p_assigned_to: selectedUserId,
         p_assigned_by: userData.user.id,
         p_offset: offset,
@@ -149,21 +149,40 @@ export function BulkSelectAssignDialog({
         p_disposition: appliedFilters.disposition.length > 0 ? appliedFilters.disposition : null,
         p_subdisposition: appliedFilters.subdisposition.length > 0 ? appliedFilters.subdisposition : null,
       });
+      if (startError) throw startError;
 
-      if (error) throw error;
-
-      const result = data as any;
-      if (result?.error) {
-        toast.error(result.error);
+      const start = startData as any;
+      if (start?.error) {
+        toast.error(start.error);
         return;
       }
 
-      if (!result?.successCount || result.successCount === 0) {
-        toast.error(result?.message || "No records were assigned. Please refresh and try again.");
-        return;
+      const jobId = start.job_id as string;
+      const total = start.total as number;
+      const assigneeName = start.assigneeName as string;
+
+      const BATCH_SIZE = 500;
+      let totalAssigned = 0;
+      let hasMore = true;
+      let safety = 0;
+      setProgress({ done: 0, total });
+
+      while (hasMore && safety < 10000) {
+        safety++;
+        const { data: batchData, error: batchError } = await supabase.rpc("process_demandcom_assign_batch" as any, {
+          p_job_id: jobId,
+          p_batch_size: BATCH_SIZE,
+        });
+        if (batchError) throw batchError;
+        const b = batchData as any;
+        if (b?.error) throw new Error(b.error);
+
+        totalAssigned += Number(b.assigned_count || 0);
+        hasMore = !!b.has_more;
+        setProgress({ done: Number(b.processed || totalAssigned), total: Number(b.total || total) });
       }
 
-      toast.success(result.message || `Successfully assigned ${result.successCount} records`);
+      toast.success(`Assigned ${totalAssigned} of ${total} record(s) to ${assigneeName}`);
       onAssignmentComplete();
       onOpenChange(false);
     } catch (error: any) {
@@ -171,6 +190,7 @@ export function BulkSelectAssignDialog({
       toast.error(error.message || "Failed to assign records");
     } finally {
       setIsAssigning(false);
+      setProgress(null);
     }
   };
 
@@ -351,6 +371,20 @@ export function BulkSelectAssignDialog({
             <span className="font-medium">Records to assign:</span>{" "}
             <span className="text-primary font-bold text-lg">{selectedCount.toLocaleString()}</span>
           </div>
+
+          {progress && (
+            <div className="bg-muted/60 rounded-lg p-3 text-sm text-center">
+              <div className="font-medium mb-1">
+                Assigning {progress.done.toLocaleString()} / {progress.total.toLocaleString()}
+              </div>
+              <div className="h-2 w-full bg-background rounded overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${Math.min(100, (progress.done / Math.max(1, progress.total)) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">

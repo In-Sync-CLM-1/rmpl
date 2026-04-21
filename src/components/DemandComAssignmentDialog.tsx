@@ -73,28 +73,47 @@ export function DemandComAssignmentDialog({
         return;
       }
 
-      const { data: result, error: rpcError } = await supabase.rpc("assign_demandcom_records", {
+      const { data: startData, error: startError } = await supabase.rpc("start_demandcom_assign_job" as any, {
         p_assigned_to: selectedUserId,
         p_assigned_by: userData.user.id,
         p_record_ids: selectedIds,
       });
+      if (startError) throw startError;
 
-      if (rpcError) {
-        console.error("Assignment error:", rpcError);
-        toast.error(rpcError.message || "Failed to assign records");
+      const start = startData as any;
+      if (start?.error) {
+        toast.error(start.error);
         setIsAssigning(false);
         return;
       }
 
-      const { successCount, message, assigneeName, error: resultError } = result as any;
+      const jobId = start.job_id as string;
+      const total = start.total as number;
+      const assigneeName = start.assigneeName as string;
 
-      if (resultError) {
-        toast.error(resultError);
-        setIsAssigning(false);
-        return;
+      const BATCH_SIZE = 500;
+      let totalAssigned = 0;
+      let hasMore = true;
+      let safety = 0;
+
+      while (hasMore && safety < 1000) {
+        safety++;
+        const { data: batchData, error: batchError } = await supabase.rpc("process_demandcom_assign_batch" as any, {
+          p_job_id: jobId,
+          p_batch_size: BATCH_SIZE,
+        });
+        if (batchError) throw batchError;
+        const b = batchData as any;
+        if (b?.error) throw new Error(b.error);
+        totalAssigned += Number(b.assigned_count || 0);
+        hasMore = !!b.has_more;
       }
 
-      toast.success(message || `Successfully assigned ${successCount} records to ${assigneeName}`);
+      toast.success(
+        totalAssigned === total
+          ? `Successfully assigned ${totalAssigned} record(s) to ${assigneeName}`
+          : `Assigned ${totalAssigned} of ${total} record(s) to ${assigneeName}`
+      );
 
       onAssignmentComplete();
       onOpenChange(false);
