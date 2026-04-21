@@ -58,6 +58,11 @@ export function DemandComAssignmentDialog({
       return;
     }
 
+    if (!selectedIds || selectedIds.length === 0) {
+      toast.error("No records selected");
+      return;
+    }
+
     setIsAssigning(true);
 
     try {
@@ -81,10 +86,16 @@ export function DemandComAssignmentDialog({
         return;
       }
 
-      const { successCount, message, assigneeName } = result as any;
+      const { successCount, message, assigneeName, error: resultError } = result as any;
+
+      if (resultError) {
+        toast.error(resultError);
+        setIsAssigning(false);
+        return;
+      }
 
       toast.success(message || `Successfully assigned ${successCount} records to ${assigneeName}`);
-      
+
       onAssignmentComplete();
       onOpenChange(false);
       setSelectedUserId("");

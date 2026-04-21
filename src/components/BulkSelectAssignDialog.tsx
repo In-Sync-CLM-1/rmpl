@@ -158,6 +158,11 @@ export function BulkSelectAssignDialog({
         return;
       }
 
+      if (!result?.successCount || result.successCount === 0) {
+        toast.error(result?.message || "No records were assigned. Please refresh and try again.");
+        return;
+      }
+
       toast.success(result.message || `Successfully assigned ${result.successCount} records`);
       onAssignmentComplete();
       onOpenChange(false);
