@@ -3,7 +3,6 @@ INSERT INTO public.company_holidays (year, holiday_date, holiday_name, day_of_we
 (2026, '2026-01-13', 'Lohri', 'Tuesday', true, ARRAY['Delhi'], 'Optional Holiday'),
 (2026, '2026-04-03', 'Good Friday', 'Friday', true, ARRAY['Delhi', 'Bangaluru', 'Mumbai'], 'Optional Holiday'),
 (2026, '2026-05-01', 'May Day', 'Friday', true, ARRAY['Bangaluru', 'Mumbai'], 'Optional Holiday'),
-(2026, '2026-05-12', 'Buddha Purnima', 'Tuesday', true, ARRAY['Delhi', 'Bangaluru', 'Mumbai'], 'Optional Holiday'),
 (2026, '2026-12-24', 'Christmas Eve', 'Thursday', true, ARRAY['Delhi', 'Bangaluru', 'Mumbai'], 'Optional Holiday')
 ON CONFLICT (year, holiday_date, holiday_name) DO NOTHING;
 
