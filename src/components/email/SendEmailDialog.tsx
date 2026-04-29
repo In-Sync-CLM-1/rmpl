@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -68,7 +68,7 @@ export function SendEmailDialog({
   const [messageType, setMessageType] = useState<"template" | "freeform">("template");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [freeformSubject, setFreeformSubject] = useState("");
-  const [freeformBody, setFreeformBody] = useState("");
+  const [freeformBodyHtml, setFreeformBodyHtml] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -80,7 +80,7 @@ export function SendEmailDialog({
       setMessageType("template");
       setSelectedTemplateId("");
       setFreeformSubject("");
-      setFreeformBody("");
+      setFreeformBodyHtml("");
       loadTemplates();
     }
   }, [open]);
@@ -104,10 +104,11 @@ export function SendEmailDialog({
 
   const hasRecipientEmail = isBulk || !!contactEmail;
 
+  const freeformBodyText = freeformBodyHtml.replace(/<[^>]*>/g, "").trim();
   const canSend =
     hasRecipientEmail &&
     ((messageType === "template" && selectedTemplateId) ||
-      (messageType === "freeform" && freeformSubject.trim() && freeformBody.trim()));
+      (messageType === "freeform" && freeformSubject.trim() && freeformBodyText));
 
   const handleSend = async () => {
     if (!canSend) return;
@@ -123,7 +124,7 @@ export function SendEmailDialog({
         mode: isBulk ? "bulk" : "individual",
         templateId: messageType === "template" ? selectedTemplateId : undefined,
         subject: messageType === "freeform" ? freeformSubject.trim() : undefined,
-        bodyText: messageType === "freeform" ? freeformBody.trim() : undefined,
+        bodyHtml: messageType === "freeform" ? freeformBodyHtml : undefined,
       };
 
       if (isBulk) {
@@ -281,11 +282,11 @@ export function SendEmailDialog({
               </div>
               <div className="space-y-2">
                 <Label>Message</Label>
-                <Textarea
-                  value={freeformBody}
-                  onChange={(e) => setFreeformBody(e.target.value)}
+                <RichTextEditor
+                  value={freeformBodyHtml}
+                  onChange={setFreeformBodyHtml}
                   placeholder="Type your message here..."
-                  rows={8}
+                  minHeight={200}
                 />
                 {isBulk && (
                   <p className="text-xs text-muted-foreground">

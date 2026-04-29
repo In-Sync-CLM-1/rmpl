@@ -23,6 +23,7 @@ interface SendBulkEmailRequest {
   templateId?: string;
   subject?: string;
   bodyText?: string;
+  bodyHtml?: string;
 }
 
 interface DemandComRecord {
@@ -112,6 +113,10 @@ function textToHtml(text: string): string {
   </div>`;
 }
 
+function wrapEmailHtml(html: string): string {
+  return `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333;">${html}</div>`;
+}
+
 function applyFiltersToQuery(
   query: ReturnType<typeof createClient>["from"] extends (table: string) => infer Q ? Q : never,
   filters: AppliedFilters
@@ -196,11 +201,15 @@ serve(async (req) => {
     const resend = new Resend(resendApiKey);
 
     const body: SendBulkEmailRequest = await req.json();
-    const { mode, demandcomId, filters, templateId, subject, bodyText } = body;
+    const { mode, demandcomId, filters, templateId, subject, bodyText, bodyHtml } = body;
 
     // Resolve template if provided
     let templateSubject = subject || "";
-    let templateBodyHtml = bodyText ? textToHtml(bodyText) : "";
+    let templateBodyHtml = bodyHtml
+      ? wrapEmailHtml(bodyHtml)
+      : bodyText
+        ? textToHtml(bodyText)
+        : "";
 
     if (templateId) {
       const { data: tpl, error: tplErr } = await serviceClient
