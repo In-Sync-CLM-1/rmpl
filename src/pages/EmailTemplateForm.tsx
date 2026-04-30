@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Plus } from "lucide-react";
@@ -83,6 +85,7 @@ export default function EmailTemplateForm() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [activeField, setActiveField] = useState<'subject' | 'body_html'>('body_html');
+  const [bodyEditorMode, setBodyEditorMode] = useState<'rich' | 'html'>('rich');
   const [formData, setFormData] = useState<EmailTemplateFormData>({
     name: "",
     subject: "",
@@ -405,26 +408,46 @@ export default function EmailTemplateForm() {
 
                   <div className="space-y-2">
                     <Label htmlFor="body_html">
-                      Email Body (HTML) <span className="text-destructive">*</span>
+                      Email Body <span className="text-destructive">*</span>
                     </Label>
-                    <Textarea
-                      id="body_html"
-                      value={formData.body_html}
-                      onChange={(e) => updateFormData("body_html", e.target.value)}
-                      onFocus={() => setActiveField('body_html')}
-                      rows={12}
-                      placeholder="Hi {{first_name}},
-
-We have exciting new opportunities for {{specialty}} professionals in {{location_city}}, {{location_state}}!
-
-Click here to learn more: [Project Link]
-
-Best regards,
-RMPL Team"
-                      required
-                      disabled={isLoading}
-                      className="font-mono text-sm"
-                    />
+                    <Tabs
+                      value={bodyEditorMode}
+                      onValueChange={(v) => setBodyEditorMode(v as 'rich' | 'html')}
+                    >
+                      <TabsList className="grid w-full max-w-xs grid-cols-2">
+                        <TabsTrigger value="rich">Rich Text</TabsTrigger>
+                        <TabsTrigger value="html">HTML Source</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="rich" className="mt-2">
+                        <div onFocus={() => setActiveField('body_html')}>
+                          <RichTextEditor
+                            value={formData.body_html}
+                            onChange={(html) => updateFormData("body_html", html)}
+                            placeholder="Hi {{first_name}}, we have exciting opportunities..."
+                            minHeight={260}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Format visually. Merge tags from the sidebar are inserted as plain text and personalized at send time.
+                        </p>
+                      </TabsContent>
+                      <TabsContent value="html" className="mt-2">
+                        <Textarea
+                          id="body_html"
+                          value={formData.body_html}
+                          onChange={(e) => updateFormData("body_html", e.target.value)}
+                          onFocus={() => setActiveField('body_html')}
+                          rows={12}
+                          placeholder="<p>Hi {{first_name}},</p>"
+                          required
+                          disabled={isLoading}
+                          className="font-mono text-sm"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Edit the raw HTML directly. Useful for advanced layouts.
+                        </p>
+                      </TabsContent>
+                    </Tabs>
                   </div>
 
                   <div className="space-y-2">
