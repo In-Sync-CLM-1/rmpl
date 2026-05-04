@@ -169,6 +169,9 @@ verify_jwt = false
 [functions.send-bulk-email]
 verify_jwt = true
 
+[functions.process-scheduled-emails]
+verify_jwt = false
+
 [functions.send-bulk-whatsapp]
 verify_jwt = true
 
