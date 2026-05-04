@@ -52,7 +52,7 @@ export const useCSBDMemberProjects = (userId: string | null, fiscalYear = 2026) 
       return (data as CSBDProjectCredit[]) || [];
     },
     enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 24 * 60 * 60 * 1000,
   });
 };
 
@@ -67,7 +67,7 @@ export const useAllCSBDMetrics = (fiscalYear = 2025) => {
       if (error) throw new Error(`Failed to load dashboard: ${error.message}`);
       return (data as CSBDMetrics[]) || [];
     },
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: 24 * 60 * 60 * 1000,
+    refetchInterval: false,
   });
 };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useBusinessHours } from "@/hooks/useBusinessHours";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -77,6 +78,7 @@ const formatDuration = (seconds: number) => {
 };
 
 export function CallHistory({ demandcomId, limit = 50, showFilters = true }: CallHistoryProps) {
+  const { liveUpdatesActive } = useBusinessHours();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dispositionDialogOpen, setDispositionDialogOpen] = useState(false);
@@ -178,6 +180,7 @@ export function CallHistory({ demandcomId, limit = 50, showFilters = true }: Cal
 
   // Real-time subscription for call logs
   useEffect(() => {
+    if (!liveUpdatesActive) return;
     const channel = supabase
       .channel('call-logs-changes')
       .on(
@@ -198,7 +201,7 @@ export function CallHistory({ demandcomId, limit = 50, showFilters = true }: Cal
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [demandcomId, refetch]);
+  }, [demandcomId, refetch, liveUpdatesActive]);
 
   if (isLoading) {
     return (

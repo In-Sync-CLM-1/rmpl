@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useCallback } from "react";
+import { useBusinessHours } from "./useBusinessHours";
 
 export interface MessageReaction {
   id: string;
@@ -24,6 +25,7 @@ export interface GroupedReaction {
 
 export function useMessageReactions(conversationId: string | null) {
   const queryClient = useQueryClient();
+  const { liveUpdatesActive } = useBusinessHours();
 
   const { data: reactions = [], isLoading } = useQuery({
     queryKey: ["message-reactions", conversationId],
@@ -59,6 +61,7 @@ export function useMessageReactions(conversationId: string | null) {
   // Subscribe to real-time reaction changes
   useEffect(() => {
     if (!conversationId) return;
+    if (!liveUpdatesActive) return;
 
     const channel = supabase
       .channel(`chat-reactions-${conversationId}`)
@@ -79,7 +82,7 @@ export function useMessageReactions(conversationId: string | null) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, queryClient]);
+  }, [conversationId, queryClient, liveUpdatesActive]);
 
   const addReaction = useMutation({
     mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {

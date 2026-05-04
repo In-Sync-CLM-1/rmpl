@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { maybeDeferWebhook } from "../_shared/business-hours.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const deferred = await maybeDeferWebhook(req, "exotel-webhook");
+  if (deferred) return deferred;
 
   try {
     console.log("Exotel webhook received");

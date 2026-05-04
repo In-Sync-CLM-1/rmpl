@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useBusinessHours } from "@/hooks/useBusinessHours";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Clock, LogOut, Bell, X } from "lucide-react";
@@ -32,6 +33,7 @@ export function SignOutReminder({ user }: SignOutReminderProps) {
   const [showReminder, setShowReminder] = useState(false);
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const { liveUpdatesActive } = useBusinessHours();
 
   const { data: todayAttendance } = useQuery({
     queryKey: ["attendance-reminder-check", user?.id],
@@ -50,7 +52,7 @@ export function SignOutReminder({ user }: SignOutReminderProps) {
       return data;
     },
     enabled: !!user?.id,
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: liveUpdatesActive ? 60000 : false,
   });
 
   const signOutMutation = useMutation({

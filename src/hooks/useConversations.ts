@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
+import { useBusinessHours } from "./useBusinessHours";
 
 export interface Conversation {
   id: string;
@@ -31,6 +32,7 @@ export interface Conversation {
 
 export function useConversations() {
   const queryClient = useQueryClient();
+  const { liveUpdatesActive } = useBusinessHours();
 
   const { data: conversations = [], isLoading, error } = useQuery({
     queryKey: ["chat-conversations"],
@@ -90,6 +92,7 @@ export function useConversations() {
 
   // Subscribe to real-time updates
   useEffect(() => {
+    if (!liveUpdatesActive) return;
     const channel = supabase
       .channel("chat-conversations-changes")
       .on(
@@ -119,7 +122,7 @@ export function useConversations() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, liveUpdatesActive]);
 
   const createConversation = useMutation({
     mutationFn: async ({

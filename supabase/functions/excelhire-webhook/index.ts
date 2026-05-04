@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
+import { maybeDeferWebhook } from "../_shared/business-hours.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +26,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
+
+  const deferred = await maybeDeferWebhook(req, "excelhire-webhook");
+  if (deferred) return deferred;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')

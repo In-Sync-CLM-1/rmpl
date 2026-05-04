@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Download, X, AlertCircle, FileSpreadsheet } from "lucide-react";
+import { Download, X, AlertCircle, FileSpreadsheet, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useBusinessHours } from "@/hooks/useBusinessHours";
 
 export interface MasterFilters {
   activity_name: string[];
@@ -102,6 +103,7 @@ export function ClientSideExportDialog({
   const [totalRecords, setTotalRecords] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const { heavyActionsAllowed, isBusinessHours } = useBusinessHours();
 
   const escapeCSVValue = (value: unknown): string => {
     if (value === null || value === undefined) return "";
@@ -228,6 +230,10 @@ export function ClientSideExportDialog({
   };
 
   const handleExport = async () => {
+    if (!heavyActionsAllowed) {
+      toast.error("Available 9:30 AM – 8:00 PM IST");
+      return;
+    }
     setIsExporting(true);
     setProgress(0);
     setProcessedRecords(0);
@@ -405,10 +411,20 @@ export function ClientSideExportDialog({
             {isExporting ? "Cancel" : "Close"}
           </Button>
           {!isExporting && (
-            <Button onClick={handleExport}>
+            <Button
+              onClick={handleExport}
+              disabled={!heavyActionsAllowed}
+              title={!heavyActionsAllowed ? "Available 9:30 AM – 8:00 PM IST" : undefined}
+            >
               <Download className="h-4 w-4 mr-2" />
               Start Export
             </Button>
+          )}
+          {!isBusinessHours && !isExporting && (
+            <p className="text-xs text-amber-600 dark:text-amber-500 mt-2 w-full text-right">
+              <Clock className="inline h-3 w-3 mr-1" />
+              {heavyActionsAllowed ? "Admin override active" : "Heavy exports paused outside business hours"}
+            </p>
           )}
         </DialogFooter>
       </DialogContent>

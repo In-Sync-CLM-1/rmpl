@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useCallback, useState, useRef } from "react";
+import { useBusinessHours } from "./useBusinessHours";
 
 const PAGE_SIZE = 50;
 
@@ -54,6 +55,7 @@ export interface ChatMessage {
 
 export function useMessages(conversationId: string | null) {
   const queryClient = useQueryClient();
+  const { liveUpdatesActive } = useBusinessHours();
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const prevConversationId = useRef(conversationId);
@@ -125,6 +127,7 @@ export function useMessages(conversationId: string | null) {
   // Subscribe to real-time messages
   useEffect(() => {
     if (!conversationId) return;
+    if (!liveUpdatesActive) return;
 
     console.log("[Chat] Setting up realtime subscription for conversation:", conversationId);
 
@@ -204,7 +207,7 @@ export function useMessages(conversationId: string | null) {
       console.log("[Chat] Cleaning up realtime subscription for:", conversationId);
       supabase.removeChannel(channel);
     };
-  }, [conversationId, queryClient]);
+  }, [conversationId, queryClient, liveUpdatesActive]);
 
   const sendMessage = useMutation({
     mutationFn: async ({

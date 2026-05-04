@@ -11,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useBusinessHours } from "@/hooks/useBusinessHours";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ALL_TABLES = [
   'auth_users',
@@ -63,6 +65,8 @@ const DataExport = () => {
   const [search, setSearch] = useState("");
   const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
+  const { heavyActionsAllowed, isBusinessHours } = useBusinessHours();
+  const offHoursTooltip = "Available 9:30 AM – 8:00 PM IST";
 
   const { data: backupHistory, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
     queryKey: ["backup-history"],
@@ -78,6 +82,10 @@ const DataExport = () => {
   });
 
   const handleDownloadTable = async (tableName: string) => {
+    if (!heavyActionsAllowed) {
+      toast.error(offHoursTooltip);
+      return;
+    }
     setDownloadingTable(tableName);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -165,6 +173,10 @@ const DataExport = () => {
 
   const handleBulkDownload = async () => {
     if (selectedTables.size === 0) return;
+    if (!heavyActionsAllowed) {
+      toast.error(offHoursTooltip);
+      return;
+    }
     setIsBulkDownloading(true);
     let successCount = 0;
     let failCount = 0;
@@ -189,6 +201,12 @@ const DataExport = () => {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Data Export</h1>
         <p className="text-muted-foreground">Download individual tables as CSV files.</p>
+        {!isBusinessHours && (
+          <p className="mt-2 text-sm text-amber-600 dark:text-amber-500">
+            <Clock className="inline h-4 w-4 mr-1" />
+            Heavy exports run only during business hours (9:30 AM – 8:00 PM IST). {heavyActionsAllowed ? "Admin override active." : ""}
+          </p>
+        )}
       </div>
 
       {/* Table List */}
@@ -213,7 +231,8 @@ const DataExport = () => {
             <div className="flex items-center gap-2 mb-3">
               <Button
                 onClick={handleBulkDownload}
-                disabled={isBulkDownloading || downloadingTable !== null}
+                disabled={isBulkDownloading || downloadingTable !== null || !heavyActionsAllowed}
+                title={!heavyActionsAllowed ? offHoursTooltip : undefined}
                 size="sm"
               >
                 {isBulkDownloading ? (
@@ -253,7 +272,8 @@ const DataExport = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDownloadTable(table)}
-                        disabled={downloadingTable !== null || isBulkDownloading}
+                        disabled={downloadingTable !== null || isBulkDownloading || !heavyActionsAllowed}
+                        title={!heavyActionsAllowed ? offHoursTooltip : undefined}
                       >
                         {downloadingTable === table ? (
                           <RefreshCw className="h-4 w-4 animate-spin" />

@@ -40,7 +40,7 @@ export interface MonthlyData {
 }
 
 export function useCashflowDashboard() {
-  const staleTime = 3 * 60 * 1000; // 3 minutes for all cashflow queries
+  const staleTime = 24 * 60 * 60 * 1000; // 24 hours — refresh button on dashboard forces fresh data
 
   // Fetch cashflow summary
   const { data: summary, isLoading: summaryLoading } = useQuery({

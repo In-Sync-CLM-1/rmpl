@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useBusinessHours } from './useBusinessHours';
 
 interface SyncProgress {
   id: string;
@@ -17,6 +18,7 @@ interface SyncProgress {
 export function useSyncProgress(syncId: string | null) {
   const [progress, setProgress] = useState<SyncProgress | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
+  const { liveUpdatesActive } = useBusinessHours();
 
   const fetchProgress = useCallback(async () => {
     if (!syncId) return;
@@ -40,6 +42,10 @@ export function useSyncProgress(syncId: string | null) {
 
     // Initial fetch
     fetchProgress();
+
+    // Sync progress is only meaningful while a sync is actively running.
+    // If quiet hours are active and the user hasn't overridden, skip the realtime channel — the user can refetch manually.
+    if (!liveUpdatesActive) return;
 
     // Subscribe to realtime updates
     const channel = supabase
@@ -65,7 +71,7 @@ export function useSyncProgress(syncId: string | null) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [syncId, fetchProgress]);
+  }, [syncId, fetchProgress, liveUpdatesActive]);
 
   const reset = useCallback(() => {
     setProgress(null);

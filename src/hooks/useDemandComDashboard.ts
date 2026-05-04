@@ -437,6 +437,6 @@ export function useDemandComDashboard(options: UseDemandComDashboardOptions = {}
         dataTeamStats: dataTeamStats as any,
       };
     },
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours — refresh button on dashboard forces fresh data
   });
 }

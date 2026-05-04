@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, Users, ShieldOff } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { RefreshDataButton } from "@/components/RefreshDataButton";
 
 export default function DemandComDashboard() {
   const today = new Date();
@@ -190,8 +191,11 @@ export default function DemandComDashboard() {
             <h1 className="text-xl font-bold leading-tight">DemandCom Dashboard</h1>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
+          <RefreshDataButton
+            queryKeys={[["demandcom-dashboard"], ["agent-calling-report"]]}
+          />
           {/* Date Range Filter */}
           <CompactDateRangeFilter
             from={startDate}

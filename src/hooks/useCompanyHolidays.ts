@@ -74,6 +74,7 @@ export const useCompanyHolidays = (year: number = new Date().getFullYear()) => {
       if (error) throw error;
       return data as CompanyHoliday[];
     },
+    staleTime: 24 * 60 * 60 * 1000, // holidays change rarely
   });
 
   // Merge database holidays with generated 2nd/4th Saturday holidays
@@ -114,6 +115,7 @@ export const useCompanyHolidays = (year: number = new Date().getFullYear()) => {
       if (error) return 'Delhi';
       return data?.location || 'Delhi';
     },
+    staleTime: 60 * 60 * 1000, // 1 hour
   });
 
   const claimOptionalHoliday = useMutation({

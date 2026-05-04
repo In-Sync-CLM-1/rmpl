@@ -12,6 +12,7 @@ import { OnboardingTrigger } from "@/components/onboarding/OnboardingTrigger";
 import { NotificationBell } from "@/components/NotificationBell";
 import { AttendanceGate } from "@/components/attendance/AttendanceGate";
 import { SignOutReminder } from "@/components/attendance/SignOutReminder";
+import { QuietHoursBanner } from "@/components/QuietHoursBanner";
  import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
 import { PushNotificationPermission } from "@/components/chat/PushNotificationPermission";
 import { useChatNotifications } from "@/hooks/useChatNotifications";
@@ -126,6 +127,7 @@ export function AppLayout() {
                     <OnboardingTrigger />
                   </div>
                 </div>
+                <QuietHoursBanner />
               </div>
               <Outlet />
             </main>

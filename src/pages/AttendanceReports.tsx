@@ -12,6 +12,9 @@ import { format, parseISO, eachDayOfInterval, startOfMonth, getDay } from "date-
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useCompanyHolidays } from "@/hooks/useCompanyHolidays";
 import { AdminDateWiseGrid } from "@/components/attendance/AdminDateWiseGrid";
+import { RefreshDataButton } from "@/components/RefreshDataButton";
+
+const DAY = 24 * 60 * 60 * 1000;
 
 interface UserProfile {
   id: string;
@@ -42,6 +45,7 @@ export default function AttendanceReports() {
       const { data: { user } } = await supabase.auth.getUser();
       return user;
     },
+    staleTime: DAY,
   });
 
   const { data: users } = useQuery({
@@ -168,6 +172,7 @@ export default function AttendanceReports() {
       return filteredUsers;
     },
     enabled: permissions.canViewAttendanceReports && !!user?.id,
+    staleTime: DAY,
   });
 
   const { data: teams } = useQuery({
@@ -178,10 +183,11 @@ export default function AttendanceReports() {
         .select("id, name")
         .eq("is_active", true)
         .order("name");
-      
+
       if (error) throw error;
       return data;
     },
+    staleTime: DAY,
   });
 
   const { data: designations } = useQuery({
@@ -192,16 +198,17 @@ export default function AttendanceReports() {
         .select("id, title")
         .eq("is_active", true)
         .order("title");
-      
+
       if (error) throw error;
       return data;
     },
+    staleTime: DAY,
   });
 
   // Extract user IDs for filtered querying to avoid PostgREST row limits
   const userIds = useMemo(() => users?.map(u => u.id) || [], [users]);
 
-  const { data: attendanceReport, isLoading: attendanceLoading, error: attendanceError } = useQuery({
+  const { data: attendanceReport, isLoading: attendanceLoading, error: attendanceError, dataUpdatedAt: attendanceUpdatedAt } = useQuery({
     queryKey: ["attendance-report", fromDate, toDate, userIds],
     queryFn: async () => {
       if (userIds.length === 0) return [];
@@ -231,6 +238,7 @@ export default function AttendanceReports() {
       return allRecords;
     },
     enabled: userIds.length > 0,
+    staleTime: DAY,
   });
 
   const { data: leaveReport, isLoading: leaveLoading, error: leaveError } = useQuery({
@@ -262,6 +270,7 @@ export default function AttendanceReports() {
       return allRecords;
     },
     enabled: userIds.length > 0,
+    staleTime: DAY,
   });
 
   // Calculate days in selected range for working days calculation
@@ -481,10 +490,23 @@ export default function AttendanceReports() {
           <h1 className="text-3xl font-bold">Attendance Reports</h1>
           <p className="text-muted-foreground">View and export attendance data for any date range</p>
         </div>
-        <Button onClick={exportToCSV} disabled={isLoading}>
-          <Download className="mr-2 h-4 w-4" />
-          Export to CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <RefreshDataButton
+            queryKeys={[
+              ["users-list-extended"],
+              ["teams-list"],
+              ["designations-list"],
+              ["attendance-report"],
+              ["leave-report"],
+              ["company-holidays"],
+            ]}
+            lastUpdated={attendanceUpdatedAt}
+          />
+          <Button onClick={exportToCSV} disabled={isLoading}>
+            <Download className="mr-2 h-4 w-4" />
+            Export to CSV
+          </Button>
+        </div>
       </div>
 
       {hasError && (

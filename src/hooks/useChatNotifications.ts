@@ -4,10 +4,12 @@ import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { showBrowserNotification } from "@/services/pushNotifications";
+import { useBusinessHours } from "./useBusinessHours";
 
 export function useChatNotifications() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { liveUpdatesActive } = useBusinessHours();
 
   // Get current user
   const { data: currentUser } = useQuery({
@@ -20,6 +22,7 @@ export function useChatNotifications() {
 
   useEffect(() => {
     if (!currentUser) return;
+    if (!liveUpdatesActive) return;
 
     const channel = supabase
       .channel("chat-toast-notifications")
@@ -92,5 +95,5 @@ export function useChatNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUser, navigate, location.pathname]);
+  }, [currentUser, navigate, location.pathname, liveUpdatesActive]);
 }

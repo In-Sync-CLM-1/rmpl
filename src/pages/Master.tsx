@@ -526,7 +526,7 @@ export default function Master() {
         deppt: result?.deppt || [],
       };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 24 * 60 * 60 * 1000, // 24h — manual refresh available
   });
 
   // Fetch chart distribution data using Postgres-level aggregation (no row limit issues)
@@ -560,7 +560,7 @@ export default function Master() {
         empSize: parseChartData(result?.empSize),
       };
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 24 * 60 * 60 * 1000,
   });
 
   const activeFilterCount = Object.values(filters).reduce(

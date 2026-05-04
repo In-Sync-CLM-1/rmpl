@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useCallback, useMemo } from "react";
+import { useBusinessHours } from "./useBusinessHours";
 
 interface Participant {
   user_id: string;
@@ -20,6 +21,7 @@ interface ReadReceiptUser {
 
 export function useReadReceipts(conversationId: string | null, currentUserId: string) {
   const queryClient = useQueryClient();
+  const { liveUpdatesActive } = useBusinessHours();
 
   const { data: participants = [], isLoading } = useQuery({
     queryKey: ["chat-participants", conversationId],
@@ -45,6 +47,7 @@ export function useReadReceipts(conversationId: string | null, currentUserId: st
   // Subscribe to real-time updates for participant read status
   useEffect(() => {
     if (!conversationId) return;
+    if (!liveUpdatesActive) return;
 
     const channel = supabase
       .channel(`read-receipts-${conversationId}`)
@@ -65,7 +68,7 @@ export function useReadReceipts(conversationId: string | null, currentUserId: st
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, queryClient]);
+  }, [conversationId, queryClient, liveUpdatesActive]);
 
   // Get users who have read up to a specific message
   const getReadByUsers = useCallback(

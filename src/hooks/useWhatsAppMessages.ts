@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useEffect } from "react";
+import { useBusinessHours } from "./useBusinessHours";
 
 export interface WhatsAppMessage {
   id: string;
@@ -45,6 +46,7 @@ interface SendMessageParams {
 
 export function useWhatsAppMessages(demandcomId?: string, phoneNumber?: string) {
   const queryClient = useQueryClient();
+  const { liveUpdatesActive } = useBusinessHours();
 
   const queryKey = demandcomId
     ? ["whatsapp-messages", "demandcom", demandcomId, phoneNumber]
@@ -100,6 +102,7 @@ export function useWhatsAppMessages(demandcomId?: string, phoneNumber?: string) 
   // Set up realtime subscriptions — listen on both demandcom_id and phone_number
   // so inbound messages (which may have null demandcom_id) still trigger refresh
   useEffect(() => {
+    if (!liveUpdatesActive) return;
     const channels: ReturnType<typeof supabase.channel>[] = [];
 
     const invalidate = () => queryClient.invalidateQueries({ queryKey });
@@ -129,7 +132,7 @@ export function useWhatsAppMessages(demandcomId?: string, phoneNumber?: string) 
     return () => {
       channels.forEach(ch => supabase.removeChannel(ch));
     };
-  }, [demandcomId, phoneNumber, queryClient, queryKey]);
+  }, [demandcomId, phoneNumber, queryClient, queryKey, liveUpdatesActive]);
 
   const sendMessage = useMutation({
     mutationFn: async (params: SendMessageParams) => {

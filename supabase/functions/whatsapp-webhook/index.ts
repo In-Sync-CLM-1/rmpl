@@ -1,5 +1,6 @@
  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
- 
+ import { maybeDeferWebhook } from "../_shared/business-hours.ts";
+
  const corsHeaders = {
    'Access-Control-Allow-Origin': '*',
    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -91,7 +92,10 @@
    if (req.method === 'OPTIONS') {
      return new Response(null, { headers: corsHeaders });
    }
- 
+
+   const deferred = await maybeDeferWebhook(req, "whatsapp-webhook");
+   if (deferred) return deferred;
+
    try {
      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

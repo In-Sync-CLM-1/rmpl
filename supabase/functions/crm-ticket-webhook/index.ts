@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { maybeDeferWebhook } from "../_shared/business-hours.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,6 +28,10 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Defer outside business hours (after auth so we don't queue unauthorized requests)
+    const deferred = await maybeDeferWebhook(req, "crm-ticket-webhook");
+    if (deferred) return deferred;
 
     const payload = await req.json();
     const { tableName, operation, triggerData, orgId } = payload;

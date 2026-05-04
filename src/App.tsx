@@ -71,10 +71,11 @@ import KPITeamDashboard from "./pages/KPITeamDashboard";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 2 * 60 * 1000, // 2 minutes default
-      gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
-      refetchOnWindowFocus: false, // Don't refetch on tab focus
-      retry: 1, // Reduce retry attempts
+      staleTime: 30 * 60 * 1000, // 30 minutes default — reports use longer 24h overrides
+      gcTime: 60 * 60 * 1000, // 1 hour garbage collection
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      retry: 1,
     },
   },
 });

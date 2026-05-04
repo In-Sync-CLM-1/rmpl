@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CSBDTeamOverview } from "@/components/csbd/CSBDTeamOverview";
 import { format } from "date-fns";
+import { RefreshDataButton } from "@/components/RefreshDataButton";
 
 // Check if today is past the projection deadline for a given month (3rd of the month)
 const isPastDeadline = (monthDate: Date): boolean => {
@@ -282,6 +283,9 @@ const CSBDProjections = () => {
             <SelectItem value="2026">CY 2026</SelectItem>
           </SelectContent>
         </Select>
+        <RefreshDataButton
+          queryKeys={[["all-csbd-metrics"], ["csbd-projections"], ["csbd-target"], ["csbd-member-projects"]]}
+        />
         <Button variant="outline" size="sm">
           <Download className="mr-2 h-4 w-4" />
           Export
