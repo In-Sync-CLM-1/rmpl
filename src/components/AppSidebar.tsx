@@ -256,7 +256,7 @@ const fallbackNavigationSections: NavigationSection[] = [
       { title: "Leave Approvals", url: "/leave-approvals", icon: ShieldCheck, requiredPermission: 'canApproveLeaves' },
       { title: "Regularization Approvals", url: "/regularization-approvals", icon: FileBarChart, requiredPermission: 'canApproveLeaves' },
       { title: "Reports", url: "/attendance-reports", icon: ScrollText, requiredPermission: 'canViewAttendanceReports' },
-      { title: "Travel Expenses", url: "/travel-expenses", icon: Plane },
+      { title: "Expense Claim", url: "/travel-expenses", icon: Plane },
       { title: "Expense Approvals", url: "/travel-expense-approvals", icon: ShieldCheck, requiredPermission: 'canApproveLeaves' },
       { title: "Leave Limits", url: "/leave-limits", icon: SlidersHorizontal, requiredPermission: 'canAdjustLeaveBalances' },
       { title: "Salary Admin", url: "/salary-slips-admin", icon: UserRoundCog, requiredPermission: 'canManageSalarySlips' },

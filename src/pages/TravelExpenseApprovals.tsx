@@ -70,7 +70,7 @@ export default function TravelExpenseApprovals() {
           <ShieldCheck className="h-7 w-7" />
           Expense Approvals
         </h1>
-        <p className="text-muted-foreground mb-8">Review and approve travel expense claims from your team</p>
+        <p className="text-muted-foreground mb-8">Review and approve expense claims from your team</p>
         <Card>
           <CardContent className="py-12 text-center">
             <CheckCircle className="h-12 w-12 mx-auto text-green-500/30 mb-3" />
@@ -88,7 +88,7 @@ export default function TravelExpenseApprovals() {
           <ShieldCheck className="h-7 w-7" />
           Expense Approvals
         </h1>
-        <p className="text-muted-foreground">Review and approve travel expense claims from your team</p>
+        <p className="text-muted-foreground">Review and approve expense claims from your team</p>
       </div>
 
       <Tabs defaultValue="pending">

@@ -46,9 +46,9 @@ export default function TravelExpenseClaims() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Plane className="h-7 w-7" />
-            Travel Expenses
+            Expense Claim
           </h1>
-          <p className="text-muted-foreground">Submit and track your travel expense claims</p>
+          <p className="text-muted-foreground">Submit and track your expense claims</p>
         </div>
         <Button onClick={() => setCreateOpen(true)} size="lg">
           <Plus className="mr-2 h-4 w-4" />
