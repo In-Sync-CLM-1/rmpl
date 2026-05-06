@@ -17,9 +17,7 @@ export function NotificationBell() {
 
   const handleNotificationClick = async (notification: any) => {
     await markAsRead(notification.id);
-    if (notification.conversation_id) {
-      navigate(`/chat/${notification.conversation_id}`);
-    } else if (notification.task_id) {
+    if (notification.task_id) {
       navigate('/tasks');
     }
   };

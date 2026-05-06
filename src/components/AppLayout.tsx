@@ -13,16 +13,10 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { AttendanceGate } from "@/components/attendance/AttendanceGate";
 import { SignOutReminder } from "@/components/attendance/SignOutReminder";
 import { QuietHoursBanner } from "@/components/QuietHoursBanner";
- import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
-import { PushNotificationPermission } from "@/components/chat/PushNotificationPermission";
-import { useChatNotifications } from "@/hooks/useChatNotifications";
-import { useTabNotifications } from "@/hooks/useTabNotifications";
 
 import { getRolePermissions } from "@/lib/rolePermissions";
 
 export function AppLayout() {
-  useChatNotifications();
-  useTabNotifications();
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
@@ -133,8 +127,6 @@ export function AppLayout() {
             </main>
           </div>
           <SignOutReminder user={user} />
-           <FloatingChatWidget />
-          <PushNotificationPermission />
         </AttendanceGate>
       </SidebarProvider>
       <OnboardingModal />

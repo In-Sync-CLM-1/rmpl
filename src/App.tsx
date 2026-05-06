@@ -55,7 +55,6 @@ import EmployeeDirectory from "./pages/EmployeeDirectory";
 import Install from "./pages/Install";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
-import Chat from "./pages/Chat";
 // WhatsApp settings removed from frontend — managed via backend only
 import OnboardingPublicForm from "./pages/OnboardingPublicForm";
 import HROnboardingAdmin from "./pages/HROnboardingAdmin";
@@ -150,8 +149,6 @@ const App = () => (
               <Route path="/new-joiner-documents" element={<NewJoinerDocuments />} />
               <Route path="/employee-directory" element={<EmployeeDirectory />} />
               <Route path="/hr-onboarding" element={<HROnboardingAdmin />} />
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/chat/:conversationId" element={<Chat />} />
               {/* WhatsApp settings removed — managed via backend */}
               <Route path="/vapi-scheduler" element={<VapiScheduler />} />
               <Route path="/travel-expenses" element={<TravelExpenseClaims />} />
