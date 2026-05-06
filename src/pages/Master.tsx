@@ -9,6 +9,7 @@ import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
 import { ClientSideExportDialog } from "@/components/ClientSideExportDialog";
 import { SyncProgressDialog } from "@/components/SyncProgressDialog";
+import { RefreshDataButton } from "@/components/RefreshDataButton";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -734,6 +735,9 @@ export default function Master() {
             </div>
           </div>
           <div className="flex gap-2">
+            <RefreshDataButton
+              queryKeys={[["master-filter-options"], ["master-chart-data"], ["master"]]}
+            />
             <Button
               onClick={() => setShowFilters(!showFilters)}
               variant={activeFilterCount > 0 ? "default" : "outline"}

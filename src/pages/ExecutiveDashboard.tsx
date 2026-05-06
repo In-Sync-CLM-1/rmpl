@@ -11,6 +11,7 @@ import { TrendingUp, Settings, Eye, Target, Calendar, Users, IndianRupee, Chevro
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CSBDInsights } from "@/components/csbd/CSBDInsights";
+import { RefreshDataButton } from "@/components/RefreshDataButton";
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -138,6 +139,9 @@ const ExecutiveDashboard = () => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <RefreshDataButton
+            queryKeys={[["all-csbd-metrics"], ["csbd-member-projects"]]}
+          />
           {canManageTargets && (
             <Button variant="outline" size="sm" onClick={() => navigate('/csbd-targets')} className="text-xs sm:text-sm glass-card border-border/50">
               <Settings className="mr-1 h-3.5 w-3.5" />

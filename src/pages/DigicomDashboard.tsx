@@ -15,6 +15,7 @@ import {
   CheckCircle2, Clock, AlertTriangle, Zap, TrendingUp, FolderKanban,
   ListTodo, Trophy, Target, Users, Timer, ArrowUp, Flame, Star,
 } from "lucide-react";
+import { RefreshDataButton } from "@/components/RefreshDataButton";
 
 interface MemberStat {
   user_id: string;
@@ -145,12 +146,15 @@ export default function DigicomDashboard() {
             {members.length} team member{members.length !== 1 ? "s" : ""} &middot; {format(new Date(monthStart), "MMMM yyyy")}
           </p>
         </div>
-        <Input
-          type="month"
-          value={monthStart.slice(0, 7)}
-          onChange={handleMonthChange}
-          className="w-44"
-        />
+        <div className="flex items-center gap-2">
+          <RefreshDataButton queryKeys={[["digicom-dashboard"]]} />
+          <Input
+            type="month"
+            value={monthStart.slice(0, 7)}
+            onChange={handleMonthChange}
+            className="w-44"
+          />
+        </div>
       </div>
 
       {/* Scrollable Content */}

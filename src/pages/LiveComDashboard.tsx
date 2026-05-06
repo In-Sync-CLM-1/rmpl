@@ -28,6 +28,7 @@ import {
 import { Star, TrendingUp, DollarSign, Award, Building2, ChevronDown, ChevronUp, AlertTriangle, Sparkles, CheckCircle2, BarChart2, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RefreshDataButton } from "@/components/RefreshDataButton";
 
 export default function LiveComDashboard() {
   const [dateFrom, setDateFrom] = useState("");
@@ -102,6 +103,7 @@ export default function LiveComDashboard() {
             <p className="text-sm text-muted-foreground">Events, vendors & performance overview</p>
           </div>
           <div className="flex gap-2 items-center">
+            <RefreshDataButton queryKeys={[["livecom-dashboard"]]} />
             <Input
               type="date"
               value={dateFrom}

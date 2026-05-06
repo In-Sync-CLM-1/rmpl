@@ -7,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, Loader2, ChevronRight } from "lucide-react";
+import { BarChart3, Loader2, ChevronRight, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 // ─── CSBD types ───────────────────────────────────────────────────────────────
 interface KPIDefinition {
@@ -93,6 +95,7 @@ export default function KPITeamDashboard() {
   const [selectedRoleMember, setSelectedRoleMember] = useState<RoleMember | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   // ── Access check ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -178,7 +181,12 @@ export default function KPITeamDashboard() {
       }
     };
     load();
-  }, [hasAccess, selectedYear]);
+  }, [hasAccess, selectedYear, refreshTick]);
+
+  const handleRefresh = () => {
+    setRefreshTick((v) => v + 1);
+    toast.success("Refreshing data…");
+  };
 
   // ── CSBD maps ─────────────────────────────────────────────────────────────
   const csbdAssessmentMap = useMemo(() => {
@@ -308,14 +316,20 @@ export default function KPITeamDashboard() {
           subtitle="Team KPI assessment overview"
           icon={BarChart3}
         />
-        <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(Number(v))}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {yearOptions.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            {isLoading ? "Refreshing..." : "Refresh data"}
+          </Button>
+          <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(Number(v))}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* ── CSBD Team Card ─────────────────────────────────────────────────── */}
