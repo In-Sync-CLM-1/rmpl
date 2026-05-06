@@ -111,12 +111,48 @@ serve(async (req) => {
     const processedSubject = replaceMergeTags(subject, merge_data);
     const processedBody = replaceMergeTags(html_body, merge_data);
 
+    // Log to email_activity_log first so we can use the row id as the
+    // reply-thread token. If caller passed an explicit reply_to, we honour it
+    // and skip threading (back-compat for approval/system emails).
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false },
+    });
+
+    let activityLogId: string | null = null;
+    if (!reply_to) {
+      const { data: logRow, error: logErr } = await serviceClient
+        .from('email_activity_log')
+        .insert({
+          sent_by: user.id,
+          provider: 'resend',
+          from_email: 'approval@redefinemarcom.in',
+          to_email,
+          subject: processedSubject,
+          demandcom_id: demandcom_id || null,
+          template_id: template_id || null,
+          status: 'pending',
+          sent_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      if (logErr) {
+        console.warn('email_activity_log insert failed (continuing without threading):', logErr);
+      } else if (logRow) {
+        activityLogId = (logRow as any).id;
+      }
+    }
+
+    const threadedReplyTo = activityLogId
+      ? `reply+${activityLogId}@reply.rmpl.in-sync.co.in`
+      : reply_to || undefined;
+
     // Initialize Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
       throw new Error('RESEND_API_KEY not configured');
     }
-    
+
     const resend = new Resend(resendApiKey);
 
     // Send email
@@ -125,12 +161,25 @@ serve(async (req) => {
       to: [to_email],
       subject: processedSubject,
       html: processedBody,
-      reply_to: reply_to || undefined,
+      reply_to: threadedReplyTo,
     });
 
     if (emailResponse.error) {
       console.error('Resend error:', emailResponse.error);
+      if (activityLogId) {
+        await serviceClient
+          .from('email_activity_log')
+          .update({ status: 'failed', error_message: emailResponse.error.message })
+          .eq('id', activityLogId);
+      }
       throw new Error(emailResponse.error.message || 'Failed to send email');
+    }
+
+    if (activityLogId) {
+      await serviceClient
+        .from('email_activity_log')
+        .update({ status: 'sent' })
+        .eq('id', activityLogId);
     }
 
     console.log(`Email sent successfully. Resend ID: ${emailResponse.data?.id}`);

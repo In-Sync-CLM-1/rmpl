@@ -233,6 +233,12 @@ const fallbackNavigationSections: NavigationSection[] = [
     ],
   },
   {
+    label: "COMMUNICATION",
+    items: [
+      { title: "Inbox", url: "/inbox", icon: Inbox },
+    ],
+  },
+  {
     label: "TASKS",
     items: [
       { title: "All Tasks", url: "/tasks", icon: ClipboardList },

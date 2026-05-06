@@ -177,3 +177,6 @@ verify_jwt = true
 
 [functions.create-whatsapp-template]
 verify_jwt = false
+
+[functions.email-inbound-webhook]
+verify_jwt = false

@@ -22,6 +22,17 @@ export interface SendEmailJob {
   subject?: string | null;
   bodyHtml?: string | null;
   bodyText?: string | null;
+  // Optional: user who initiated the send (used for email_activity_log.sent_by)
+  sentBy?: string | null;
+}
+
+// Domain used for inbound reply threading. Replies arrive at
+// reply+<email_activity_log.id>@<REPLY_DOMAIN>, are routed to a
+// Cloudflare Email Worker, and posted to the email-inbound-webhook function.
+const REPLY_DOMAIN = "reply.rmpl.in-sync.co.in";
+
+function buildReplyTo(activityLogId: string): string {
+  return `reply+${activityLogId}@${REPLY_DOMAIN}`;
 }
 
 export interface SendEmailResult {
@@ -170,7 +181,7 @@ export async function sendEmailJob(
   resend: Resend,
   job: SendEmailJob
 ): Promise<SendEmailResult> {
-  const { mode, demandcomId, filters, templateId, subject, bodyHtml, bodyText } = job;
+  const { mode, demandcomId, filters, templateId, subject, bodyHtml, bodyText, sentBy = null } = job;
 
   let templateSubject = subject || "";
   let templateBodyHtml = bodyHtml
@@ -241,28 +252,74 @@ export async function sendEmailJob(
 
   for (let i = 0; i < emailRecords.length; i += BATCH_SIZE) {
     const batch = emailRecords.slice(i, i + BATCH_SIZE);
-    const emails = batch.map((record) => {
+
+    // Log each outbound email up-front so we can use the row id as the
+    // reply-thread token. Resend gets `Reply-To: reply+<id>@reply.rmpl.in-sync.co.in`.
+    const logRows = batch.map((record) => {
+      const toEmail = record.official || record.personal_email_id || record.generic_email_id || "";
+      const mergeData = buildMergeData(record);
+      return {
+        sent_by: sentBy,
+        provider: "resend",
+        from_email: "events@redefinemarcom.in",
+        to_email: toEmail,
+        subject: replaceMergeTags(templateSubject, mergeData),
+        demandcom_id: record.id,
+        template_id: templateId || null,
+        status: "pending",
+        sent_at: new Date().toISOString(),
+      };
+    });
+
+    const { data: insertedLogs, error: logErr } = await serviceClient
+      .from("email_activity_log" as any)
+      .insert(logRows)
+      .select("id");
+
+    if (logErr || !insertedLogs || insertedLogs.length !== batch.length) {
+      console.error("Email activity log insert failed:", logErr);
+      failed += batch.length;
+      continue;
+    }
+
+    const emails = batch.map((record, idx) => {
       const mergeData = buildMergeData(record);
       const toEmail = record.official || record.personal_email_id || record.generic_email_id || "";
+      const logId = (insertedLogs[idx] as any).id;
       return {
         from: "Redefine <events@redefinemarcom.in>",
         to: [toEmail],
         subject: replaceMergeTags(templateSubject, mergeData),
         html: replaceMergeTags(templateBodyHtml, mergeData),
+        reply_to: buildReplyTo(logId),
       };
     });
+
+    const logIds = insertedLogs.map((r: any) => r.id);
 
     try {
       const { error: batchError } = await resend.batch.send(emails as any);
       if (batchError) {
         console.error("Batch send error:", batchError);
         failed += batch.length;
+        await serviceClient
+          .from("email_activity_log" as any)
+          .update({ status: "failed", error_message: String(batchError) })
+          .in("id", logIds);
       } else {
         sent += batch.length;
+        await serviceClient
+          .from("email_activity_log" as any)
+          .update({ status: "sent" })
+          .in("id", logIds);
       }
     } catch (err) {
       console.error("Batch send exception:", err);
       failed += batch.length;
+      await serviceClient
+        .from("email_activity_log" as any)
+        .update({ status: "failed", error_message: String(err) })
+        .in("id", logIds);
     }
   }
 

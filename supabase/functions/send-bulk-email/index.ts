@@ -58,6 +58,7 @@ serve(async (req) => {
 
     const body: SendBulkEmailRequest = await req.json();
     const { mode, demandcomId, filters, templateId, subject, bodyHtml, bodyText, scheduledFor } = body;
+    const senderId = user.id;
 
     // ---- Schedule for later ----------------------------------------------
     if (scheduledFor) {
@@ -134,6 +135,7 @@ serve(async (req) => {
       subject,
       bodyHtml,
       bodyText,
+      sentBy: senderId,
     });
 
     return new Response(
