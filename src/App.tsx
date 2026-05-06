@@ -67,6 +67,7 @@ import TravelExpenseApprovals from "./pages/TravelExpenseApprovals";
 import ApprovalResult from "./pages/ApprovalResult";
 import KPISelfAssessment from "./pages/KPISelfAssessment";
 import KPITeamDashboard from "./pages/KPITeamDashboard";
+import ExpenseReimbursement from "./pages/ExpenseReimbursement";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -155,6 +156,7 @@ const App = () => (
               <Route path="/travel-expense-approvals" element={<TravelExpenseApprovals />} />
               <Route path="/kpi-self-assessment" element={<KPISelfAssessment />} />
               <Route path="/kpi-team-dashboard" element={<KPITeamDashboard />} />
+              <Route path="/expense-reimbursement" element={<ExpenseReimbursement />} />
 
               <Route path="/admin/data-export" element={<DataExport />} />
             </Route>

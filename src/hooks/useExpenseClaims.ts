@@ -35,6 +35,7 @@ export interface ExpenseClaim {
   approved_at: string | null;
   rejection_reason: string | null;
   reimbursed_at: string | null;
+  reimbursed_by: string | null;
   proof_urls: ProofFile[];
   created_at: string;
   updated_at: string;
@@ -342,6 +343,66 @@ export function useRejectClaim() {
     },
     onError: (err: Error) => {
       toast.error("Failed to reject: " + err.message);
+    },
+  });
+}
+
+export function useApprovedForPayment() {
+  return useQuery({
+    queryKey: ["expense-approved-for-payment"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("travel_expense_claims" as any)
+        .select("*, profiles:user_id(full_name, email), approver:approved_by(full_name), projects:project_id(project_name)")
+        .in("status", ["approved", "partially_approved"])
+        .order("approved_at", { ascending: true });
+      if (error) throw error;
+      return (data || []) as unknown as ExpenseClaim[];
+    },
+  });
+}
+
+export function useReimbursedClaims() {
+  return useQuery({
+    queryKey: ["expense-reimbursed"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("travel_expense_claims" as any)
+        .select("*, profiles:user_id(full_name, email), approver:approved_by(full_name), projects:project_id(project_name)")
+        .eq("status", "reimbursed")
+        .order("reimbursed_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data || []) as unknown as ExpenseClaim[];
+    },
+  });
+}
+
+export function useMarkReimbursed() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ claimIds, userId }: { claimIds: string[]; userId: string }) => {
+      if (claimIds.length === 0) return;
+      const { error } = await supabase
+        .from("travel_expense_claims" as any)
+        .update({
+          status: "reimbursed",
+          reimbursed_at: new Date().toISOString(),
+          reimbursed_by: userId,
+        })
+        .in("id", claimIds)
+        .in("status", ["approved", "partially_approved"]);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["expense-approved-for-payment"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-reimbursed"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-all-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-claim-detail"] });
+      toast.success(`${vars.claimIds.length} claim${vars.claimIds.length === 1 ? "" : "s"} marked as reimbursed.`);
+    },
+    onError: (err: Error) => {
+      toast.error("Failed to mark as reimbursed: " + err.message);
     },
   });
 }

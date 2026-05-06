@@ -272,6 +272,12 @@ const fallbackNavigationSections: NavigationSection[] = [
     ],
   },
   {
+    label: "ACCOUNTS",
+    items: [
+      { title: "Reimbursements", url: "/expense-reimbursement", icon: Wallet },
+    ],
+  },
+  {
     label: "LIVECOM",
     items: [
       { title: "Dashboard", url: "/livecom-dashboard", icon: Zap },
