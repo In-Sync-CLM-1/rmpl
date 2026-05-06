@@ -109,10 +109,22 @@ Deno.serve(async (req) => {
     const responseData = await response.json();
     console.log("Exotel API response:", response.status, JSON.stringify(responseData));
 
+    const detectDND = (msg: string | undefined, code: string | number | undefined): boolean => {
+      const m = (msg || "").toLowerCase();
+      if (m.includes("dnd") || m.includes("do not disturb") || m.includes("ncpr") || m.includes("do-not-disturb")) {
+        return true;
+      }
+      const codeStr = String(code || "");
+      if (["11200", "11201", "11202", "11203"].includes(codeStr)) return true;
+      return false;
+    };
+
     if (!response.ok) {
       const exotelMsg = responseData?.RestException?.Message || "Failed to initiate call";
+      const exotelCode = responseData?.RestException?.Code;
+      const isDND = detectDND(exotelMsg, exotelCode);
       return new Response(
-        JSON.stringify({ success: false, error: exotelMsg, details: responseData }),
+        JSON.stringify({ success: false, error: exotelMsg, dnd: isDND, details: responseData }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

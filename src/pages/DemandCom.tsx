@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Mail, Phone, MapPin, LogOut, LayoutDashboard, Upload, Filter, Download, Send, X, Check, ChevronsUpDown, Users, Trash2, MessageSquare } from "lucide-react";
+import { Plus, Search, Mail, Phone, MapPin, LogOut, LayoutDashboard, Upload, Filter, Download, Send, X, Check, ChevronsUpDown, Users, Trash2, MessageSquare, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -20,6 +20,7 @@ import { ClientSideExportDialog } from "@/components/ClientSideExportDialog";
 import { DemandComAssignmentDialog } from "@/components/DemandComAssignmentDialog";
 import { BulkSelectAssignDialog } from "@/components/BulkSelectAssignDialog";
 import { DeleteActivityDialog } from "@/components/DeleteActivityDialog";
+import { AutoDialerSession } from "@/components/AutoDialerSession";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
 import { WhatsAppHistory } from "@/components/whatsapp/WhatsAppHistory";
 import { SendEmailDialog } from "@/components/email/SendEmailDialog";
@@ -132,6 +133,8 @@ export default function DemandCom() {
   const [showBulkAssignDialog, setShowBulkAssignDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showDeleteActivityDialog, setShowDeleteActivityDialog] = useState(false);
+  const [showAutoDialer, setShowAutoDialer] = useState(false);
+  const [autoDialerUserPhone, setAutoDialerUserPhone] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuthAndFetchDemandCom();
@@ -552,6 +555,41 @@ export default function DemandCom() {
             </p>
           </div>
           <div className="flex gap-2">
+            {selectedIds.size > 0 && (
+              <Button
+                onClick={async () => {
+                  if (selectedIds.size > 100) {
+                    toast.error("Auto-dialler is limited to 100 contacts per session. Please narrow your selection.");
+                    return;
+                  }
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) {
+                    toast.error("You must be signed in.");
+                    return;
+                  }
+                  const { data: profile } = await supabase
+                    .from("profiles")
+                    .select("phone")
+                    .eq("id", user.id)
+                    .single();
+                  if (!profile?.phone) {
+                    toast.error("Add your phone number in My Profile before using the auto-dialler.");
+                    return;
+                  }
+                  setAutoDialerUserPhone(profile.phone);
+                  setShowAutoDialer(true);
+                }}
+                variant="default"
+                className="shadow-elegant relative bg-emerald-600 hover:bg-emerald-700 gap-2"
+                title="Auto-dial selected contacts (max 100)"
+              >
+                <PhoneCall className="h-4 w-4" />
+                <span>Auto-Dial</span>
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs bg-amber-500 text-white">
+                  {selectedIds.size}
+                </Badge>
+              </Button>
+            )}
             {canAssign && selectedIds.size > 0 && (
               <Button
                 onClick={() => setShowAssignmentDialog(true)}
@@ -1071,6 +1109,30 @@ export default function DemandCom() {
         open={showDeleteActivityDialog}
         onOpenChange={setShowDeleteActivityDialog}
         onSuccess={checkAuthAndFetchDemandCom}
+      />
+
+      <AutoDialerSession
+        open={showAutoDialer}
+        onOpenChange={setShowAutoDialer}
+        userPhone={autoDialerUserPhone}
+        leads={demandComRecords
+          .filter((r) => selectedIds.has(r.id))
+          .map((r) => ({
+            id: r.id,
+            name: r.name,
+            mobile_numb: r.mobile_numb,
+            company_name: r.company_name,
+            designation: r.designation,
+            city: r.city,
+            latest_disposition: r.latest_disposition,
+            latest_subdisposition: r.latest_subdisposition,
+            next_call_date: r.next_call_date,
+            remarks: r.remarks,
+          }))}
+        onSessionEnd={() => {
+          setSelectedIds(new Set());
+          checkAuthAndFetchDemandCom();
+        }}
       />
 
       {/* WhatsApp Conversation Dialog */}
